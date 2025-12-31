@@ -1,0 +1,9 @@
+server:
+  port: 6001
+spring:
+  application:
+    name: award_giving
+  jackson:
+    time-zone: Asia/Shanghai
+  profiles:
+    active: #spring.profiles.active#
