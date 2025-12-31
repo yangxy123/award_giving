@@ -3,9 +3,9 @@ spring:
    profiles: dev
    datasource:
      druid:
-        url: jdbc:mysql://127.0.0.1:3306/delivery?serverTimezone=Asia/Shanghai&characterEncoding=utf8&useSSL=false
-        username: root
-        password: yang751659
+        url: jdbc:mysql://dev.mvkbnb.com:55555/game_client?serverTimezone=Asia/Shanghai&characterEncoding=utf8&useSSL=false
+        username: gwuser
+        password: gw123qweZSE
         driver-class-name: com.mysql.cj.jdbc.Driver
         type: com.alibaba.druid.pool.DruidDataSource
         #initialSize: 10
