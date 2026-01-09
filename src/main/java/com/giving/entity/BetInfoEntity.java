@@ -12,7 +12,7 @@ import lombok.Data;
  * @version 创建时间：2025年11月25日 上午11:43:37
  */
 @Data
-@TableName("projects")
+@TableName("TEMP_projects")
 public class BetInfoEntity {
 	@TableId
 	private String projectId;// 方案ID

@@ -1,5 +1,7 @@
 package com.giving.mapper;
 
+import java.util.List;
+
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
@@ -13,8 +15,8 @@ import com.giving.entity.BetInfoEntity;
 public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	@Select({
 		"<script>"
-		+ "select tt from ${table} "
-		+ "where code = #{param}"
+		+ "select project_id projectId from ${table} "
+		+ "where project_id = #{where1} and ttt=#{where2}"
 		+ "</script>"
 	})
 	/**
@@ -24,5 +26,5 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	* @param table 表名
 	* @param param 查询参数
 	 */
-	public void test(@Param("table")String table,@Param("where1")String param);
+	public List<BetInfoEntity> test(@Param("table")String table,@Param("where1")String param,@Param("where2")String param1);
 }
