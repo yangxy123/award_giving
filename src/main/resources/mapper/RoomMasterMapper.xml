@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.RoomMasterMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.RoomMasterEntity">
+            <id property="id" column="id" jdbcType="INTEGER"/>
+            <result property="masterId" column="master_id" jdbcType="INTEGER"/>
+            <result property="businessType" column="business_type" jdbcType="INTEGER"/>
+            <result property="thirdpartyStatus" column="thirdparty_status" jdbcType="TINYINT"/>
+            <result property="title" column="title" jdbcType="VARCHAR"/>
+            <result property="name" column="name" jdbcType="VARCHAR"/>
+            <result property="security" column="security" jdbcType="VARCHAR"/>
+            <result property="nickName" column="nick_name" jdbcType="VARCHAR"/>
+            <result property="country" column="country" jdbcType="VARCHAR"/>
+            <result property="userLang" column="user_lang" jdbcType="VARCHAR"/>
+            <result property="currency" column="currency" jdbcType="VARCHAR"/>
+            <result property="loginType" column="login_type" jdbcType="INTEGER"/>
+            <result property="betType" column="bet_type" jdbcType="INTEGER"/>
+            <result property="sendMoneyType" column="send_money_type" jdbcType="INTEGER"/>
+            <result property="userWalletType" column="user_wallet_type" jdbcType="INTEGER"/>
+            <result property="thirdpartyAccesstokenCheckUrl" column="thirdparty_accesstoken_check_url" jdbcType="VARCHAR"/>
+            <result property="thirdpartyLoginFailedUrl" column="thirdparty_login_failed_url" jdbcType="VARCHAR"/>
+            <result property="lotteryInService" column="lottery_in_service" jdbcType="VARCHAR"/>
+            <result property="miscInfo" column="misc_info" jdbcType="VARCHAR"/>
+            <result property="cdnInfo" column="cdn_info" jdbcType="VARCHAR"/>
+            <result property="directInfo" column="direct_info" jdbcType="VARCHAR"/>
+            <result property="isActive" column="is_active" jdbcType="INTEGER"/>
+            <result property="isShowPointBar" column="is_show_point_bar" jdbcType="INTEGER"/>
+            <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+            <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,master_id,business_type,
+        thirdparty_status,title,name,
+        security,nick_name,country,
+        user_lang,currency,login_type,
+        bet_type,send_money_type,user_wallet_type,
+        thirdparty_accesstoken_check_url,thirdparty_login_failed_url,lottery_in_service,
+        misc_info,cdn_info,direct_info,
+        is_active,is_show_point_bar,created_at,
+        updated_at
+    </sql>
+    <select id="selectTitle" resultType="java.lang.String">
+        select DISTINCT title from room_master
+    </select>
+</mapper>

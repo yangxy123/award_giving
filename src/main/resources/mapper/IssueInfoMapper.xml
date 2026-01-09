@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.IssueInfoMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.IssueInfoEntity">
+            <result property="issueId" column="issue_id" jdbcType="INTEGER"/>
+            <result property="lotteryId" column="lottery_id" jdbcType="BIGINT"/>
+            <result property="code" column="code" jdbcType="VARCHAR"/>
+            <result property="issue" column="issue" jdbcType="VARCHAR"/>
+            <result property="jobId" column="job_id" jdbcType="VARCHAR"/>
+            <result property="openDate" column="open_date" jdbcType="TIMESTAMP"/>
+            <result property="belongDate" column="belong_date" jdbcType="VARCHAR"/>
+            <result property="autoissueBelongDate" column="autoissue_belong_date" jdbcType="DATE"/>
+            <result property="saleStart" column="sale_start" jdbcType="TIMESTAMP"/>
+            <result property="saleEnd" column="sale_end" jdbcType="TIMESTAMP"/>
+            <result property="cancelDeadline" column="cancel_deadline" jdbcType="TIMESTAMP"/>
+            <result property="writeTime" column="write_time" jdbcType="TIMESTAMP"/>
+            <result property="writeId" column="write_id" jdbcType="INTEGER"/>
+            <result property="statusFetch" column="status_fetch" jdbcType="INTEGER"/>
+            <result property="statusCode" column="status_code" jdbcType="INTEGER"/>
+            <result property="cancelStatus" column="cancel_status" jdbcType="INTEGER"/>
+            <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+            <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+            <result property="drawType" column="draw_type" jdbcType="INTEGER"/>
+            <result property="random" column="random" jdbcType="INTEGER"/>
+            <result property="isClose" column="is_close" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        issue_id,lottery_id,code,
+        issue,job_id,open_date,
+        belong_date,autoissue_belong_date,sale_start,
+        sale_end,cancel_deadline,write_time,
+        write_id,status_fetch,status_code,
+        cancel_status,created_at,updated_at,
+        draw_type,random,is_close
+    </sql>
+    <insert id="insertIssueToRooms">
+        <foreach collection="titles" item="prefix" open="" close="" separator=";">
+            INSERT INTO `${prefix}_issue_info`
+            (
+            issue_id, lottery_id, code, issue, job_id, open_date,belong_date,sale_start,sale_end,cancel_deadline,write_time,write_id
+            )
+            VALUES
+            (
+            #{issueInfo.issueId},
+            #{issueInfo.lotteryId},
+            #{issueInfo.code},
+            #{issueInfo.issue},
+            #{issueInfo.jobId},
+            #{issueInfo.openDate},
+            #{issueInfo.belongDate},
+            #{issueInfo.saleStart},
+            #{issueInfo.saleEnd},
+            #{issueInfo.cancelDeadline},
+            #{issueInfo.writeTime},
+            #{issueInfo.writeId}
+            )
+        </foreach>
+    </insert>
+</mapper>
