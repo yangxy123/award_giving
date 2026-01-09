@@ -14,7 +14,7 @@ import lombok.Data;
 public class NoticeReq {
 	@NotNull(message = "彩种ID不能为空")
 	@ApiModelProperty(value = "彩种ID",required = true)
-	private Integer lotteryId;
+	private Long lotteryId;
 	
 	@NotBlank(message = "奖期期号不能为空")
 	@ApiModelProperty(value = "奖期期号",required = true)
@@ -23,4 +23,8 @@ public class NoticeReq {
 	@NotBlank(message = "号码不能为空")
 	@ApiModelProperty(value = "号码",required = true)
 	private String code;
+
+	@NotBlank(message = "表名")
+	@ApiModelProperty(value = "表名",required = true)
+	private String tableName;
 }

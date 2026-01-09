@@ -44,6 +44,6 @@
         updated_at
     </sql>
     <select id="selectTitle" resultType="java.lang.String">
-        select DISTINCT title from room_master
+        select DISTINCT title from room_master where is_active = 1
     </select>
 </mapper>

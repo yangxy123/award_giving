@@ -5,10 +5,13 @@ import com.giving.entity.IssueInfoEntity;
 import com.giving.mapper.IssueInfoMapper;
 import com.giving.mapper.RoomMasterMapper;
 import com.giving.req.DrawSourceReq;
+import com.giving.req.NoticeReq;
+import com.giving.service.AwardGivingService;
 import com.giving.service.AwardingProcessService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.Date;
 import java.util.List;
@@ -25,6 +28,10 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 
     @Autowired
     RoomMasterMapper roomMasterMapper;
+
+    @Autowired
+    AwardGivingService awardGivingService;
+
     /**
      * 派奖流程
      * @param req
@@ -40,6 +47,10 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         if(ObjectUtils.isEmpty(issueInfo)){
             return;
         }
+        if(!StringUtils.isEmpty(issueInfo.getCode()))
+        {
+            return;
+        }
         //修改奖期
         issueInfo.setCode(req.getWinCode());
         issueInfo.setWriteTime(new Date());
@@ -49,6 +60,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         issueInfoMapper.updateById(issueInfo);
 
         updateRoomsIssueInfo(issueInfo);
+
     }
     /**
      * 写入各平台商的平台商奖期表
@@ -60,6 +72,16 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         //3.把主奖期表的号码写入各平台商奖期表中
         issueInfoMapper.insertIssueToRooms(titles,issueInfo);
         //todo:4.号码写入后查询该期订单（cn007_projects），通过对应订单的玩法(method)进行验派
+        new Thread(() -> {
+            for (String title : titles) {
+                NoticeReq n = new NoticeReq();
+                n.setTableName(title + "_issue_info");
+                n.setIssue(issueInfo.getIssue());
+                n.setCode(issueInfo.getCode());
+                n.setLotteryId(issueInfo.getLotteryId());
+                awardGivingService.notice(n);
+            }
+        }).start();
         //  5.验派后出现的金额变化写入账变表(cn007_orders)，并修改用户余额(cn007_user_fund)
     }
 }

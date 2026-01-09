@@ -39,25 +39,19 @@
     </sql>
     <insert id="insertIssueToRooms">
         <foreach collection="titles" item="prefix" open="" close="" separator=";">
-            INSERT INTO `${prefix}_issue_info`
-            (
-            issue_id, lottery_id, code, issue, job_id, open_date,belong_date,sale_start,sale_end,cancel_deadline,write_time,write_id
-            )
-            VALUES
-            (
-            #{issueInfo.issueId},
-            #{issueInfo.lotteryId},
-            #{issueInfo.code},
-            #{issueInfo.issue},
-            #{issueInfo.jobId},
-            #{issueInfo.openDate},
-            #{issueInfo.belongDate},
-            #{issueInfo.saleStart},
-            #{issueInfo.saleEnd},
-            #{issueInfo.cancelDeadline},
-            #{issueInfo.writeTime},
-            #{issueInfo.writeId}
-            )
+            UPDATE `${prefix}_issue_info` set
+            code = #{issueInfo.code},
+            status_fetch = 2,
+            status_code = 2,
+            open_date = #{issueInfo.openDate},
+            write_time = now(),
+            write_id = 0,
+            verify_time = now(),
+            updated_at = now(),
+            status_check_bonus = 2,
+            status_bonus = 2,
+            status_task_to_project = 2
+            where issue_id = #{issueInfo.issueId}
         </foreach>
     </insert>
 </mapper>
