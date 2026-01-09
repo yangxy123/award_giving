@@ -2,7 +2,9 @@ package com.giving.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.giving.entity.IssueInfoEntity;
+import com.giving.entity.LotteryEntity;
 import com.giving.mapper.IssueInfoMapper;
+import com.giving.mapper.LotteryMapper;
 import com.giving.mapper.RoomMasterMapper;
 import com.giving.req.DrawSourceReq;
 import com.giving.req.NoticeReq;
@@ -31,6 +33,9 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 
     @Autowired
     AwardGivingService awardGivingService;
+
+    @Autowired
+    LotteryMapper lotteryMapper;
 
     /**
      * 派奖流程
@@ -75,11 +80,27 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         new Thread(() -> {
             for (String title : titles) {
                 NoticeReq n = new NoticeReq();
+                n.setTitle(title);
                 n.setTableName(title + "_issue_info");
                 n.setIssue(issueInfo.getIssue());
                 n.setCode(issueInfo.getCode());
                 n.setLotteryId(issueInfo.getLotteryId());
-                awardGivingService.notice(n);
+                List<LotteryEntity> lotter18 = lotteryMapper.selectLotterIdIn18();
+                //18--越南自开
+                //泰国
+                switch (issueInfo.getLotteryId().toString()){
+                    case "212":
+                    case "223":
+                        //18--越南自开
+                        awardGivingService.notice(n);
+                        break;
+                    case "242":
+
+                        break;
+                }
+
+
+
             }
         }).start();
         //  5.验派后出现的金额变化写入账变表(cn007_orders)，并修改用户余额(cn007_user_fund)

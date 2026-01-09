@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.UserFundMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.UserFundEntity">
+            <id property="entry" column="entry" jdbcType="VARCHAR"/>
+            <result property="userid" column="userid" jdbcType="VARCHAR"/>
+            <result property="walletType" column="wallet_type" jdbcType="TINYINT"/>
+            <result property="channelid" column="channelid" jdbcType="INTEGER"/>
+            <result property="channelbalance" column="channelbalance" jdbcType="DECIMAL"/>
+            <result property="availablebalance" column="availablebalance" jdbcType="DECIMAL"/>
+            <result property="holdbalance" column="holdbalance" jdbcType="DECIMAL"/>
+            <result property="islocked" column="islocked" jdbcType="INTEGER"/>
+            <result property="lockAction" column="lock_action" jdbcType="VARCHAR"/>
+            <result property="lastupdatetime" column="lastupdatetime" jdbcType="TIMESTAMP"/>
+            <result property="lastactivetime" column="lastactivetime" jdbcType="TIMESTAMP"/>
+            <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+            <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        entry,userid,wallet_type,
+        channelid,channelbalance,availablebalance,
+        holdbalance,islocked,lock_action,
+        lastupdatetime,lastactivetime,created_at,
+        updated_at
+    </sql>
+    <select id="selectByNotice" resultType="com.giving.entity.UserFundEntity">
+        select * from `${noticeReq.title}_user_fund`
+        where userid = #{userId}
+         and islocked = 0 and wallet_type = 0
+    </select>
+</mapper>

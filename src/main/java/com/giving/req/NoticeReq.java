@@ -24,6 +24,10 @@ public class NoticeReq {
 	@ApiModelProperty(value = "号码",required = true)
 	private String code;
 
+	@NotBlank(message = "表头")
+	@ApiModelProperty(value = "表头",required = true)
+	private String title;
+
 	@NotBlank(message = "表名")
 	@ApiModelProperty(value = "表名",required = true)
 	private String tableName;

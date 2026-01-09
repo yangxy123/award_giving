@@ -1,10 +1,13 @@
 package com.giving.service.impl;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.math.BigDecimal;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import com.giving.entity.OrdersEntity;
+import com.giving.entity.UserFundEntity;
+import com.giving.mapper.OrdersMapper;
+import com.giving.mapper.UserFundMapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.ObjectUtils;
 
 /**
  * @author yangxy
@@ -32,23 +36,26 @@ import lombok.extern.slf4j.Slf4j;
 public class AwardGivingServiceImpl implements AwardGivingService {
 	@Autowired
 	private BetInfoMapper betInfoMapper;
+    @Autowired
+    private UserFundMapper userFundMapper;
+    @Autowired
+    private OrdersMapper ordersMapper;
 
+	//	18z
 	@Override
 	public void notice(NoticeReq noticeReq) {
-		int pageSize = 3000;
+		int pageSize = 4000;
 		int pageNo = 0;
 		while (true) {
 			PageHelper.startPage(pageNo, pageSize);
 			// TODO Auto-generated method stub
 			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
-			Page<BetInfoEntity> page = (Page<BetInfoEntity>)betInfoMapper.selectList(
-					new QueryWrapper<BetInfoEntity>().lambda().eq(BetInfoEntity::getIssue, noticeReq.getIssue())
-							.eq(BetInfoEntity::getLotteryId, noticeReq.getLotteryId()).eq(BetInfoEntity::getIsCancel, 0)
-							.eq(BetInfoEntity::getPrizeStatus, 0));
-			List<BetInfoEntity> list = page.getResult();
+
+			List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
 			if(list.isEmpty()) {
 				break;
 			}
+//			Page<BetInfoEntity> page = (Page<BetInfoEntity>) list;
 			pageNo +=1;
 			// 将开奖号码转换为list
 			List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
@@ -70,7 +77,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 						if (key.length() == 2) {
 							List<BetInfoEntity> winList = betList.stream()
 									.filter(vo -> vo.getCode().indexOf(key + ",") >= 0
-											|| vo.getCode().endsWith(key) && vo.getMethodId() == "2d包组玩法")
+//											"2d包组玩法"
+											|| vo.getCode().endsWith(key) && vo.getCode().equals("2DBZ"))
 									.collect(Collectors.toList());
 							winList.forEach(vo -> {
 								vo.setBonus(vo.getBonus() * multiple);
@@ -81,9 +89,11 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 									.filter(vo -> vo.getCode().indexOf(key + ",") >= 0 || vo.getCode().endsWith(key)
 											|| (vo.getCode()
 													.indexOf(key.substring(key.length() - 2, key.length()) + ",") >= 0
-													&& vo.getMethodId() == "2d包组玩法")
+//											"2d包组玩法"
+													&& vo.getCode().equals("2DBZ"))
 											|| (vo.getCode().endsWith(key.substring(key.length() - 2, key.length()))
-													&& vo.getMethodId() == "3d包组玩法"))
+//											"3d包组玩法"
+													&& vo.getCode().equals("3DBZ")))
 									.collect(Collectors.toList());
 							winList.forEach(vo -> {
 								vo.setBonus(vo.getBonus() * multiple);
@@ -93,15 +103,19 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 							List<BetInfoEntity> winList = betList.stream()
 									.filter(vo -> (vo.getCode()
 											.indexOf(key.substring(key.length() - 2, key.length()) + ",") >= 0
-											&& vo.getMethodId() == "2d包组玩法")
+//											"2d包组玩法"
+											&& vo.getCode().equals("2DBZ"))
 											|| (vo.getCode()
 													.endsWith(key.substring(key.length() - 2, key.length()))
-													&& vo.getMethodId() == "2d包组玩法")
+//											"2d包组玩法"
+											&& vo.getCode().equals("2DBZ"))
 											|| (vo.getCode()
 													.indexOf(key.substring(key.length() - 3, key.length()) + ",") >= 0
-													&& vo.getMethodId() == "3d包组玩法")
+//											"3d包组玩法"
+											&& vo.getCode().equals("3DBZ"))
 											|| (vo.getCode().endsWith(key.substring(key.length() - 3, key.length()))
-													&& vo.getMethodId() == "3d包组玩法")
+//											"3d包组玩法"
+											&& vo.getCode().equals("3DBZ"))
 											|| vo.getCode()
 													.indexOf(key.substring(key.length() - 4, key.length()) + ",") >= 0
 											|| vo.getCode().endsWith(key.substring(key.length() - 4, key.length())))
@@ -248,9 +262,11 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 					String endCode = codeList.get(17).substring(4, 6);
 					List<BetInfoEntity> winList = betList.stream().filter(
 							vo -> ((vo.getCode().indexOf(headCode + ",") >= 0 || vo.getCode().endsWith(headCode))
-									&& (vo.getMethodId() == "2d头玩法" || vo.getMethodId() == "2d头尾玩法"))
+									//2d头玩法                  2d头尾玩法
+									&& (vo.getCode().equals("2DT") || vo.getCode().equals("2DTW")))
 									|| ((vo.getCode().indexOf(endCode + ",") >= 0 || vo.getCode().endsWith(endCode))
-											&& (vo.getMethodId() == "2d尾玩法" || vo.getMethodId() == "2d头尾玩法")))
+									//2d尾玩法 					2d头尾玩法
+											&& (vo.getCode().equals("2DW") || vo.getCode().equals("2DTW"))))
 							.collect(Collectors.toList());
 					allWinList.addAll(winList);
 				} catch (Exception e) {
@@ -269,9 +285,11 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 					String endCode = codeList.get(17).substring(3, 6);
 					List<BetInfoEntity> winList = betList.stream().filter(
 							vo -> ((vo.getCode().indexOf(headCode + ",") >= 0 || vo.getCode().endsWith(headCode))
-									&& (vo.getMethodId() == "3d头玩法" || vo.getMethodId() == "3d头尾玩法"))
+									//3d头玩法							3d头尾玩法
+									&& (vo.getCode().equals("2DT")|| vo.getCode().equals("2DTW")))
 									|| ((vo.getCode().indexOf(endCode + ",") >= 0 || vo.getCode().endsWith(endCode))
-											&& (vo.getMethodId() == "3d尾玩法" || vo.getMethodId() == "3d头尾玩法")))
+									//3d尾玩法							3d头尾玩法
+											&& (vo.getCode().equals("2DW") || vo.getCode().equals("2DTW"))))
 							.collect(Collectors.toList());
 					allWinList.addAll(winList);
 				} catch (Exception e) {
@@ -303,17 +321,73 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				if (endList.size() == 8) {
 					break;
 				}
-				Thread.sleep(10);
-			}
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
 			//中奖订单
 			List<BetInfoEntity> sumList = getSumList(allWinList);
 			//中奖订单ID列表
 			List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+			//更新单注赢的钱
+			betInfoMapper.updateWinbonus(noticeReq,sumList);
+
 			//未中奖订单ID
 			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
 					.collect(Collectors.toList());
-			
-			
+
+			betInfoMapper.updateByNotWinList(noticeReq,notWinList);
+
+			List<String> userIds = sumList.stream().map(BetInfoEntity::getUserId).collect(Collectors.toSet()).stream().collect(Collectors.toList());
+
+			for (BetInfoEntity betInfo : sumList) {
+				OrdersEntity order = new OrdersEntity();
+				UserFundEntity userFund = userFundMapper.selectByNotice(noticeReq,betInfo.getUserId());
+				order.setPreBalance(userFund.getChannelbalance());
+				userFund.setChannelbalance(userFund.getChannelbalance().add(new BigDecimal(betInfo.getBonus())));
+				userFundMapper.updateById(userFund);
+
+				order.setEntry(UUID.randomUUID().toString().substring(16));
+				order.setLotteryId(betInfo.getLotteryId());
+				order.setMethodId(betInfo.getMethodId());
+				order.setTaskId("0");
+				order.setProjectId(betInfo.getProjectId());
+				order.setFromuserId(betInfo.getUserId());
+				order.setTouserId("0");
+				order.setAgentId("0");
+				order.setAdminId(0);
+				order.setOrderTypeId(5);//奖金派送
+				order.setAdminName("");
+				order.setIssue(betInfo.getIssue());
+				order.setTitle("奖金派送");
+				order.setAmount(new BigDecimal(betInfo.getBonus()));
+				order.setDescription("奖金派送");
+				order.setPreHold();
+				order.setPreAvailable();
+				order.setChannelBalance();
+				order.setHoldBalance();
+				order.setAvailableBalance();
+				order.setClientIp();
+				order.setProxyIp();
+				order.setTimes();
+				order.setActionTime();
+				order.setTransferUserId();
+				order.setTransferChannelId();
+				order.setTransferOrderId();
+				order.setTransferStatus();
+				order.setUniqueKey();
+				order.setModes();
+				order.setCardnotice();
+				order.setSendMoneyToPlatform();
+				order.setPlatform();
+				order.setCreatedAt(new Date());
+				order.setUpdatedAt(new Date());
+				order.setThirdPartyTrxId();
+				ordersMapper.insert(order);
+			}
+
 		}
 	}
 	

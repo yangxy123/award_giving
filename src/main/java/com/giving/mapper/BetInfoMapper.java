@@ -2,6 +2,7 @@ package com.giving.mapper;
 
 import java.util.List;
 
+import com.giving.req.NoticeReq;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
@@ -27,4 +28,11 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	* @param param 查询参数
 	 */
 	public List<BetInfoEntity> test(@Param("table")String table,@Param("where1")String param,@Param("where2")String param1);
+
+
+	List<BetInfoEntity> selectListByNoticeReq(@Param("noticeReq") NoticeReq noticeReq);
+
+	void updateWinbonus(@Param("noticeReq") NoticeReq noticeReq, @Param("sumList") List<BetInfoEntity> sumList);
+
+	void updateByNotWinList(@Param("noticeReq") NoticeReq noticeReq,@Param("notWinList") List<BetInfoEntity> notWinList);
 }

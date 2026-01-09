@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.OrdersMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.OrdersEntity">
+            <id property="entry" column="entry" jdbcType="VARCHAR"/>
+            <result property="lotteryId" column="lottery_id" jdbcType="INTEGER"/>
+            <result property="methodId" column="method_id" jdbcType="INTEGER"/>
+            <result property="taskId" column="task_id" jdbcType="VARCHAR"/>
+            <result property="projectId" column="project_id" jdbcType="VARCHAR"/>
+            <result property="fromuserId" column="fromuser_id" jdbcType="VARCHAR"/>
+            <result property="touserId" column="touser_id" jdbcType="VARCHAR"/>
+            <result property="agentId" column="agent_id" jdbcType="VARCHAR"/>
+            <result property="adminId" column="admin_id" jdbcType="INTEGER"/>
+            <result property="orderTypeId" column="order_type_id" jdbcType="INTEGER"/>
+            <result property="adminName" column="admin_name" jdbcType="VARCHAR"/>
+            <result property="issue" column="issue" jdbcType="VARCHAR"/>
+            <result property="title" column="title" jdbcType="VARCHAR"/>
+            <result property="amount" column="amount" jdbcType="DECIMAL"/>
+            <result property="description" column="description" jdbcType="VARCHAR"/>
+            <result property="preBalance" column="pre_balance" jdbcType="DECIMAL"/>
+            <result property="preHold" column="pre_hold" jdbcType="DECIMAL"/>
+            <result property="preAvailable" column="pre_available" jdbcType="DECIMAL"/>
+            <result property="channelBalance" column="channel_balance" jdbcType="DECIMAL"/>
+            <result property="holdBalance" column="hold_balance" jdbcType="DECIMAL"/>
+            <result property="availableBalance" column="available_balance" jdbcType="DECIMAL"/>
+            <result property="clientIp" column="client_ip" jdbcType="VARCHAR"/>
+            <result property="proxyIp" column="proxy_ip" jdbcType="VARCHAR"/>
+            <result property="times" column="times" jdbcType="TIMESTAMP"/>
+            <result property="actionTime" column="action_time" jdbcType="TIMESTAMP"/>
+            <result property="transferUserId" column="transfer_user_id" jdbcType="VARCHAR"/>
+            <result property="transferChannelId" column="transfer_channel_id" jdbcType="INTEGER"/>
+            <result property="transferOrderId" column="transfer_order_id" jdbcType="VARCHAR"/>
+            <result property="transferStatus" column="transfer_status" jdbcType="INTEGER"/>
+            <result property="uniqueKey" column="unique_key" jdbcType="VARCHAR"/>
+            <result property="modes" column="modes" jdbcType="VARCHAR"/>
+            <result property="cardnotice" column="cardnotice" jdbcType="VARCHAR"/>
+            <result property="sendMoneyToPlatform" column="send_money_to_platform" jdbcType="INTEGER"/>
+            <result property="platform" column="platform" jdbcType="VARCHAR"/>
+            <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+            <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+            <result property="thirdPartyTrxId" column="third_party_trx_id" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        entry,lottery_id,method_id,
+        task_id,project_id,fromuser_id,
+        touser_id,agent_id,admin_id,
+        order_type_id,admin_name,issue,
+        title,amount,description,
+        pre_balance,pre_hold,pre_available,
+        channel_balance,hold_balance,available_balance,
+        client_ip,proxy_ip,times,
+        action_time,transfer_user_id,transfer_channel_id,
+        transfer_order_id,transfer_status,unique_key,
+        modes,cardnotice,send_money_to_platform,
+        platform,created_at,updated_at,
+        third_party_trx_id
+    </sql>
+</mapper>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.BetInfoMapper">
+    <select id="selectListByNoticeReq" resultType="com.giving.entity.BetInfoEntity">
+        select * from `${noticeReq.tableName}`
+        where issue = #{noticeReq.issue} and lottery_id = #{noticeReq.lotteryId}
+    </select>
+
+    <update id="updateWinbonus">
+        <foreach collection="sumList" item="item" open="" close="" separator=";">
+            update #{noticeReq.tableName} set bonus = ${item.bonus},is_getprize = 1,prize_status = 1,updated_at = now() where project_id = #{item.projectId}
+        </foreach>
+    </update>
+    <update id="updateByNotWinList">
+        <foreach collection="notWinList" item="item" open="" close="" separator=";">
+            update #{noticeReq.tableName} set is_getprize = 2,prize_status = 1,updated_at = now() where project_id = #{item.projectId}
+        </foreach>
+    </update>
+
+</mapper>

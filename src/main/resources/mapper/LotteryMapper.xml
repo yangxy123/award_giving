@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.LotteryMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.LotteryEntity">
+            <id property="lotteryId" column="lottery_id" jdbcType="BIGINT"/>
+            <result property="lotteryGroup" column="lottery_group" jdbcType="VARCHAR"/>
+            <result property="methodGroup" column="method_group" jdbcType="VARCHAR"/>
+            <result property="cnname" column="cnname" jdbcType="VARCHAR"/>
+            <result property="enname" column="enname" jdbcType="VARCHAR"/>
+            <result property="sorts" column="sorts" jdbcType="INTEGER"/>
+            <result property="lotteryType" column="lottery_type" jdbcType="TINYINT"/>
+            <result property="functionType" column="function_type" jdbcType="VARCHAR"/>
+            <result property="issueset" column="issueset" jdbcType="VARCHAR"/>
+            <result property="weekcycle" column="weekcycle" jdbcType="TINYINT"/>
+            <result property="minCommissionGap" column="min_commission_gap" jdbcType="DOUBLE"/>
+            <result property="minProfit" column="min_profit" jdbcType="DOUBLE"/>
+            <result property="issueRule" column="issue_rule" jdbcType="VARCHAR"/>
+            <result property="description" column="description" jdbcType="VARCHAR"/>
+            <result property="numberRule" column="number_rule" jdbcType="VARCHAR"/>
+            <result property="unlocked" column="unlocked" jdbcType="TINYINT"/>
+            <result property="country" column="country" jdbcType="CHAR"/>
+            <result property="continent" column="continent" jdbcType="VARCHAR"/>
+            <result property="isActive" column="is_Active" jdbcType="INTEGER"/>
+            <result property="closedAt" column="closed_at" jdbcType="TIMESTAMP"/>
+            <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+            <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+            <result property="isLocal" column="is_local" jdbcType="INTEGER"/>
+            <result property="initIssue" column="init_issue" jdbcType="VARCHAR"/>
+            <result property="isAlert" column="is_alert" jdbcType="CHAR"/>
+            <result property="alertPrize" column="alert_prize" jdbcType="CHAR"/>
+            <result property="drawPercent" column="draw_percent" jdbcType="FLOAT"/>
+            <result property="seriesId" column="series_id" jdbcType="INTEGER"/>
+            <result property="frontDrawTime" column="front_draw_time" jdbcType="INTEGER"/>
+            <result property="delayCheckTime" column="delay_check_time" jdbcType="INTEGER"/>
+            <result property="shouldDraw" column="should_draw" jdbcType="TINYINT"/>
+            <result property="saleTime" column="sale_time" jdbcType="VARCHAR"/>
+            <result property="canSet" column="can_set" jdbcType="INTEGER"/>
+            <result property="drawOpen" column="draw_open" jdbcType="INTEGER"/>
+            <result property="betCost" column="bet_cost" jdbcType="TINYINT"/>
+            <result property="isAutoodds" column="is_autoodds" jdbcType="TINYINT"/>
+            <result property="pendingTime" column="pending_time" jdbcType="SMALLINT"/>
+            <result property="aliasId" column="alias_id" jdbcType="BIGINT"/>
+            <result property="menuId" column="menu_id" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        lottery_id,lottery_group,method_group,
+        cnname,enname,sorts,
+        lottery_type,function_type,issueset,
+        weekcycle,min_commission_gap,min_profit,
+        issue_rule,description,number_rule,
+        unlocked,country,continent,
+        is_Active,closed_at,created_at,
+        updated_at,is_local,init_issue,
+        is_alert,alert_prize,draw_percent,
+        series_id,front_draw_time,delay_check_time,
+        should_draw,sale_time,can_set,
+        draw_open,bet_cost,is_autoodds,
+        pending_time,alias_id,menu_id
+    </sql>
+    <select id="selectLotterIdIn18" resultType="com.giving.entity.LotteryEntity">
+        SELECT lottery_id FROM lottery WHERE is_local=1 AND is_Active=1
+    </select>
+
+
+</mapper>
