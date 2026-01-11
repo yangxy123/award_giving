@@ -3,6 +3,7 @@ package com.giving.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.LotteryEntity;
+import com.giving.entity.RoomMasterEntity;
 import com.giving.mapper.IssueInfoMapper;
 import com.giving.mapper.LotteryMapper;
 import com.giving.mapper.RoomMasterMapper;
@@ -17,6 +18,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author zzby
@@ -73,15 +75,16 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      */
     public void updateRoomsIssueInfo(IssueInfoEntity issueInfo){
         //2.取得平台商信息表中的平台商前缀
-        List<String> titles = roomMasterMapper.selectTitle();
+        List<RoomMasterEntity> roomMasters = roomMasterMapper.selectTitle();
+
         //3.把主奖期表的号码写入各平台商奖期表中
-        issueInfoMapper.insertIssueToRooms(titles,issueInfo);
+        issueInfoMapper.insertIssueToRooms(roomMasters.stream().map(RoomMasterEntity::getTitle).collect(Collectors.toList()),issueInfo);
         //todo:4.号码写入后查询该期订单（cn007_projects），通过对应订单的玩法(method)进行验派
         new Thread(() -> {
-            for (String title : titles) {
+            for (RoomMasterEntity roomMaster : roomMasters) {
                 NoticeReq n = new NoticeReq();
-                n.setTitle(title);
-                n.setTableName(title + "_issue_info");
+                n.setRoomMaster(roomMaster);
+                n.setTitle(roomMaster.getTitle());
                 n.setIssue(issueInfo.getIssue());
                 n.setCode(issueInfo.getCode());
                 n.setLotteryId(issueInfo.getLotteryId());
@@ -95,12 +98,8 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                         awardGivingService.notice(n);
                         break;
                     case "242":
-
                         break;
                 }
-
-
-
             }
         }).start();
         //  5.验派后出现的金额变化写入账变表(cn007_orders)，并修改用户余额(cn007_user_fund)

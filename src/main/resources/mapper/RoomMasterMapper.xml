@@ -43,7 +43,25 @@
         is_active,is_show_point_bar,created_at,
         updated_at
     </sql>
-    <select id="selectTitle" resultType="java.lang.String">
-        select DISTINCT title from room_master where is_active = 1
-    </select>
+    <insert id="createSpeculation">
+        INSERT into
+        <if test="roomMaster.user_wallet_type == 0">
+            speculation_orders
+        </if>
+        <if test="roomMaster.user_wallet_type == 1">
+            speculation_gpi
+        </if>
+        <if test="roomMaster.user_wallet_type == 2">
+            speculation_orders_da
+        </if>
+        <if test="roomMaster.user_wallet_type == 3">
+            speculation_single
+        </if>
+        (room_master_id, orders_id, status, created_at, updated_at)
+        VALUES
+        (#{roomMaster.id}, :orders_id, '0', :created_at, :updated_at);
+    </insert>
+    <!--    <select id="selectTitle" resultType="com.giving.entity.RoomMasterEntity">-->
+<!--        select * from room_master where is_active = 1-->
+<!--    </select>-->
 </mapper>

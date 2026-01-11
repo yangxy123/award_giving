@@ -17,6 +17,8 @@ import java.util.List;
 public interface UserFundMapper extends BaseMapper<UserFundEntity> {
 
     UserFundEntity selectByNotice(@Param("noticeReq") NoticeReq noticeReq,@Param("userId") String userId);
+
+    void updateUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("userIds") List<String> userIds);
 }
 
 

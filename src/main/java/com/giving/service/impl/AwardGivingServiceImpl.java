@@ -6,8 +6,7 @@ import java.util.stream.Collectors;
 
 import com.giving.entity.OrdersEntity;
 import com.giving.entity.UserFundEntity;
-import com.giving.mapper.OrdersMapper;
-import com.giving.mapper.UserFundMapper;
+import com.giving.mapper.*;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,7 +16,6 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.giving.entity.BetInfoEntity;
-import com.giving.mapper.BetInfoMapper;
 import com.giving.req.NoticeReq;
 import com.giving.service.AwardGivingService;
 import com.google.common.collect.Lists;
@@ -40,6 +38,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private UserFundMapper userFundMapper;
     @Autowired
     private OrdersMapper ordersMapper;
+    @Autowired
+    private ProjectsTmpMapper projectsTmpMapper;
+    @Autowired
+    private RoomMasterMapper roomMasterMapper;
 
 	//	18z
 	@Override
@@ -327,12 +329,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     throw new RuntimeException(e);
                 }
             }
+			Date bonusTime = new Date();
 			//中奖订单
 			List<BetInfoEntity> sumList = getSumList(allWinList);
 			//中奖订单ID列表
 			List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
 			//更新单注赢的钱
-			betInfoMapper.updateWinbonus(noticeReq,sumList);
+			betInfoMapper.updateWinbonus(noticeReq,sumList,bonusTime);
 
 			//未中奖订单ID
 			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
@@ -340,53 +343,72 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
 			betInfoMapper.updateByNotWinList(noticeReq,notWinList);
 
+			//中奖用户id列表
 			List<String> userIds = sumList.stream().map(BetInfoEntity::getUserId).collect(Collectors.toSet()).stream().collect(Collectors.toList());
+			//锁定用户资金
+			betInfoMapper.doLockUserFund(noticeReq,userIds);
 
-			for (BetInfoEntity betInfo : sumList) {
-				OrdersEntity order = new OrdersEntity();
-				UserFundEntity userFund = userFundMapper.selectByNotice(noticeReq,betInfo.getUserId());
-				order.setPreBalance(userFund.getChannelbalance());
-				userFund.setChannelbalance(userFund.getChannelbalance().add(new BigDecimal(betInfo.getBonus())));
-				userFundMapper.updateById(userFund);
+			//账变写入 orders
+			betInfoMapper.addOrdersReArray(noticeReq,sumList);
 
-				order.setEntry(UUID.randomUUID().toString().substring(16));
-				order.setLotteryId(betInfo.getLotteryId());
-				order.setMethodId(betInfo.getMethodId());
-				order.setTaskId("0");
-				order.setProjectId(betInfo.getProjectId());
-				order.setFromuserId(betInfo.getUserId());
-				order.setTouserId("0");
-				order.setAgentId("0");
-				order.setAdminId(0);
-				order.setOrderTypeId(5);//奖金派送
-				order.setAdminName("");
-				order.setIssue(betInfo.getIssue());
-				order.setTitle("奖金派送");
-				order.setAmount(new BigDecimal(betInfo.getBonus()));
-				order.setDescription("奖金派送");
-				order.setPreHold();
-				order.setPreAvailable();
-				order.setChannelBalance();
-				order.setHoldBalance();
-				order.setAvailableBalance();
-				order.setClientIp();
-				order.setProxyIp();
-				order.setTimes();
-				order.setActionTime();
-				order.setTransferUserId();
-				order.setTransferChannelId();
-				order.setTransferOrderId();
-				order.setTransferStatus();
-				order.setUniqueKey();
-				order.setModes();
-				order.setCardnotice();
-				order.setSendMoneyToPlatform();
-				order.setPlatform();
-				order.setCreatedAt(new Date());
-				order.setUpdatedAt(new Date());
-				order.setThirdPartyTrxId();
-				ordersMapper.insert(order);
-			}
+			//删除临时注单记录
+			List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+			projectsTmpMapper.deleteBatchIds(projectIds);
+
+			//生成抄单（Speculation）记录（依业务类型）
+			roomMasterMapper.createSpeculation(noticeReq.getRoomMaster());
+
+			//更新用户资金余额
+			userFundMapper.updateUserFund(noticeReq,userIds);
+
+			//解锁用户资金
+			betInfoMapper.unLockUserFund(noticeReq,userIds);
+
+//			for (BetInfoEntity betInfo : sumList) {
+//				OrdersEntity order = new OrdersEntity();
+//				UserFundEntity userFund = userFundMapper.selectByNotice(noticeReq,betInfo.getUserId());
+//				order.setPreBalance(userFund.getChannelbalance());
+//				userFund.setChannelbalance(userFund.getChannelbalance().add(new BigDecimal(betInfo.getBonus())));
+//				userFundMapper.updateById(userFund);
+//
+//				order.setEntry(UUID.randomUUID().toString().substring(16));
+//				order.setLotteryId(betInfo.getLotteryId());
+//				order.setMethodId(betInfo.getMethodId());
+//				order.setTaskId("0");
+//				order.setProjectId(betInfo.getProjectId());
+//				order.setFromuserId(betInfo.getUserId());
+//				order.setTouserId("0");
+//				order.setAgentId("0");
+//				order.setAdminId(0);
+//				order.setOrderTypeId(5);//奖金派送
+//				order.setAdminName("");
+//				order.setIssue(betInfo.getIssue());
+//				order.setTitle("奖金派送");
+//				order.setAmount(new BigDecimal(betInfo.getBonus()));
+//				order.setDescription("奖金派送");
+//				order.setPreHold();
+//				order.setPreAvailable();
+//				order.setChannelBalance();
+//				order.setHoldBalance();
+//				order.setAvailableBalance();
+//				order.setClientIp();
+//				order.setProxyIp();
+//				order.setTimes();
+//				order.setActionTime();
+//				order.setTransferUserId();
+//				order.setTransferChannelId();
+//				order.setTransferOrderId();
+//				order.setTransferStatus();
+//				order.setUniqueKey();
+//				order.setModes();
+//				order.setCardnotice();
+//				order.setSendMoneyToPlatform();
+//				order.setPlatform();
+//				order.setCreatedAt(new Date());
+//				order.setUpdatedAt(new Date());
+//				order.setThirdPartyTrxId();
+//				ordersMapper.insert(order);
+//			}
 
 		}
 	}

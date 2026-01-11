@@ -3,6 +3,36 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.giving.mapper.BetInfoMapper">
+    <insert id="addOrdersReArray">
+        <foreach collection="sumList" item="item" open="" close="" separator=";">
+            INSERT INTO ${noticeReq.title}_orders (
+            lottery_id, method_id, task_id, project_id,
+            fromuser_id, touser_id, agent_id, admin_id, admin_name,
+            order_type_id, title, amount, description,
+            pre_balance, pre_hold, pre_available,
+            channel_balance, hold_balance, available_balance,
+            client_ip, proxy_ip, times, action_time,
+            third_party_trx_id, send_money_to_platform,
+            transfer_user_id, transfer_channel_id, transfer_order_id, transfer_status,
+            unique_key, modes, cardnotice,
+            created_at, updated_at, issue, entry
+            ) VALUES (
+                      #{item.lotteryId},#{item.methodId},#{item.taskId},#{item.projectId},#{item.userId},0,0,0,null,5,'奖金派送',#{item.bonus},
+                      '奖金派送',#{item.},
+            :lottery_id, :method_id, :task_id, :project_id,
+            :fromuser_id, :touser_id, :agent_id, :admin_id, :admin_name,
+            5, :title, :amount, :description,
+            :pre_balance, :pre_hold, :pre_available,
+            :channel_balance, :hold_balance, :available_balance,
+            '0.0.0.0', '0.0.0.0', :times, :action_time,
+            :third_party_trx_id, :send_money_to_platform,
+            :transfer_user_id, :transfer_channel_id, :transfer_order_id, :transfer_status,
+            :unique_key, :modes, '',
+            :created_at, :updated_at, :issue, :entry
+            );
+        </foreach>
+
+    </insert>
     <select id="selectListByNoticeReq" resultType="com.giving.entity.BetInfoEntity">
         select * from `${noticeReq.tableName}`
         where issue = #{noticeReq.issue} and lottery_id = #{noticeReq.lotteryId}
@@ -10,7 +40,14 @@
 
     <update id="updateWinbonus">
         <foreach collection="sumList" item="item" open="" close="" separator=";">
-            update #{noticeReq.tableName} set bonus = ${item.bonus},is_getprize = 1,prize_status = 1,updated_at = now() where project_id = #{item.projectId}
+            update #{noticeReq.tableName} set
+          bonus = ${item.bonus},
+          <if test="item.bonus != 0">
+              is_getprize = 1,
+              bonus_time = #{bonusTime},
+              update_time = #{bonusTime},
+          </if>
+          updated_at = now() where project_id = #{item.projectId} and is_cancel = 0
         </foreach>
     </update>
     <update id="updateByNotWinList">
@@ -18,5 +55,25 @@
             update #{noticeReq.tableName} set is_getprize = 2,prize_status = 1,updated_at = now() where project_id = #{item.projectId}
         </foreach>
     </update>
-
+    <update id="doLockUserFund">
+        UPDATE ${noticeReq.title}_user_fund set islocked = 1,
+        lock_action = 1,-- 资金被锁状态, 0=正常, 1=被锁
+        updated_at = now()
+        WHERE userid in
+        <foreach collection="userIds" item="item" open="(" close=")" separator=",">
+              #{item}
+        </foreach>
+        AND islocked = 0 AND wallet_type = 5;
+    </update>
+    <update id="unLockUserFund">
+        UPDATE ${noticeReq.title}_user_fund
+        SET islocked = 0,
+            lock_action = 0,
+            updated_at = now()
+        WHERE userid in
+        <foreach collection="userIds" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+            AND islocked = 1AND wallet_type = 5;
+    </update>
 </mapper>

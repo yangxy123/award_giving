@@ -3,6 +3,7 @@ package com.giving.req;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
+import com.giving.entity.RoomMasterEntity;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
@@ -12,6 +13,8 @@ import lombok.Data;
 */
 @Data
 public class NoticeReq {
+	private RoomMasterEntity roomMaster;
+
 	@NotNull(message = "彩种ID不能为空")
 	@ApiModelProperty(value = "彩种ID",required = true)
 	private Long lotteryId;

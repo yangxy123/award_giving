@@ -2,6 +2,9 @@ package com.giving.mapper;
 
 import com.giving.entity.RoomMasterEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.giving.req.NoticeReq;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -14,7 +17,12 @@ import java.util.List;
 public interface RoomMasterMapper extends BaseMapper<RoomMasterEntity> {
 
     //查找title
-    List<String> selectTitle();
+    @Select({"select * from room_master where is_active = 1"})
+    List<RoomMasterEntity> selectTitle();
+
+//    @Select({"insert into ${noticeReq.tableName} " +
+//            "" })
+    void createSpeculation(@Param("roomMaster") RoomMasterEntity roomMaster);
 }
 
 

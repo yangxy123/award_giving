@@ -1,5 +1,6 @@
 package com.giving.mapper;
 
+import java.util.Date;
 import java.util.List;
 
 import com.giving.req.NoticeReq;
@@ -8,6 +9,7 @@ import org.apache.ibatis.annotations.Select;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.giving.entity.BetInfoEntity;
+import org.apache.ibatis.annotations.Update;
 
 /** 
 * @author yangxy
@@ -29,10 +31,20 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 */
 	public List<BetInfoEntity> test(@Param("table")String table,@Param("where1")String param,@Param("where2")String param1);
 
-
+	@Select({
+			"select * from `${noticeReq.tableName}`" +
+			"where issue = #{noticeReq.issue} and lottery_id = #{noticeReq.lotteryId}"
+	})
 	List<BetInfoEntity> selectListByNoticeReq(@Param("noticeReq") NoticeReq noticeReq);
 
-	void updateWinbonus(@Param("noticeReq") NoticeReq noticeReq, @Param("sumList") List<BetInfoEntity> sumList);
+
+	void updateWinbonus(@Param("noticeReq") NoticeReq noticeReq, @Param("sumList") List<BetInfoEntity> sumList,@Param("bonusTime") Date bonusTime);
 
 	void updateByNotWinList(@Param("noticeReq") NoticeReq noticeReq,@Param("notWinList") List<BetInfoEntity> notWinList);
+
+	void doLockUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("userIds") List<String> userIds);
+
+	void addOrdersReArray(@Param("noticeReq") NoticeReq noticeReq,@Param("sumList") List<BetInfoEntity> sumList);
+
+	void unLockUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("userIds") List<String> userIds);
 }
