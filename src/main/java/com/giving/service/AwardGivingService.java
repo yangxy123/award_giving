@@ -14,4 +14,6 @@ public interface AwardGivingService {
 	* @param noticeReq
 	 */
 	public void notice(NoticeReq noticeReq);
+
+	void createData();
 }

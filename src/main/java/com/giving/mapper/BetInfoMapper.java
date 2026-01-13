@@ -31,10 +31,10 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 */
 	public List<BetInfoEntity> test(@Param("table")String table,@Param("where1")String param,@Param("where2")String param1);
 
-	@Select({
-			"select * from `${noticeReq.tableName}`" +
-			"where issue = #{noticeReq.issue} and lottery_id = #{noticeReq.lotteryId}"
-	})
+//	@Select({
+//			"SELECT pr.*, me.`code` as methodCode FROM ${noticeReq.title}_projects pr LEFT JOIN method me ON pr.method_id = me.method_id " +
+//			"where pr.issue = #{noticeReq.issue} and pr.lottery_id = #{noticeReq.lotteryId} "
+//	})
 	List<BetInfoEntity> selectListByNoticeReq(@Param("noticeReq") NoticeReq noticeReq);
 
 

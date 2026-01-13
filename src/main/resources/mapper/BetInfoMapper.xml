@@ -3,6 +3,49 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.giving.mapper.BetInfoMapper">
+    <resultMap id="BaseResultMap" type="com.giving.entity.BetInfoEntity">
+        <id property="projectId" column="project_id" jdbcType="VARCHAR"/>
+        <result property="userId" column="user_id" jdbcType="VARCHAR"/>
+        <result property="packageId" column="package_id" jdbcType="VARCHAR"/>
+        <result property="taskId" column="task_id" jdbcType="VARCHAR"/>
+        <result property="lotteryId" column="lottery_id" jdbcType="INTEGER"/>
+        <result property="methodId" column="method_id" jdbcType="INTEGER"/>
+        <result property="issue" column="issue" jdbcType="VARCHAR"/>
+        <result property="bonus" column="bonus" jdbcType="DECIMAL"/>
+        <result property="winbonus" column="winbonus" jdbcType="VARCHAR"/>
+        <result property="code" column="code" jdbcType="VARCHAR"/>
+        <result property="codeType" column="code_type" jdbcType="VARCHAR"/>
+        <result property="singlePrice" column="single_price" jdbcType="DECIMAL"/>
+        <result property="multiple" column="multiple" jdbcType="VARCHAR"/>
+        <result property="totalPrice" column="total_price" jdbcType="DECIMAL"/>
+        <result property="writeTime" column="write_time" jdbcType="TIMESTAMP"/>
+        <result property="scode" column="scode" jdbcType="VARCHAR"/>
+        <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+        <result property="deductTime" column="deduct_time" jdbcType="TIMESTAMP"/>
+        <result property="bonusTime" column="bonus_time" jdbcType="TIMESTAMP"/>
+        <result property="cancelTime" column="cancel_time" jdbcType="TIMESTAMP"/>
+        <result property="isDeduct" column="is_deduct" jdbcType="INTEGER"/>
+        <result property="isCancel" column="is_cancel" jdbcType="INTEGER"/>
+        <result property="isGetprize" column="is_getprize" jdbcType="INTEGER"/>
+        <result property="prizeStatus" column="prize_status" jdbcType="INTEGER"/>
+        <result property="gameCancelCount" column="game_cancel_count" jdbcType="TINYINT"/>
+        <result property="userIp" column="user_ip" jdbcType="VARCHAR"/>
+        <result property="modes" column="modes" jdbcType="VARCHAR"/>
+        <result property="hashvar" column="hashvar" jdbcType="VARCHAR"/>
+        <result property="userPoint" column="user_point" jdbcType="VARCHAR"/>
+        <result property="isNew" column="is_new" jdbcType="VARCHAR"/>
+        <result property="comefrom" column="comefrom" jdbcType="VARCHAR"/>
+        <result property="pointStatus" column="point_status" jdbcType="INTEGER"/>
+        <result property="thirdPartyTrxId" column="third_party_trx_id" jdbcType="VARCHAR"/>
+        <result property="platform" column="platform" jdbcType="VARCHAR"/>
+        <result property="log" column="log" jdbcType="VARCHAR"/>
+        <result property="writeMicrotime" column="write_microtime" jdbcType="VARCHAR"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+        <result property="pointinfo" column="pointinfo" jdbcType="VARCHAR"/>
+        <result property="methodCode" column="methodCode" jdbcType="VARCHAR"/>
+    </resultMap>
+
     <insert id="addOrdersReArray">
         <foreach collection="sumList" item="item" open="" close="" separator=";">
             INSERT INTO ${noticeReq.title}_orders (
@@ -34,25 +77,24 @@
 
     </insert>
     <select id="selectListByNoticeReq" resultType="com.giving.entity.BetInfoEntity">
-        select * from `${noticeReq.tableName}`
-        where issue = #{noticeReq.issue} and lottery_id = #{noticeReq.lotteryId}
+        SELECT pr.*, me.`code` as methodCode FROM ${noticeReq.title}_projects pr LEFT JOIN method me ON pr.method_id = me.method_id
+		where pr.issue = #{noticeReq.issue} and pr.lottery_id = #{noticeReq.lotteryId}
     </select>
 
     <update id="updateWinbonus">
         <foreach collection="sumList" item="item" open="" close="" separator=";">
-            update #{noticeReq.tableName} set
-          bonus = ${item.bonus},
-          <if test="item.bonus != 0">
-              is_getprize = 1,
-              bonus_time = #{bonusTime},
-              update_time = #{bonusTime},
-          </if>
-          updated_at = now() where project_id = #{item.projectId} and is_cancel = 0
+        update ${noticeReq.title}_projects set
+          bonus = #{item.winbonus},
+          is_getprize = 1,
+          bonus_time = #{bonusTime},
+          update_time = #{bonusTime},
+          updated_at = now()
+          where project_id = #{item.projectId} and is_cancel = 0
         </foreach>
     </update>
     <update id="updateByNotWinList">
         <foreach collection="notWinList" item="item" open="" close="" separator=";">
-            update #{noticeReq.tableName} set is_getprize = 2,prize_status = 1,updated_at = now() where project_id = #{item.projectId}
+            update ${noticeReq.title}_projects set is_getprize = 2,prize_status = 1,updated_at = now() where project_id = #{item.projectId}
         </foreach>
     </update>
     <update id="doLockUserFund">

@@ -2,6 +2,10 @@ package com.giving.mapper;
 
 import com.giving.entity.ProjectsTmpEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
 
 /**
 * @author zzby
@@ -11,6 +15,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 */
 public interface ProjectsTmpMapper extends BaseMapper<ProjectsTmpEntity> {
 
+    void createData(@Param("uuids") List<String> uuidList);
 }
 
 

@@ -28,7 +28,7 @@ public class AwardingProcessController {
      * @param req
      */
     @PostMapping("/drawsource")
-    @ApiOperation("修改奖期")
+    @ApiOperation("录号派奖")
     public void drawSource(@RequestBody @Valid DrawSourceReq req) {
         awardingProcessService.drawSource(req);
     }

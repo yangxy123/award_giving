@@ -84,6 +84,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
             for (RoomMasterEntity roomMaster : roomMasters) {
                 NoticeReq n = new NoticeReq();
                 n.setRoomMaster(roomMaster);
+                n.setTableName(roomMaster.getTitle()+"_issue_info");
                 n.setTitle(roomMaster.getTitle());
                 n.setIssue(issueInfo.getIssue());
                 n.setCode(issueInfo.getCode());
@@ -94,6 +95,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                 switch (issueInfo.getLotteryId().toString()){
                     case "212":
                     case "223":
+                    case "166":
                         //18--越南自开
                         awardGivingService.notice(n);
                         break;

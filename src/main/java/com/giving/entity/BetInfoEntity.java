@@ -2,6 +2,7 @@ package com.giving.entity;
 
 import java.util.Date;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
@@ -12,7 +13,7 @@ import lombok.Data;
  * @version 创建时间：2025年11月25日 上午11:43:37
  */
 @Data
-@TableName("TEMP_projects")
+@TableName("cn0003_projects")
 public class BetInfoEntity {
 	@TableId
 	private String projectId;// 方案ID
@@ -23,7 +24,7 @@ public class BetInfoEntity {
 	private Integer methodId;// 玩法ID
 	private String issue;// 奖期期号
 	private Double bonus;// 实际派发的奖金
-	private String winbonus;// 单注赢的钱
+	private Double winbonus;// 单注赢的钱
 	private String code;// 号码
 	private String codeType;// 号码投注方式[input:输入型,digital:数字型,dxds:大小单双]
 	private Double singlePrice;// 单倍价格
@@ -54,5 +55,8 @@ public class BetInfoEntity {
 	private Date createdAt;//
 	private Date updatedAt;//
 	private String pointinfo;//
+
+	@TableField(exist = false,value = "methodCode")
+	private String methodCode;
 
 }

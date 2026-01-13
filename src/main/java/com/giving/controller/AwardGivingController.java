@@ -2,10 +2,8 @@ package com.giving.controller;
 
 import javax.validation.Valid;
 
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
 
 import com.giving.req.NoticeReq;
 import com.giving.service.AwardGivingService;
@@ -21,11 +19,19 @@ import io.swagger.annotations.ApiOperation;
 @RequestMapping("/awardgiving")
 @Api(tags = "派奖相关")
 public class AwardGivingController {
+
+	@Autowired
 	private AwardGivingService awardGivingService;
 	
 	@PostMapping("/notice")
 	@ApiOperation("通知派奖")
 	public void notice(@RequestBody @Valid NoticeReq noticeReq) {
-		
+		awardGivingService.notice(noticeReq);
+	}
+
+	@GetMapping("/createData")
+	@ApiOperation("生成数据")
+	public void createData() {
+		awardGivingService.createData();
 	}
 }
