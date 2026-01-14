@@ -463,17 +463,22 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
 			new Thread(()->{//2D头,尾，头尾玩法
 				try {
-					List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodId() == "2D头"
-							|| vo.getMethodId() == "2D尾"
-							|| vo.getMethodId() == "2D头尾")
+					List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("2DT")
+							|| vo.getMethodCode().equals("2DW")
+							|| vo.getMethodCode().equals("2DTW"))
 							.collect(Collectors.toList());
 					List<String> headCodeList = codeList.stream().limit(4).collect(Collectors.toList());
 					String endCode = codeList.get(maxSize).substring(3,5);
 					for(String code:headCodeList) {
-						List<BetInfoEntity> collect = betList.stream().filter(vo->vo.getCode().indexOf(code)>=0 && (vo.getMethodId() == "2D头尾" || vo.getMethodId() == "2D头")).collect(Collectors.toList());
+						List<BetInfoEntity> collect = betList.stream().filter(
+								vo->vo.getCode().indexOf(code)>=0
+//										"2D头尾"				"2D头"
+										&& (vo.getMethodCode().equals("2DTW") || vo.getMethodCode().equals("2DT"))).collect(Collectors.toList());
 						allWinList.addAll(collect);
 					}
-					List<BetInfoEntity> collect = betList.stream().filter(vo->vo.getCode().indexOf(endCode)>=0 && (vo.getMethodId() == "2D头尾" || vo.getMethodId() == "2D尾")).collect(Collectors.toList());
+					List<BetInfoEntity> collect = betList.stream().filter(vo->vo.getCode().indexOf(endCode)>=0
+//							"2D头尾"				"2D尾"
+							&& (vo.getMethodCode().equals("2DTW") || vo.getMethodCode().equals("2DW"))).collect(Collectors.toList());
 					allWinList.addAll(collect);
 				}catch (Exception e) {
 					// TODO: handle exception
@@ -484,17 +489,21 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
 			new Thread(()->{//3D头,尾，头尾玩法
 				try {
-					List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodId() == "3D头"
-							|| vo.getMethodId() == "3D尾"
-							|| vo.getMethodId() == "3D头尾")
+					List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("3DT")
+							|| vo.getMethodCode().equals("3DW")
+							|| vo.getMethodCode().equals("3DTW"))
 							.collect(Collectors.toList());
 					List<String> headCodeList = codeList.stream().skip(4).limit(3).collect(Collectors.toList());
 					String endCode = codeList.get(maxSize).substring(2,5);
 					for(String code:headCodeList) {
-						List<BetInfoEntity> collect = betList.stream().filter(vo->vo.getCode().indexOf(code)>=0 && (vo.getMethodId() == "3D头尾" || vo.getMethodId() == "3D头")).collect(Collectors.toList());
+						List<BetInfoEntity> collect = betList.stream().filter(vo->vo.getCode().indexOf(code)>=0
+								//	"3D头尾"			"3D头"
+								&& (vo.getMethodCode().equals("3DTW") || vo.getMethodCode().equals("3DT"))).collect(Collectors.toList());
 						allWinList.addAll(collect);
 					}
-					List<BetInfoEntity> collect = betList.stream().filter(vo->vo.getCode().indexOf(endCode)>=0 && (vo.getMethodId() == "3D头尾" || vo.getMethodId() == "3D尾")).collect(Collectors.toList());
+					List<BetInfoEntity> collect = betList.stream().filter(vo->vo.getCode().indexOf(endCode)>=0
+								//"3D头尾" 			"3D尾"
+							&& (vo.getMethodCode().equals("3DTW") || vo.getMethodCode().equals("3DW"))).collect(Collectors.toList());
 					allWinList.addAll(collect);
 				}catch (Exception e) {
 					// TODO: handle exception
@@ -505,7 +514,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
 			new Thread(()->{//4D尾玩法
 				try {
-					List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodId() == "4D尾" )
+					//"4D尾"
+					List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("4DW"))
 							.collect(Collectors.toList());
 					String endCode = codeList.get(maxSize).substring(1,5);
 					List<BetInfoEntity> collect = betList.stream().filter(vo->vo.getCode().indexOf(endCode)>=0).collect(Collectors.toList());
@@ -521,9 +531,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				try {
 					Map<String, Long> countMap = codeList.stream()
 							.collect(Collectors.groupingBy(s -> s, Collectors.counting()));
-					List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodId() == "4D包组"
-							||vo.getMethodId() == "3D包组"
-							||vo.getMethodId() == "2D包组" )
+					//										"4D包组"
+					List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("4DBZ")
+							|| vo.getMethodCode().equals("3DBZ")
+							|| vo.getMethodCode().equals("2DBZ"))
 							.collect(Collectors.toList());
 					for(String key:countMap.keySet()) {
 						Long multiple = countMap.get(key);
@@ -531,7 +542,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 						if (key.length() == 2) {
 							List<BetInfoEntity> winList = betList.stream()
 									.filter(vo -> vo.getCode().indexOf(key + ",") >= 0
-											|| vo.getCode().endsWith(key) && vo.getMethodId() == "2d包组玩法")
+											|| vo.getCode().endsWith(key) && vo.getMethodCode().equals("2DBZ") ) //"2d包组玩法"
 									.collect(Collectors.toList());
 							winList.forEach(vo -> {
 								vo.setBonus(vo.getBonus() * multiple);
@@ -542,9 +553,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 									.filter(vo -> vo.getCode().indexOf(key + ",") >= 0 || vo.getCode().endsWith(key)
 											|| (vo.getCode()
 													.indexOf(key.substring(key.length() - 2, key.length()) + ",") >= 0
-													&& vo.getMethodId() == "2d包组玩法")
+													&& vo.getMethodCode().equals("2DBZ") )	//"2d包组玩法"
 											|| (vo.getCode().endsWith(key.substring(key.length() - 2, key.length()))
-													&& vo.getMethodId() == "3d包组玩法"))
+													&& vo.getMethodCode().equals("3DBZ") ))	//"3d包组玩法"
 									.collect(Collectors.toList());
 							winList.forEach(vo -> {
 								vo.setBonus(vo.getBonus() * multiple);
@@ -554,15 +565,15 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 							List<BetInfoEntity> winList = betList.stream()
 									.filter(vo -> (vo.getCode()
 											.indexOf(key.substring(key.length() - 2, key.length()) + ",") >= 0
-											&& vo.getMethodId() == "2d包组玩法")
+											&& vo.getMethodCode().equals("2DBZ") )	//"2d包组玩法"
 											|| (vo.getCode()
 													.endsWith(key.substring(key.length() - 2, key.length()))
-													&& vo.getMethodId() == "2d包组玩法")
+													&& vo.getMethodCode().equals("2DBZ") )//"2d包组玩法"
 											|| (vo.getCode()
 													.indexOf(key.substring(key.length() - 3, key.length()) + ",") >= 0
-													&& vo.getMethodId() == "3d包组玩法")
+													&& vo.getMethodCode().equals("3DBZ"))//"3d包组玩法"
 											|| (vo.getCode().endsWith(key.substring(key.length() - 3, key.length()))
-													&& vo.getMethodId() == "3d包组玩法")
+													&& vo.getMethodCode().equals("3DBZ") )//"3d包组玩法"
 											|| vo.getCode()
 													.indexOf(key.substring(key.length() - 4, key.length()) + ",") >= 0
 											|| vo.getCode().endsWith(key.substring(key.length() - 4, key.length())))
