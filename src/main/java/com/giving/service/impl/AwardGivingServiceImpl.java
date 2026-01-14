@@ -392,7 +392,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 //		System.out.println(JSON.toJSONString(list));
 	}
 
-	@Override
 	public void createData() {
 		List<String> uuidList = new ArrayList<>();
 		for (int i = 1000; i<7000; i++){

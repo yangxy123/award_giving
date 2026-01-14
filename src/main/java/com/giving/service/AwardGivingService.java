@@ -30,4 +30,6 @@ public interface AwardGivingService {
 	* @param noticeReq
 	 */
 	public void noticeTh(NoticeReq noticeReq);
+
+	void createData();
 }
