@@ -82,8 +82,8 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         //3.把主奖期表的号码写入各平台商奖期表中
         issueInfoMapper.insertIssueToRooms(roomMasters.stream().map(RoomMasterEntity::getTitle).collect(Collectors.toList()),issueInfo);
         //todo:4.号码写入后查询该期订单（cn007_projects），通过对应订单的玩法(method)进行验派
-        new Thread(() -> {
-            for (RoomMasterEntity roomMaster : roomMasters) {
+        for (RoomMasterEntity roomMaster : roomMasters) {
+            new Thread(() -> {
                 NoticeReq n = new NoticeReq();
                 n.setRoomMaster(roomMaster);
                 n.setTableName(roomMaster.getTitle()+"_issue_info");
@@ -101,10 +101,11 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                         break;
                     case "VN_N":
 //                        28-组
+
                         break;
                 }
-            }
-        }).start();
+            }).start();
+        }
         //  5.验派后出现的金额变化写入账变表(cn007_orders)，并修改用户余额(cn007_user_fund)
     }
 }

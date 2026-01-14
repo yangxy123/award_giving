@@ -79,6 +79,7 @@
     <select id="selectListByNoticeReq" resultType="com.giving.entity.BetInfoEntity">
         SELECT pr.*, me.`code` as methodCode FROM ${noticeReq.title}_projects pr LEFT JOIN method me ON pr.method_id = me.method_id
 		where pr.issue = #{noticeReq.issue} and pr.lottery_id = #{noticeReq.lotteryId}
+        order by pr.project_id
     </select>
 
     <update id="updateWinbonus">
