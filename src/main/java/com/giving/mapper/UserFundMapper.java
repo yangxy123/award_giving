@@ -6,7 +6,9 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.giving.req.NoticeReq;
 import org.apache.ibatis.annotations.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
 * @author zzby
@@ -18,7 +20,7 @@ public interface UserFundMapper extends BaseMapper<UserFundEntity> {
 
     UserFundEntity selectByNotice(@Param("noticeReq") NoticeReq noticeReq,@Param("userId") String userId);
 
-    void updateUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("userIds") List<String> userIds);
+    void updateUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("bonusMap") Map<String, BigDecimal> bonusMap);
 }
 
 

@@ -28,17 +28,15 @@
         updated_at
     </sql>
     <update id="updateUserFund">
-        <foreach collection="userIds" item="userId" open="" close="" separator=";">
+        <foreach collection="bonusMap.entrySet()" item="entry" open="" close="" separator=";">
             UPDATE ${noticeReq.title}_user_fund SET
-            channelbalance = :channel_balance,
-            availablebalance = :available_balance,
-            holdbalance = :hold_balance,
-            updated_at = :now
-            WHERE userid = ${userId}
-            AND wallet_type = :wallet_type
+            channelbalance = channelbalance + #{entry.getValue()},
+            availablebalance = availablebalance + #{entry.getValue()},
+            updated_at = now()
+            WHERE userid = #{entry.getKey()}
+            AND wallet_type = 5
             AND islocked = 1;
         </foreach>
-
     </update>
     <select id="selectByNotice" resultType="com.giving.entity.UserFundEntity">
         select * from `${noticeReq.title}_user_fund`

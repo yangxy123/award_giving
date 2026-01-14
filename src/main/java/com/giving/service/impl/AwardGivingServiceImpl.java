@@ -354,6 +354,18 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				//中奖用户id列表
 				List<String> userIds = sumList.stream().map(BetInfoEntity::getUserId).collect(Collectors.toSet()).stream().collect(Collectors.toList());
 
+				//汇总累加用户奖金
+				Map<String,BigDecimal> bonusMap = new HashMap<>();
+				for (BetInfoEntity i : sumList) {
+					if(bonusMap.containsKey(i.getUserId())){
+						bonusMap.put(i.getUserId(),bonusMap.get(i.getUserId()).add(new BigDecimal(i.getWinbonus())));
+					}else{
+						bonusMap.put(i.getUserId(),new BigDecimal(i.getWinbonus()));
+					}
+				}
+
+
+
 				//锁定用户资金
 				betInfoMapper.doLockUserFund(noticeReq,userIds);
 
@@ -368,7 +380,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 //				roomMasterMapper.createSpeculation(noticeReq.getRoomMaster());
 
 				//更新用户资金余额
-				userFundMapper.updateUserFund(noticeReq,userIds);
+				userFundMapper.updateUserFund(noticeReq,bonusMap);
 
 				//解锁用户资金
 				betInfoMapper.unLockUserFund(noticeReq,userIds);
