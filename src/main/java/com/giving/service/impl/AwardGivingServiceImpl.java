@@ -680,9 +680,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 					String headCode1 = codeList.get(0).substring(4,6);
 					String endCode = codeList.get(maxSize);
 
-					List<BetInfoEntity> collect = betList.stream().filter(vo-> (headCode.indexOf(vo.getCode()) >= 0 && (vo.getMethodId() == "3D头" || vo.getMethodId()=="1D头"))
-							|| (headCode1.indexOf(vo.getCode()) >= 0 && vo.getMethodId() == "2D头")
-							|| (endCode.indexOf(vo.getCode()) && (vo.getMethodId() == "2D尾" || vo.getMethodId()=="1D尾"))).collect(Collectors.toList());
+					List<BetInfoEntity> collect = betList.stream().filter(vo-> (headCode.indexOf(vo.getCode()) >= 0
+							&& (vo.getMethodCode().equals("3DT") || vo.getMethodCode().equals("1DT") )) // "3D头"   "1D头"
+							|| (headCode1.indexOf(vo.getCode()) >= 0 && vo.getMethodCode().equals("2DT"))//"2D头"
+							|| (endCode.indexOf(vo.getCode()) && (vo.getMethodCode().equals("2DW") || vo.getMethodCode().equals("1DW"))))
+//							|| (endCode.indexOf(vo.getCode()) && (vo.getMethodId() == "2D尾" || vo.getMethodId()=="1D尾")))
+							.collect(Collectors.toList());
 					allWinList.addAll(collect);
 				}catch (Exception e) {
 					// TODO: handle exception
@@ -696,8 +699,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 					String frontThreeCode = codeList.get(1)+codeList.get(2);
 					String afterThreeCode = codeList.get(3)+codeList.get(4);
 
-					List<BetInfoEntity> collect = betList.stream().filter(vo-> ((frontThreeCode.startsWith(vo.getCode()) || frontThreeCode.endsWith(vo.getCode())) && vo.getMethodId() == "3D前三")
-							|| ((afterThreeCode.startsWith(vo.getCode()) || afterThreeCode.endsWith(vo.getCode())) && vo.getMethodId() == "3D后三")).collect(Collectors.toList());
+					List<BetInfoEntity> collect = betList.stream().filter(vo-> ((frontThreeCode.startsWith(vo.getCode()) || frontThreeCode.endsWith(vo.getCode())) && vo.getMethodCode().equals("3DQ3")) //"3D前三"
+							|| ((afterThreeCode.startsWith(vo.getCode()) || afterThreeCode.endsWith(vo.getCode())) &&  vo.getMethodCode().equals("3DH3"))).collect(Collectors.toList()); //"3D后三"
 					allWinList.addAll(collect);
 				}catch (Exception e) {
 					// TODO: handle exception

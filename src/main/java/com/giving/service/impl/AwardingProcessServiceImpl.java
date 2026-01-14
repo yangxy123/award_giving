@@ -101,7 +101,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                         break;
                     case "VN_N":
 //                        28-组
-
+                        awardGivingService.noticeNorth(n);
                         break;
                 }
             }).start();
