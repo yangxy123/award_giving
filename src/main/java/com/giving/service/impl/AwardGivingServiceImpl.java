@@ -337,6 +337,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 						throw new RuntimeException(e);
 					}
 				}
+				//记录开始更改时间--state
 				Date bonusTime = new Date();
 				//中奖订单
 				List<BetInfoEntity> sumList = getSumList(allWinList);
@@ -352,34 +353,35 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
 				//中奖用户id列表
 				List<String> userIds = sumList.stream().map(BetInfoEntity::getUserId).collect(Collectors.toSet()).stream().collect(Collectors.toList());
+
 				//锁定用户资金
-//			betInfoMapper.doLockUserFund(noticeReq,userIds);
+				betInfoMapper.doLockUserFund(noticeReq,userIds);
 
 				//账变写入 orders
-//			betInfoMapper.addOrdersReArray(noticeReq,sumList);
+//				betInfoMapper.addOrdersReArray(noticeReq,sumList);
 
 				//删除临时注单记录
 				List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
 				projectsTmpMapper.deleteBatchIds(projectIds);
+
+				//生成抄单（Speculation）记录（依业务类型）
+//				roomMasterMapper.createSpeculation(noticeReq.getRoomMaster());
+
+				//更新用户资金余额
+				userFundMapper.updateUserFund(noticeReq,userIds);
+
+				//解锁用户资金
+				betInfoMapper.unLockUserFund(noticeReq,userIds);
+
 			}).start();
-
-
-			//生成抄单（Speculation）记录（依业务类型）
-//			roomMasterMapper.createSpeculation(noticeReq.getRoomMaster());
-
-			//更新用户资金余额
-//			userFundMapper.updateUserFund(noticeReq,userIds);
-
-			//解锁用户资金
-//			betInfoMapper.unLockUserFund(noticeReq,userIds);
 		}
 	}
 
 	@Override
 	public void createData() {
 		List<String> uuidList = new ArrayList<>();
-		for (Integer i = 1000;i<5000;i++){
-			uuidList.add("3406965fcd2"+i.toString());
+		for (int i = 1000; i<1001; i++){
+			uuidList.add("3406965fcd2"+ i);
 		}
 		projectsTmpMapper.createData(uuidList);
 	}

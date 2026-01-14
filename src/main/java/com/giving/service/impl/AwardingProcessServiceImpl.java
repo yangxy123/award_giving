@@ -66,14 +66,16 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         issueInfo.setWriteId(0);
         issueInfoMapper.updateById(issueInfo);
 
-        updateRoomsIssueInfo(issueInfo);
+        LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
+
+        updateRoomsIssueInfo(issueInfo,lottery);
 
     }
     /**
      * 写入各平台商的平台商奖期表
      * @param issueInfo
      */
-    public void updateRoomsIssueInfo(IssueInfoEntity issueInfo){
+    public void updateRoomsIssueInfo(IssueInfoEntity issueInfo,LotteryEntity lottery){
         //2.取得平台商信息表中的平台商前缀
         List<RoomMasterEntity> roomMasters = roomMasterMapper.selectTitle();
 
@@ -89,17 +91,16 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                 n.setIssue(issueInfo.getIssue());
                 n.setCode(issueInfo.getCode());
                 n.setLotteryId(issueInfo.getLotteryId());
-                List<LotteryEntity> lotter18 = lotteryMapper.selectLotterIdIn18();
                 //18--越南自开
                 //泰国
-                switch (issueInfo.getLotteryId().toString()){
-                    case "212":
-                    case "223":
-                    case "166":
+                switch (lottery.getFunctionType()){
+                    case "VN_S":
+                    case "VN_C":
                         //18--越南自开
                         awardGivingService.notice(n);
                         break;
-                    case "242":
+                    case "VN_N":
+//                        28-组
                         break;
                 }
             }

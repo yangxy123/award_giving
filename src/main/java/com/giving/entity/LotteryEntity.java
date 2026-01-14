@@ -1,5 +1,6 @@
 package com.giving.entity;
 
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.io.Serializable;
 import java.util.Date;
@@ -11,6 +12,7 @@ import lombok.Data;
 @TableName(value ="lottery")
 @Data
 public class LotteryEntity implements Serializable {
+    @TableId
     private Long lotteryId;
 
     private String lotteryGroup;
