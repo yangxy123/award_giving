@@ -92,6 +92,7 @@
           where project_id = #{item.projectId} and is_cancel = 0
         </foreach>
     </update>
+
     <update id="updateByNotWinList">
         <foreach collection="notWinList" item="item" open="" close="" separator=";">
             update ${noticeReq.title}_projects set is_getprize = 2,prize_status = 1,updated_at = now() where project_id = #{item.projectId}

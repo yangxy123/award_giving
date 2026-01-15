@@ -68,6 +68,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 //			allBetList.add(list);
 //			pageNo += 1;
 //		}
+		Date bonusTime = new Date();
 		while (true) {
 			PageHelper.startPage(pageNo, pageSize);
 			// TODO Auto-generated method stub
@@ -356,7 +357,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			}
 			//中奖订单
 			List<BetInfoEntity> sumList = getSumList(allWinList);
-			updateDataAll(sumList,noticeReq,list);
+			updateDataAll(sumList,noticeReq,list,bonusTime);
 			//}).start();
 		}
 //		List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
@@ -371,6 +372,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		// 将开奖号码转换为list
 		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
 		int maxSize = codeList.size() - 1;
+		Date bonusTime = new Date();
 		while (true) {
 			PageHelper.startPage(pageNo, pageSize);
 			// TODO Auto-generated method stub
@@ -577,7 +579,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 //			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
 //					.collect(Collectors.toList());
 
-			updateDataAll(sumList,noticeReq,list);
+			updateDataAll(sumList,noticeReq,list,bonusTime);
 
 		}
 	}
@@ -590,6 +592,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		// 将开奖号码转换为list
 		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
 		int maxSize = codeList.size() - 1;
+		Date bonusTime = new Date();
 		while (true) {
 			PageHelper.startPage(pageNo, pageSize);
 			// TODO Auto-generated method stub
@@ -659,7 +662,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 //			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
 //					.collect(Collectors.toList());
 
-			updateDataAll(sumList,noticeReq,list);
+			updateDataAll(sumList,noticeReq,list,bonusTime);
 		}
 	}
 
@@ -669,7 +672,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 	 * @param noticeReq
 	 * @param list
 	 */
-	public void updateDataAll(List<BetInfoEntity> sumList,NoticeReq noticeReq,List<BetInfoEntity> list){
+	public void updateDataAll(List<BetInfoEntity> sumList,NoticeReq noticeReq,List<BetInfoEntity> list,Date bonusTime){
 		//中奖订单ID列表
 		List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
 		//未中奖订单ID
@@ -677,6 +680,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				.collect(Collectors.toList());
 		if(!notWinList.isEmpty()){
 			betInfoMapper.updateByNotWinList(noticeReq, notWinList);
+		}
+		if(!sumList.isEmpty()){
+			betInfoMapper.updateWinbonus(noticeReq,sumList,bonusTime);
 		}
 		List<String> userIds = sumList.stream().map(BetInfoEntity::getUserId).collect(Collectors.toSet()).stream().collect(Collectors.toList());
 		//锁定用户资金
