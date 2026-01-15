@@ -59,9 +59,8 @@
         </if>
         (room_master_id, orders_id, status, created_at, updated_at)
         VALUES
-        (#{roomMaster.id}, :orders_id, '0', now(), now());
+        <foreach collection="orderIds" item="orderId" separator=",">
+            (#{roomMaster.id}, #{orderId}, '0', now(), now())
+        </foreach>
     </insert>
-    <!--    <select id="selectTitle" resultType="com.giving.entity.RoomMasterEntity">-->
-<!--        select * from room_master where is_active = 1-->
-<!--    </select>-->
 </mapper>

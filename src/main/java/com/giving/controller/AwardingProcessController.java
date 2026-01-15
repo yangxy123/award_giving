@@ -1,6 +1,7 @@
 package com.giving.controller;
 
 import com.giving.req.DrawSourceReq;
+import com.giving.req.ListIssueReq;
 import com.giving.service.AwardingProcessService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -31,6 +32,16 @@ public class AwardingProcessController {
     @ApiOperation("录号派奖")
     public void drawSource(@RequestBody @Valid DrawSourceReq req) {
         awardingProcessService.drawSource(req);
+    }
+
+    /**
+     * 1.根据彩种奖期取到号码->写入主奖期表中（issue_info）
+     * @param req
+     */
+    @PostMapping("/reste")
+    @ApiOperation("重新派奖")
+    public void resteDrawSource(@RequestBody @Valid ListIssueReq req) {
+        awardingProcessService.resteDrawSource(req);
     }
 
 }

@@ -2,6 +2,7 @@ package com.giving.service.impl;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import com.alibaba.fastjson.JSON;
@@ -53,6 +54,20 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		// 将开奖号码转换为list
 		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
 		int maxSize = codeList.size() - 1;
+
+		List<List<BetInfoEntity>> allBetList = Lists.newArrayList();
+//		while (true) {
+//			PageHelper.startPage(pageNo, pageSize);
+//			// TODO Auto-generated method stub
+//			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
+//
+//			List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
+//			if (list.isEmpty()) {
+//				break;
+//			}
+//			allBetList.add(list);
+//			pageNo += 1;
+//		}
 		while (true) {
 			PageHelper.startPage(pageNo, pageSize);
 			// TODO Auto-generated method stub
@@ -64,8 +79,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			}
 //			Page<BetInfoEntity> page = (Page<BetInfoEntity>) list;
 			pageNo += 1;
-
-			//new Thread(()->{
+//		for(List<BetInfoEntity> list: allBetList){
+//			//new Thread(()->{
 			List<BetInfoEntity> allWinList = Lists.newArrayList();
 			List<Integer> endList = Lists.newArrayList();
 
@@ -602,7 +617,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 							&& (vo.getMethodCode().equals("3DT") || vo.getMethodCode().equals("1DT") )) // "3D头"   "1D头"
 							|| (headCode1.indexOf(vo.getCode()) >= 0 && vo.getMethodCode().equals("2DT"))//"2D头"
 							|| (endCode.indexOf(vo.getCode()) >=0 && (vo.getMethodCode().equals("2DW") || vo.getMethodCode().equals("1DW"))))
-//							|| (endCode.indexOf(vo.getCode()) && (vo.getMethodId() == "2D尾" || vo.getMethodId()=="1D尾")))
 							.collect(Collectors.toList());
 					allWinList.addAll(collect);
 				}catch (Exception e) {
@@ -661,9 +675,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		//未中奖订单ID
 		List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
 				.collect(Collectors.toList());
-
-		betInfoMapper.updateByNotWinList(noticeReq, notWinList);
+		if(!notWinList.isEmpty()){
+			betInfoMapper.updateByNotWinList(noticeReq, notWinList);
+		}
 		List<String> userIds = sumList.stream().map(BetInfoEntity::getUserId).collect(Collectors.toSet()).stream().collect(Collectors.toList());
+		//锁定用户资金
+		betInfoMapper.doLockUserFund(noticeReq, userIds);
 		//汇总累加用户奖金
 		Map<String, BigDecimal> bonusMap = new HashMap<>();
 		for (BetInfoEntity i : sumList) {
@@ -673,19 +690,15 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				bonusMap.put(i.getUserId(), new BigDecimal(i.getWinbonus()));
 			}
 		}
-
-		//锁定用户资金
-		betInfoMapper.doLockUserFund(noticeReq, userIds);
-
 		//账变写入 orders
-//				betInfoMapper.addOrdersReArray(noticeReq,sumList);
+//		List<String> orderIds = addOrdersReArrayUtil(noticeReq,sumList);
 
 		//删除临时注单记录
-		List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-		projectsTmpMapper.deleteBatchIds(projectIds);
+//		List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+//		projectsTmpMapper.deleteBatchIds(projectIds);
 
 		//生成抄单（Speculation）记录（依业务类型）
-//		roomMasterMapper.createSpeculation(noticeReq.getRoomMaster());
+//		roomMasterMapper.createSpeculation(noticeReq.getRoomMaster(),orderIds);
 
 		//更新用户资金余额
 		userFundMapper.updateUserFund(noticeReq, bonusMap);
@@ -694,6 +707,128 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		betInfoMapper.unLockUserFund(noticeReq, userIds);
 	}
 
+
+	/**
+	 * 更新账单工具
+	 * @param noticeReq
+	 * @param sumList
+	 * @return
+	 */
+	private List<String> addOrdersReArrayUtil(NoticeReq noticeReq, List<BetInfoEntity> sumList){
+		if (sumList == null || sumList.isEmpty()) {
+			return null;
+		}
+		//orderId  entry
+		List<String> entryList = new ArrayList<>();
+
+		// 取用户列表
+		List<String> userIds = sumList.stream().map(BetInfoEntity::getUserId).distinct().collect(Collectors.toList());
+
+		// 查询钱包（此时你已 doLockUserFund，建议这里加 FOR UPDATE 进一步防并发）
+		List<UserFundEntity> fundList = betInfoMapper.selectUserFundBalancesForUpdate(noticeReq, userIds);
+
+		// 初始余额 Map（后面会滚动更新，确保同一用户多条 orders 的 pre/post 正确）
+		Map<String, BigDecimal> curChannel = new HashMap<>();
+		Map<String, BigDecimal> curAvailable = new HashMap<>();
+		Map<String, BigDecimal> curHold = new HashMap<>();
+
+		for (UserFundEntity f : fundList) {
+			curChannel.put(f.getUserid(), nz(f.getChannelbalance()));
+			curAvailable.put(f.getUserid(), nz(f.getAvailablebalance()));
+			curHold.put(f.getUserid(), nz(f.getHoldbalance()));
+		}
+
+		// master_id：按你实际字段取（示例写法）
+		long masterId = 0L;
+		if (noticeReq != null && noticeReq.getRoomMaster() != null) {
+			masterId = noticeReq.getRoomMaster().getMasterId();
+		}
+
+		Date now = new Date();
+		List<OrdersEntity> orders = new ArrayList<>(sumList.size());
+
+		for (BetInfoEntity p : sumList) {
+			String uid = p.getUserId();
+
+			// amount = winbonus（你若有 getPrize() 的真实奖金逻辑，可替换这里）
+			BigDecimal amount = safeMoney(p.getWinbonus());
+			if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+				continue; // 0 或负数不写账变（按你业务需要可删）
+			}
+
+			BigDecimal preBal = curChannel.getOrDefault(uid, BigDecimal.ZERO);
+			BigDecimal preAvail = curAvailable.getOrDefault(uid, BigDecimal.ZERO);
+			BigDecimal preHold = curHold.getOrDefault(uid, BigDecimal.ZERO);
+
+			BigDecimal postBal = preBal.add(amount);
+			BigDecimal postAvail = preAvail.add(amount);
+
+			// 滚动更新：关键点 ✅
+			curChannel.put(uid, postBal);
+			curAvailable.put(uid, postAvail);
+
+			OrdersEntity o = new OrdersEntity();
+			// A. 直接来自 Project 注单（你 BetInfoEntity 上要有这些字段）
+			o.setLotteryId(p.getLotteryId());
+			o.setMethodId(p.getMethodId());
+			o.setIssue(p.getIssue());
+			o.setProjectId(p.getProjectId());
+			o.setTaskId(p.getTaskId() == null ? "0" : p.getTaskId());
+			o.setModes(p.getModes());
+			o.setFromuserId(uid);
+
+			// B. 奖金金额相关
+			o.setAmount(amount);
+			o.setOrderTypeId(5);                 // ORDER_TYPE_JJPS (=5)
+			o.setTitle("奖金派送");
+			o.setDescription("奖金派送");
+
+			// C. 用户及钱包字段（由钱包计算）
+			o.setPreBalance(preBal);
+			o.setPreAvailable(preAvail);
+			o.setPreHold(preHold);
+			o.setChannelBalance(postBal);
+			o.setAvailableBalance(postAvail);
+			o.setHoldBalance(preHold);
+
+			// D. 其他字段
+			o.setTimes(now);
+			o.setActionTime(now);
+			o.setCreatedAt(now);
+			o.setUpdatedAt(now);
+
+			//订单id
+			// entry：str_pad(master_id,3,'0') . uniqid()
+			String uuid = String.format("%03d", masterId) + uniqId().substring(0,13);
+			entryList.add(uuid);
+			o.setEntry(uuid);
+			// unique_key：microtime(true)（这里用 毫秒+随机，保证唯一）
+			o.setUniqueKey(String.valueOf(System.currentTimeMillis()) + rand4());
+
+			o.setClientIp("0.0.0.0");
+			o.setProxyIp("0.0.0.0");
+
+			o.setThirdPartyTrxId("0");
+			o.setSendMoneyToPlatform(1); // third_party_trx_id 不为空 → 3，否则 1
+
+			// 默认字段
+			o.setTouserId("0");
+			o.setAgentId("0");
+			o.setAdminId(0);
+			o.setAdminName("");
+			o.setTransferOrderId("0");
+			o.setTransferUserId("0");
+			o.setTransferChannelId(0);
+			o.setTransferStatus(0);
+
+			orders.add(o);
+		}
+		if (orders.isEmpty()) {
+			return null;
+		}
+		betInfoMapper.batchInsertOrders(noticeReq, orders);
+		return entryList;
+	}
 
 	/**
 	 * 相同投注订单计算中奖总金额
@@ -737,10 +872,34 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 	 */
 	public void createData() {
 		List<String> uuidList = new ArrayList<>();
-		for (int i = 1000; i<6000; i++){
+		for (int i = 1000; i<1500; i++){
 			uuidList.add("3406965fcd2"+ i);
 		}
 		projectsTmpMapper.createData(uuidList);
+	}
+
+
+	// ---------- 小工具 ----------
+	static BigDecimal nz(BigDecimal v) { return v == null ? BigDecimal.ZERO : v; }
+
+	static BigDecimal safeMoney(Object winbonus) {
+		if (winbonus == null) return BigDecimal.ZERO;
+        if (winbonus instanceof BigDecimal) {
+            return (BigDecimal) winbonus;
+        }
+		String s = String.valueOf(winbonus).trim();
+		if (s.isEmpty()) return BigDecimal.ZERO;
+		return new BigDecimal(s);
+	}
+
+	static String uniqId() {
+		// 类似 uniqid：时间 + 随机
+		return Long.toHexString(System.nanoTime()) + Long.toHexString(ThreadLocalRandom.current().nextLong());
+	}
+
+	static String rand4() {
+		int r = ThreadLocalRandom.current().nextInt(1000, 10000);
+		return String.valueOf(r);
 	}
 
 }

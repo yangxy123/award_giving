@@ -8,6 +8,7 @@ import com.giving.mapper.IssueInfoMapper;
 import com.giving.mapper.LotteryMapper;
 import com.giving.mapper.RoomMasterMapper;
 import com.giving.req.DrawSourceReq;
+import com.giving.req.ListIssueReq;
 import com.giving.req.NoticeReq;
 import com.giving.service.AwardGivingService;
 import com.giving.service.AwardingProcessService;
@@ -70,6 +71,22 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 
         updateRoomsIssueInfo(issueInfo,lottery);
 
+    }
+
+    /**
+     *
+     * @param req
+     */
+    @Override
+    public void resteDrawSource(ListIssueReq req){
+        //判断是否存在奖期
+        LambdaQueryWrapper<IssueInfoEntity> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(IssueInfoEntity::getLotteryId,req.getLotteryId());
+        queryWrapper.eq(IssueInfoEntity::getIssue,req.getIssue());
+        IssueInfoEntity issueInfo = issueInfoMapper.selectOne(queryWrapper);
+        LotteryEntity lottery = lotteryMapper.selectById(req.getLotteryId());
+
+        updateRoomsIssueInfo(issueInfo,lottery);
     }
     /**
      * 写入各平台商的平台商奖期表

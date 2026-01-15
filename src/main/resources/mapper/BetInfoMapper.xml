@@ -46,39 +46,38 @@
         <result property="methodCode" column="methodCode" jdbcType="VARCHAR"/>
     </resultMap>
 
-    <insert id="addOrdersReArray">
-        <foreach collection="sumList" item="item" open="" close="" separator=";">
-            INSERT INTO ${noticeReq.title}_orders (
-            lottery_id, method_id, task_id, project_id,
-            fromuser_id, touser_id, agent_id, admin_id, admin_name,
-            order_type_id, title, amount, description,
-            pre_balance, pre_hold, pre_available,
-            channel_balance, hold_balance, available_balance,
-            client_ip, proxy_ip, times, action_time,
-            third_party_trx_id, send_money_to_platform,
-            transfer_user_id, transfer_channel_id, transfer_order_id, transfer_status,
-            unique_key, modes, cardnotice,
-            created_at, updated_at, issue, entry
-            ) VALUES (
-                      #{item.lotteryId},#{item.methodId},#{item.taskId},#{item.projectId},#{item.userId},0,0,0,null,5,'奖金派送',#{item.bonus},
-                      '奖金派送',#{item.},
-            :lottery_id, :method_id, :task_id, :project_id,
-            :fromuser_id, :touser_id, :agent_id, :admin_id, :admin_name,
-            5, :title, :amount, :description,
-            :pre_balance, :pre_hold, :pre_available,
-            :channel_balance, :hold_balance, :available_balance,
-            '0.0.0.0', '0.0.0.0', :times, :action_time,
-            :third_party_trx_id, :send_money_to_platform,
-            :transfer_user_id, :transfer_channel_id, :transfer_order_id, :transfer_status,
-            :unique_key, :modes, '',
-            :created_at, :updated_at, :issue, :entry
-            );
-        </foreach>
-
-    </insert>
+<!--    <insert id="addOrdersReArray">-->
+<!--        <foreach collection="sumList" item="item" open="" close="" separator=";">-->
+<!--            INSERT INTO ${noticeReq.title}_orders (-->
+<!--            lottery_id, method_id, task_id, project_id,-->
+<!--            fromuser_id, touser_id, agent_id, admin_id, admin_name,-->
+<!--            order_type_id, title, amount, description,-->
+<!--            pre_balance, pre_hold, pre_available,-->
+<!--            channel_balance, hold_balance, available_balance,-->
+<!--            client_ip, proxy_ip, times, action_time,-->
+<!--            third_party_trx_id, send_money_to_platform,-->
+<!--            transfer_user_id, transfer_channel_id, transfer_order_id, transfer_status,-->
+<!--            unique_key, modes, cardnotice,-->
+<!--            created_at, updated_at, issue, entry-->
+<!--            ) VALUES (-->
+<!--                      #{item.lotteryId},#{item.methodId},#{item.taskId},#{item.projectId},#{item.userId},0,0,0,null,5,'奖金派送',#{item.bonus},-->
+<!--                      '奖金派送',#{item.},-->
+<!--            :lottery_id, :method_id, :task_id, :project_id,-->
+<!--            :fromuser_id, :touser_id, :agent_id, :admin_id, :admin_name,-->
+<!--            5, :title, :amount, :description,-->
+<!--            :pre_balance, :pre_hold, :pre_available,-->
+<!--            :channel_balance, :hold_balance, :available_balance,-->
+<!--            '0.0.0.0', '0.0.0.0', :times, :action_time,-->
+<!--            :third_party_trx_id, :send_money_to_platform,-->
+<!--            :transfer_user_id, :transfer_channel_id, :transfer_order_id, :transfer_status,-->
+<!--            :unique_key, :modes, '',-->
+<!--            :created_at, :updated_at, :issue, :entry-->
+<!--            );-->
+<!--        </foreach>-->
+<!--    </insert>-->
     <select id="selectListByNoticeReq" resultType="com.giving.entity.BetInfoEntity">
         SELECT pr.*, me.`code` as methodCode FROM ${noticeReq.title}_projects pr LEFT JOIN method me ON pr.method_id = me.method_id
-		where pr.issue = #{noticeReq.issue} and pr.lottery_id = #{noticeReq.lotteryId}
+		where pr.issue = #{noticeReq.issue} and pr.lottery_id = #{noticeReq.lotteryId} and is_getprize = 0 and is_cancel = 0
         order by pr.project_id
     </select>
 
@@ -119,4 +118,58 @@
         </foreach>
             AND islocked = 1 AND wallet_type = 5;
     </update>
+
+    <!-- 查询钱包余额（FOR UPDATE 可选，但建议） -->
+    <select id="selectUserFundBalancesForUpdate" resultType="com.giving.entity.UserFundEntity">
+        SELECT
+        userid AS userId,
+        channelbalance AS channelBalance,
+        availablebalance AS availableBalance,
+        holdbalance AS holdBalance
+        FROM ${noticeReq.title}_user_fund
+        WHERE wallet_type = 5
+        AND islocked = 1
+        AND userid IN
+        <foreach collection="userIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        FOR UPDATE
+    </select>
+
+    <!-- 批量插入 orders -->
+    <insert id="batchInsertOrders">
+        INSERT INTO ${noticeReq.title}_orders
+        (
+        lottery_id, method_id, issue, project_id, task_id, modes, fromuser_id,
+        amount, order_type_id, title, description,
+        pre_balance, pre_available, pre_hold,
+        channel_balance, available_balance, hold_balance,
+        times, action_time,
+        created_at, updated_at,
+        entry, unique_key,
+        client_ip, proxy_ip,
+        third_party_trx_id, send_money_to_platform,
+        touser_id, agent_id, admin_id, admin_name,
+        transfer_user_id, transfer_channel_id, transfer_order_id, transfer_status,
+        cardnotice
+        )
+        VALUES
+        <foreach collection="orders" item="o" separator=",">
+            (
+            #{o.lotteryId}, #{o.methodId}, #{o.issue}, #{o.projectId}, #{o.taskId}, #{o.modes}, #{o.fromuserId},
+            #{o.amount}, #{o.orderTypeId}, #{o.title}, #{o.description},
+            #{o.preBalance}, #{o.preAvailable}, #{o.preHold},
+            #{o.channelBalance}, #{o.availableBalance}, #{o.holdBalance},
+            #{o.times}, #{o.actionTime},
+            #{o.createdAt}, #{o.updatedAt},
+            #{o.entry}, #{o.uniqueKey},
+            #{o.clientIp}, #{o.proxyIp},
+            #{o.thirdPartyTrxId}, #{o.sendMoneyToPlatform},
+            #{o.touserId}, #{o.agentId}, #{o.adminId}, #{o.adminName},
+            #{o.transferUserId}, #{o.transferChannelId}, #{o.transferOrderId}, #{o.transferStatus},
+             ''
+            )
+        </foreach>
+    </insert>
+
 </mapper>

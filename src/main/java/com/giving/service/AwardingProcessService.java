@@ -1,6 +1,7 @@
 package com.giving.service;
 
 import com.giving.req.DrawSourceReq;
+import com.giving.req.ListIssueReq;
 
 /**
  * @author zzby
@@ -8,4 +9,6 @@ import com.giving.req.DrawSourceReq;
  */
 public interface AwardingProcessService {
     void drawSource(DrawSourceReq req);
+
+    void resteDrawSource(ListIssueReq req);
 }

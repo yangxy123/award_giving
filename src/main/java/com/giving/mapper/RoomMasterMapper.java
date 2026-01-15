@@ -20,9 +20,7 @@ public interface RoomMasterMapper extends BaseMapper<RoomMasterEntity> {
     @Select({"select * from room_master where is_active = 1"})
     List<RoomMasterEntity> selectTitle();
 
-//    @Select({"insert into ${noticeReq.tableName} " +
-//            "" })
-    void createSpeculation(@Param("roomMaster") RoomMasterEntity roomMaster);
+    void createSpeculation(@Param("roomMaster") RoomMasterEntity roomMaster,@Param("orderIds") List<String> orderIds);
 }
 
 

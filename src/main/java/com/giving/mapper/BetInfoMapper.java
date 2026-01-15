@@ -1,9 +1,13 @@
 package com.giving.mapper;
 
-import java.util.Date;
-import java.util.List;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.*;
 
+import com.giving.entity.OrdersEntity;
+import com.giving.entity.UserFundEntity;
 import com.giving.req.NoticeReq;
+import org.apache.catalina.User;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
@@ -44,7 +48,16 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 
 	void doLockUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("userIds") List<String> userIds);
 
-	void addOrdersReArray(@Param("noticeReq") NoticeReq noticeReq,@Param("sumList") List<BetInfoEntity> sumList);
+	//void addOrdersReArray(@Param("noticeReq") NoticeReq noticeReq,@Param("sumList") List<BetInfoEntity> sumList);
 
 	void unLockUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("userIds") List<String> userIds);
+
+
+
+
+
+
+	List<UserFundEntity> selectUserFundBalancesForUpdate(@Param("noticeReq") NoticeReq noticeReq, @Param("userIds") List<String> userIds);
+
+	int batchInsertOrders(@Param("noticeReq") NoticeReq noticeReq, @Param("orders") List<OrdersEntity> orders);
 }
