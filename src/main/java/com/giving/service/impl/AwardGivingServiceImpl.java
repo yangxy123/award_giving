@@ -339,102 +339,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 					throw new RuntimeException(e);
 				}
 			}
-			//记录开始更改时间--state
-			Date bonusTime = new Date();
 			//中奖订单
 			List<BetInfoEntity> sumList = getSumList(allWinList);
-			//中奖订单ID列表
-			List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-			//更新单注赢的钱
-			betInfoMapper.updateWinbonus(noticeReq, sumList, bonusTime);
-			//未中奖订单ID
-			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
-					.collect(Collectors.toList());
-
-			betInfoMapper.updateByNotWinList(noticeReq, notWinList);
-
-			//中奖用户id列表
-			List<String> userIds = sumList.stream().map(BetInfoEntity::getUserId).collect(Collectors.toSet()).stream().collect(Collectors.toList());
-
-			//汇总累加用户奖金
-			Map<String, BigDecimal> bonusMap = new HashMap<>();
-			for (BetInfoEntity i : sumList) {
-				if (bonusMap.containsKey(i.getUserId())) {
-					bonusMap.put(i.getUserId(), bonusMap.get(i.getUserId()).add(new BigDecimal(i.getWinbonus())));
-				} else {
-					bonusMap.put(i.getUserId(), new BigDecimal(i.getWinbonus()));
-				}
-			}
-
-
-			//锁定用户资金
-			betInfoMapper.doLockUserFund(noticeReq, userIds);
-
-			//账变写入 orders
-//				betInfoMapper.addOrdersReArray(noticeReq,sumList);
-
-			//删除临时注单记录
-			List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-			projectsTmpMapper.deleteBatchIds(projectIds);
-
-			//生成抄单（Speculation）记录（依业务类型）
-//				roomMasterMapper.createSpeculation(noticeReq.getRoomMaster());
-
-			//更新用户资金余额
-			userFundMapper.updateUserFund(noticeReq, bonusMap);
-
-			//解锁用户资金
-			betInfoMapper.unLockUserFund(noticeReq, userIds);
-
+			updateDataAll(sumList,noticeReq,list);
 			//}).start();
 		}
 //		List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
 //		System.out.println(JSON.toJSONString(list));
-	}
-
-	public void createData() {
-		List<String> uuidList = new ArrayList<>();
-		for (int i = 1000; i<7000; i++){
-			uuidList.add("3406965fcd2"+ i);
-		}
-		projectsTmpMapper.createData(uuidList);
-	}
-
-	/**
-	 * 相同投注订单计算中奖总金额
-	* @author yangxy
-	* @version 创建时间：2025年12月30日 下午7:26:09 
-	* @param allWinList
-	* @return
-	 */
-	private List<BetInfoEntity> getSumList(List<BetInfoEntity> allWinList) {
-		
-		return allWinList.stream()
-		         .collect(Collectors.collectingAndThen(
-		             Collectors.groupingBy(
-		            	 BetInfoEntity::getProjectId,
-		                 Collectors.collectingAndThen(
-		                     Collectors.toList(),
-		                     group -> {
-		                         // 计算总分
-		                         Double totalScore = group.stream()
-		                             .mapToDouble(BetInfoEntity::getWinbonus)
-		                             .sum();
-
-		                         // 获取第一条记录
-		                         BetInfoEntity first = group.get(0);
-
-		                         BetInfoEntity vo = new BetInfoEntity();
-		                         BeanUtils.copyProperties(first, vo);
-		                         vo.setBonus(totalScore);
-		                         vo.setIsGetprize(1);
-		                         // 创建汇总对象
-		                         return vo;
-		                     }
-		                 )
-		             ),
-		             map -> new ArrayList<>(map.values())
-		         ));
 	}
 
 	@Override
@@ -637,15 +548,22 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				if (endList.size() == 5) {
 					break;
 				}
-				Thread.sleep(10);
-			}
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
 			//中奖订单
 			List<BetInfoEntity> sumList = getSumList(allWinList);
-			//中奖订单ID列表
-			List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-			//未中奖订单ID
-			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
-					.collect(Collectors.toList());
+//			//中奖订单ID列表
+//			List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+//			//未中奖订单ID
+//			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
+//					.collect(Collectors.toList());
+
+			updateDataAll(sumList,noticeReq,list);
+
 		}
 	}
 
@@ -683,7 +601,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 					List<BetInfoEntity> collect = betList.stream().filter(vo-> (headCode.indexOf(vo.getCode()) >= 0
 							&& (vo.getMethodCode().equals("3DT") || vo.getMethodCode().equals("1DT") )) // "3D头"   "1D头"
 							|| (headCode1.indexOf(vo.getCode()) >= 0 && vo.getMethodCode().equals("2DT"))//"2D头"
-							|| (endCode.indexOf(vo.getCode()) && (vo.getMethodCode().equals("2DW") || vo.getMethodCode().equals("1DW"))))
+							|| (endCode.indexOf(vo.getCode()) >=0 && (vo.getMethodCode().equals("2DW") || vo.getMethodCode().equals("1DW"))))
 //							|| (endCode.indexOf(vo.getCode()) && (vo.getMethodId() == "2D尾" || vo.getMethodId()=="1D尾")))
 							.collect(Collectors.toList());
 					allWinList.addAll(collect);
@@ -713,14 +631,116 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				if (endList.size() == 2) {
 					break;
 				}
-				Thread.sleep(10);
-			}
-			//中奖订单 allWinList
-			//中奖订单ID列表
-			List<String> winIdList = allWinList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-			//未中奖订单ID
-			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
-					.collect(Collectors.toList());
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+			//中奖订单
+			List<BetInfoEntity> sumList = getSumList(allWinList);
+//			//中奖订单ID列表
+//			List<String> winIdList = allWinList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+//			//未中奖订单ID
+//			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
+//					.collect(Collectors.toList());
+
+			updateDataAll(sumList,noticeReq,list);
 		}
 	}
+
+	/**
+	 * 更新注单数据
+	 * @param sumList
+	 * @param noticeReq
+	 * @param list
+	 */
+	public void updateDataAll(List<BetInfoEntity> sumList,NoticeReq noticeReq,List<BetInfoEntity> list){
+		//中奖订单ID列表
+		List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+		//未中奖订单ID
+		List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
+				.collect(Collectors.toList());
+
+		betInfoMapper.updateByNotWinList(noticeReq, notWinList);
+		List<String> userIds = sumList.stream().map(BetInfoEntity::getUserId).collect(Collectors.toSet()).stream().collect(Collectors.toList());
+		//汇总累加用户奖金
+		Map<String, BigDecimal> bonusMap = new HashMap<>();
+		for (BetInfoEntity i : sumList) {
+			if (bonusMap.containsKey(i.getUserId())) {
+				bonusMap.put(i.getUserId(), bonusMap.get(i.getUserId()).add(new BigDecimal(i.getWinbonus())));
+			} else {
+				bonusMap.put(i.getUserId(), new BigDecimal(i.getWinbonus()));
+			}
+		}
+
+		//锁定用户资金
+		betInfoMapper.doLockUserFund(noticeReq, userIds);
+
+		//账变写入 orders
+//				betInfoMapper.addOrdersReArray(noticeReq,sumList);
+
+		//删除临时注单记录
+		List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+		projectsTmpMapper.deleteBatchIds(projectIds);
+
+		//生成抄单（Speculation）记录（依业务类型）
+//		roomMasterMapper.createSpeculation(noticeReq.getRoomMaster());
+
+		//更新用户资金余额
+		userFundMapper.updateUserFund(noticeReq, bonusMap);
+
+		//解锁用户资金
+		betInfoMapper.unLockUserFund(noticeReq, userIds);
+	}
+
+
+	/**
+	 * 相同投注订单计算中奖总金额
+	 * @author yangxy
+	 * @version 创建时间：2025年12月30日 下午7:26:09
+	 * @param allWinList
+	 * @return
+	 */
+	private List<BetInfoEntity> getSumList(List<BetInfoEntity> allWinList) {
+
+		return allWinList.stream()
+				.collect(Collectors.collectingAndThen(
+						Collectors.groupingBy(
+								BetInfoEntity::getProjectId,
+								Collectors.collectingAndThen(
+										Collectors.toList(),
+										group -> {
+											// 计算总分
+											Double totalScore = group.stream()
+													.mapToDouble(BetInfoEntity::getWinbonus)
+													.sum();
+
+											// 获取第一条记录
+											BetInfoEntity first = group.get(0);
+
+											BetInfoEntity vo = new BetInfoEntity();
+											BeanUtils.copyProperties(first, vo);
+											vo.setBonus(totalScore);
+											vo.setIsGetprize(1);
+											// 创建汇总对象
+											return vo;
+										}
+								)
+						),
+						map -> new ArrayList<>(map.values())
+				));
+	}
+
+	/**
+	 * 生成数据-测试
+	 */
+	public void createData() {
+		List<String> uuidList = new ArrayList<>();
+		for (int i = 1000; i<6000; i++){
+			uuidList.add("3406965fcd2"+ i);
+		}
+		projectsTmpMapper.createData(uuidList);
+	}
+
 }
