@@ -19,6 +19,8 @@ import org.springframework.util.StringUtils;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
@@ -70,7 +72,6 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
 
         updateRoomsIssueInfo(issueInfo,lottery);
-
     }
 
     /**
@@ -123,6 +124,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                 }
             }).start();
         }
+
         //  5.验派后出现的金额变化写入账变表(cn007_orders)，并修改用户余额(cn007_user_fund)
     }
 }

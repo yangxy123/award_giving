@@ -80,6 +80,11 @@
 		where pr.issue = #{noticeReq.issue} and pr.lottery_id = #{noticeReq.lotteryId} and is_getprize = 0 and is_cancel = 0
         order by pr.project_id
     </select>
+    <select id="countListByNoticeReq" resultType="java.lang.Integer">
+        SELECT count(1) as methodCode FROM ${noticeReq.title}_projects pr LEFT JOIN method me ON pr.method_id = me.method_id
+        where pr.issue = #{noticeReq.issue} and pr.lottery_id = #{noticeReq.lotteryId} and is_getprize = 0 and is_cancel = 0
+        order by pr.project_id
+    </select>
 
     <update id="updateWinbonus">
         <foreach collection="sumList" item="item" open="" close="" separator=";">

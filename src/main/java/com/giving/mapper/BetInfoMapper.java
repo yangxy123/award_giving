@@ -41,6 +41,7 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 //	})
 	List<BetInfoEntity> selectListByNoticeReq(@Param("noticeReq") NoticeReq noticeReq);
 
+	Integer countListByNoticeReq(@Param("noticeReq") NoticeReq noticeReq);
 
 	void updateWinbonus(@Param("noticeReq") NoticeReq noticeReq, @Param("sumList") List<BetInfoEntity> sumList,@Param("bonusTime") Date bonusTime);
 
