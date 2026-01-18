@@ -69,9 +69,9 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         issueInfo.setWriteId(0);
         issueInfoMapper.updateById(issueInfo);
 
-        LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
+//        LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
 
-        updateRoomsIssueInfo(issueInfo,lottery);
+        updateRoomsIssueInfo(issueInfo);
     }
 
     /**
@@ -85,15 +85,14 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         queryWrapper.eq(IssueInfoEntity::getLotteryId,req.getLotteryId());
         queryWrapper.eq(IssueInfoEntity::getIssue,req.getIssue());
         IssueInfoEntity issueInfo = issueInfoMapper.selectOne(queryWrapper);
-        LotteryEntity lottery = lotteryMapper.selectById(req.getLotteryId());
 
-        updateRoomsIssueInfo(issueInfo,lottery);
+        updateRoomsIssueInfo(issueInfo);
     }
     /**
      * 写入各平台商的平台商奖期表
      * @param issueInfo
      */
-    public void updateRoomsIssueInfo(IssueInfoEntity issueInfo,LotteryEntity lottery){
+    public void updateRoomsIssueInfo(IssueInfoEntity issueInfo){
         //2.取得平台商信息表中的平台商前缀
         List<RoomMasterEntity> roomMasters = roomMasterMapper.selectTitle();
 
@@ -101,30 +100,34 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         issueInfoMapper.insertIssueToRooms(roomMasters.stream().map(RoomMasterEntity::getTitle).collect(Collectors.toList()),issueInfo);
         //todo:4.号码写入后查询该期订单（cn007_projects），通过对应订单的玩法(method)进行验派
         for (RoomMasterEntity roomMaster : roomMasters) {
-            new Thread(() -> {
-                NoticeReq n = new NoticeReq();
-                n.setRoomMaster(roomMaster);
-                n.setTableName(roomMaster.getTitle()+"_issue_info");
-                n.setTitle(roomMaster.getTitle());
-                n.setIssue(issueInfo.getIssue());
-                n.setCode(issueInfo.getCode());
-                n.setLotteryId(issueInfo.getLotteryId());
-                //18--越南自开
-                //泰国
-                switch (lottery.getFunctionType()){
-                    case "VN_S":
-                    case "VN_C":
-                        //18--越南自开
-                        awardGivingService.notice(n);
-                        break;
-                    case "VN_N":
-//                        28-组
-                        awardGivingService.noticeNorth(n);
-                        break;
-                }
-            }).start();
+            lotteryDraw(roomMaster,issueInfo);
         }
-
         //  5.验派后出现的金额变化写入账变表(cn007_orders)，并修改用户余额(cn007_user_fund)
+    }
+
+    public void lotteryDraw(RoomMasterEntity roomMaster,IssueInfoEntity issueInfo){
+        LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
+        new Thread(() -> {
+            NoticeReq n = new NoticeReq();
+            n.setRoomMaster(roomMaster);
+            n.setTableName(roomMaster.getTitle()+"_issue_info");
+            n.setTitle(roomMaster.getTitle());
+            n.setIssue(issueInfo.getIssue());
+            n.setCode(issueInfo.getCode());
+            n.setLotteryId(issueInfo.getLotteryId());
+            //18--越南自开
+            //泰国
+            switch (lottery.getFunctionType()){
+                case "VN_S":
+                case "VN_C":
+                    //18--越南自开
+                    awardGivingService.notice(n);
+                    break;
+                case "VN_N":
+//                        28-组
+                    awardGivingService.noticeNorth(n);
+                    break;
+            }
+        }).start();
     }
 }

@@ -1,5 +1,7 @@
 package com.giving.service;
 
+import com.giving.entity.IssueInfoEntity;
+import com.giving.entity.RoomMasterEntity;
 import com.giving.req.DrawSourceReq;
 import com.giving.req.ListIssueReq;
 
@@ -11,4 +13,6 @@ public interface AwardingProcessService {
     void drawSource(DrawSourceReq req);
 
     void resteDrawSource(ListIssueReq req);
+
+    void lotteryDraw(RoomMasterEntity roomMaster, IssueInfoEntity issueInfo);
 }

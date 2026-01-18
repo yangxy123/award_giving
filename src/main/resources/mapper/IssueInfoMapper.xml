@@ -54,4 +54,26 @@
             where issue_id = #{issueInfo.issueId}
         </foreach>
     </insert>
+    <select id="selectByTitle" resultType="com.giving.entity.IssueInfoEntity">
+        select * from ${titles}_issue_info
+        where lottery_id = #{req.lotteryId} and issue = #{req.issue}
+    </select>
+    <select id="selectUserNoteList" resultType="com.giving.resp.UserNoteListResp">
+        select
+        issue_id as issueId,
+        lottery_id as lotteryId,
+        code as code,
+        issue as issue,
+        open_date as openDate,
+        sale_start as saleStart,
+        sale_end as saleEnd
+        from
+        <if test="title != null and title != ''">
+            ${title}_issue_info
+        </if>
+        <if test="title == null or title == ''">
+            issue_info
+        </if>
+        where issue = #{req.issue} and lottery_id = #{req.lotteryId}
+    </select>
 </mapper>

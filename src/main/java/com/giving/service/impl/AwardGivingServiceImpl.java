@@ -981,7 +981,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 	 */
 	public void createData() {
 		List<String> uuidList = new ArrayList<>();
-		for (int i = 1000; i<7000; i++){
+		for (int i = 1000; i<1002; i++){
 			uuidList.add("3406965fcd2"+ i);
 		}
 		projectsTmpMapper.createData(uuidList);

@@ -1,9 +1,11 @@
 package com.giving.service;
 
 import com.github.pagehelper.Page;
+import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.giving.req.GetIssueInfoReq;
+import com.giving.req.UserNoteListReq;
+import com.giving.resp.UserNoteListResp;
 
 /**
 * @author zzby
@@ -12,5 +14,5 @@ import com.giving.req.GetIssueInfoReq;
 */
 public interface IssueInfoService extends IService<IssueInfoEntity> {
 
-    Page<IssueInfoEntity> getIssueInfo(GetIssueInfoReq req);
+    ApiResp<Page<UserNoteListResp>> userNoteList(UserNoteListReq req);
 }

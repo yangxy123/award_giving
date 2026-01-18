@@ -1,9 +1,9 @@
 package com.giving.controller;
 
 import com.github.pagehelper.Page;
-import com.giving.entity.IssueInfoEntity;
-import com.giving.req.DrawSourceReq;
-import com.giving.req.GetIssueInfoReq;
+import com.giving.base.resp.ApiResp;
+import com.giving.req.UserNoteListReq;
+import com.giving.resp.UserNoteListResp;
 import com.giving.service.IssueInfoService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -27,8 +27,8 @@ public class IssueInfoController {
     private IssueInfoService issueInfoService;
 
     @PostMapping("/info")
-    @ApiOperation("获取奖期信息")
-    public Page<IssueInfoEntity> getIssueInfo(@RequestBody @Valid GetIssueInfoReq req) {
-        return issueInfoService.getIssueInfo(req);
+    @ApiOperation("用户注单查询")
+    public ApiResp<Page<UserNoteListResp>> userNoteList(@RequestBody @Valid UserNoteListReq req) {
+        return issueInfoService.userNoteList(req);
     }
 }

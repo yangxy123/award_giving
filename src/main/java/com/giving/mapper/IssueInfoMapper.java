@@ -2,6 +2,9 @@ package com.giving.mapper;
 
 import com.giving.entity.IssueInfoEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.giving.req.ManualDistributionReq;
+import com.giving.req.UserNoteListReq;
+import com.giving.resp.UserNoteListResp;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -14,6 +17,10 @@ import java.util.List;
 */
 public interface IssueInfoMapper extends BaseMapper<IssueInfoEntity> {
     void insertIssueToRooms(@Param("titles") List<String> titles, @Param("issueInfo") IssueInfoEntity issueInfo);
+
+    IssueInfoEntity selectByTitle(@Param("titles") String title,@Param("req")  ManualDistributionReq req);
+
+    List<UserNoteListResp> selectUserNoteList(@Param("req") UserNoteListReq req,@Param("title") String title);
 }
 
 

@@ -63,4 +63,7 @@
             (#{roomMaster.id}, #{orderId}, '0', now(), now())
         </foreach>
     </insert>
+    <select id="selectTitleById" resultType="java.lang.String">
+        select title from room_master where master_id = #{masterId}
+    </select>
 </mapper>
