@@ -1,7 +1,9 @@
 package com.giving.service;
 
+import com.github.pagehelper.Page;
 import com.giving.entity.IssueInfoEntity;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.giving.req.GetIssueInfoReq;
 
 /**
 * @author zzby
@@ -10,4 +12,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface IssueInfoService extends IService<IssueInfoEntity> {
 
+    Page<IssueInfoEntity> getIssueInfo(GetIssueInfoReq req);
 }
