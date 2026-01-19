@@ -12,6 +12,8 @@ import com.giving.req.ListIssueReq;
 import com.giving.req.NoticeReq;
 import com.giving.service.AwardGivingService;
 import com.giving.service.AwardingProcessService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -19,9 +21,8 @@ import org.springframework.util.StringUtils;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+
 
 /**
  * @author zzby
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 @Service
 public class AwardingProcessServiceImpl implements AwardingProcessService {
 
+    private static final Logger log = LoggerFactory.getLogger(AwardingProcessServiceImpl.class);
     @Autowired
     IssueInfoMapper issueInfoMapper;
 
@@ -58,10 +60,12 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         IssueInfoEntity issueInfo = issueInfoMapper.selectOne(queryWrapper);
         //如果存在就修改奖期
         if(ObjectUtils.isEmpty(issueInfo)){
+            log.info("========奖期不存在===========");
             return;
         }
         if(!StringUtils.isEmpty(issueInfo.getCode()))
         {
+            log.info("========Code不存在===========");
             return;
         }
         //修改奖期
@@ -74,7 +78,11 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 
 //        LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
         new Thread(() ->{
-            awardService.createData(Integer.parseInt(issueInfo.getLotteryId().toString()));
+            LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
+            if(lottery.getFunctionType().equals("VN_S") || lottery.getFunctionType().equals("VN_C")) {
+                awardService.createData(Integer.parseInt(issueInfo.getLotteryId().toString()));
+            }
+
         }).start();
         updateRoomsIssueInfo(issueInfo);
     }
