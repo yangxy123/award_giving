@@ -380,8 +380,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		System.out.println("\n开始时间: " + startTime);
 		System.out.println("结束时间: " + endTime);
 		System.out.println("耗时: " + (endTime - startTime));
-		log.info("==============================\nlotteryId = {}\nissue = {}\n",noticeReq.getLotteryId(),noticeReq.getIssue());
-		log.info("开始时间:{}\n结束时间:{}\n耗时:{}",startTime,endTime,endTime - startTime);
+		log.info("\n==============================" +
+				"\nlotteryId = {}" +
+				"\nissue = {}" +
+				"\n注单数(3000):{}" +
+				"\n开始时间:{}" +
+				"\n结束时间:{}" +
+				"\n耗时:{}",noticeReq.getLotteryId(),noticeReq.getIssue(),allBetList.size(),startTime,endTime,endTime - startTime);
 	}
 
 	@Override
