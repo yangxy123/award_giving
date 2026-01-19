@@ -80,7 +80,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 //        LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
         new Thread(() ->{
             LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
-            if(lottery.getFunctionType().equals("VN_S") || lottery.getFunctionType().equals("VN_C")) {
+            if(!lottery.getFunctionType().equals("K3")) {
                 awardService.createData(Integer.parseInt(issueInfo.getLotteryId().toString()));
             }
 

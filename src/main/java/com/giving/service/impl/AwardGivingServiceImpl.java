@@ -45,7 +45,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     @Autowired
     private IssueInfoMapper issueInfoMapper;
 
-	//	18z
 	@Override
 	public void notice(NoticeReq noticeReq) {
 		Long startTime = System.currentTimeMillis();
@@ -685,6 +684,132 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		}
 	}
 
+	@Override
+	public void noticeLw(NoticeReq noticeReq) {
+		// TODO Auto-generated method stub
+		int pageSize = 3000;
+		int pageNo = 0;
+		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
+		String headCode = codeList.get(0);
+		String endCode = codeList.get(1);
+		while (true) {
+			PageHelper.startPage(pageNo, pageSize);
+			// TODO Auto-generated method stub
+			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
+			Page<BetInfoEntity> page = (Page<BetInfoEntity>)betInfoMapper.selectList(
+					new QueryWrapper<BetInfoEntity>().lambda().eq(BetInfoEntity::getIssue, noticeReq.getIssue())
+							.eq(BetInfoEntity::getLotteryId, noticeReq.getLotteryId()).eq(BetInfoEntity::getIsCancel, 0)
+							.eq(BetInfoEntity::getPrizeStatus, 0));
+			List<BetInfoEntity> list = page.getResult();
+			if(list.isEmpty()) {
+				break;
+			}
+			pageNo +=1;
+			// 将开奖号码转换为list
+			List<BetInfoEntity> allWinList = Lists.newArrayList();
+			//1D头、尾 2D头尾,3D头校验
+			List<BetInfoEntity> collect = list.stream().filter(vo->(headCode.indexOf(vo.getCode()) >= 0 && ("1D头".equals(vo.getMethodCode()) || "3D头".equals(vo.getMethodCode())))
+					|| (endCode.indexOf(vo.getCode()) >= 0 && ("1D尾".equals(vo.getMethodCode()) || "2D尾".equals(vo.getMethodCode())))
+					|| (headCode.substring(1, 3).indexOf(vo.getCode()) >= 0 && "2D头".equals(vo.getMethodCode()))).collect(Collectors.toList());
+			allWinList.addAll(collect);
+
+			//3D组选
+			List<BetInfoEntity> collect2 = list.stream().filter(vo->endCode.indexOf(vo.getCode().substring(0,1)+vo.getCode().substring(1,2)+vo.getCode().substring(2,3)) >= 0
+						|| endCode.indexOf(vo.getCode().substring(0,1)+vo.getCode().substring(2,3)+vo.getCode().substring(1,2)) >= 0
+						|| endCode.indexOf(vo.getCode().substring(1,2)+vo.getCode().substring(0,1)+vo.getCode().substring(2,3)) >= 0
+						|| endCode.indexOf(vo.getCode().substring(1,2)+vo.getCode().substring(2,3)+vo.getCode().substring(0,1)) >= 0
+						|| endCode.indexOf(vo.getCode().substring(2,3)+vo.getCode().substring(0,1)+vo.getCode().substring(1,2)) >= 0
+						|| endCode.indexOf(vo.getCode().substring(2,3)+vo.getCode().substring(1,2)+vo.getCode().substring(0,1)) >= 0
+					).collect(Collectors.toList());
+			allWinList.addAll(collect2);
+
+			//中奖订单 allWinList
+			//中奖订单ID列表
+			List<String> winIdList = allWinList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+			//未中奖订单ID
+			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
+					.collect(Collectors.toList());
+		}
+	}
+
+	@Override
+	public void noticeKs(NoticeReq noticeReq) {
+		// TODO Auto-generated method stub
+		int pageSize = 3000;
+		int pageNo = 0;
+		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
+		int totalNum = Integer.parseInt(codeList.get(0)) + Integer.parseInt(codeList.get(1)) + Integer.parseInt(codeList.get(2));
+		while (true) {
+			PageHelper.startPage(pageNo, pageSize);
+			// TODO Auto-generated method stub
+			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
+			Page<BetInfoEntity> page = (Page<BetInfoEntity>)betInfoMapper.selectList(
+					new QueryWrapper<BetInfoEntity>().lambda().eq(BetInfoEntity::getIssue, noticeReq.getIssue())
+							.eq(BetInfoEntity::getLotteryId, noticeReq.getLotteryId()).eq(BetInfoEntity::getIsCancel, 0)
+							.eq(BetInfoEntity::getPrizeStatus, 0));
+			List<BetInfoEntity> list = page.getResult();
+			if(list.isEmpty()) {
+				break;
+			}
+			pageNo +=1;
+
+			List<BetInfoEntity> allWinList = list.stream().filter(vo-> ((vo.getCode().indexOf(codeList.get(0)+codeList.get(1)+codeList.get(2)) >= 0
+					|| vo.getCode().indexOf(codeList.get(0)+codeList.get(2)+codeList.get(1)) >= 0
+					|| vo.getCode().indexOf(codeList.get(1)+codeList.get(0)+codeList.get(2)) >= 1
+					|| vo.getCode().indexOf(codeList.get(1)+codeList.get(2)+codeList.get(0)) >= 0
+					|| vo.getCode().indexOf(codeList.get(2)+codeList.get(0)+codeList.get(1)) >= 0
+					|| vo.getCode().indexOf(codeList.get(2)+codeList.get(1)+codeList.get(0)) >= 0)
+					&& ("三同号".equals(vo.getMethodCode()) || "三不号".equals(vo.getMethodCode()) ||"二同号".equals(vo.getMethodCode()) ||"二不同号".equals(vo.getMethodCode())))
+					|| ((vo.getCode().indexOf(codeList.get(0)) >=0 || vo.getCode().indexOf(codeList.get(1)) >=0 || vo.getCode().indexOf(codeList.get(2)) >=0)
+						 && "猜一个号".equals(vo.getMethodCode())	)
+					|| (totalNum < 10 && vo.getCode().indexOf("0"+totalNum) >= 0 && "和值".equals(vo.getMethodCode()))
+					|| (totalNum >= 10 && vo.getCode().indexOf(String.valueOf(totalNum)) >= 0 && "和值".equals(vo.getMethodCode()))).collect(Collectors.toList());
+			//中奖订单 allWinList
+			//中奖订单ID列表
+			List<String> winIdList = allWinList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+			//未中奖订单ID
+			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
+					.collect(Collectors.toList());
+		}
+	}
+
+	/**
+	 * 相同投注订单计算中奖总金额
+	 * @author yangxy
+	 * @version 创建时间：2025年12月30日 下午7:26:09
+	 * @param allWinList
+	 * @return
+	 */
+	private List<BetInfoEntity> getSumList(List<BetInfoEntity> allWinList) {
+
+		return allWinList.stream()
+				.collect(Collectors.collectingAndThen(
+						Collectors.groupingBy(
+								BetInfoEntity::getProjectId,
+								Collectors.collectingAndThen(
+										Collectors.toList(),
+										group -> {
+											// 计算总分
+											Double totalScore = group.stream()
+													.mapToDouble(BetInfoEntity::getWinbonus)
+													.sum();
+
+											// 获取第一条记录
+											BetInfoEntity first = group.get(0);
+
+											BetInfoEntity vo = new BetInfoEntity();
+											BeanUtils.copyProperties(first, vo);
+											vo.setBonus(totalScore);
+											vo.setIsGetprize(1);
+											// 创建汇总对象
+											return vo;
+										}
+								)
+						),
+						map -> new ArrayList<>(map.values())
+				));
+	}
+
 	/**
 	 * 更新注单数据
 	 * @param sumList
@@ -855,131 +980,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		return entryList;
 	}
 
-	@Override
-	public void noticeLw(NoticeReq noticeReq) {
-		// TODO Auto-generated method stub
-		int pageSize = 3000;
-		int pageNo = 0;
-		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
-		String headCode = codeList.get(0);
-		String endCode = codeList.get(1);
-		while (true) {
-			PageHelper.startPage(pageNo, pageSize);
-			// TODO Auto-generated method stub
-			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
-			Page<BetInfoEntity> page = (Page<BetInfoEntity>)betInfoMapper.selectList(
-					new QueryWrapper<BetInfoEntity>().lambda().eq(BetInfoEntity::getIssue, noticeReq.getIssue())
-							.eq(BetInfoEntity::getLotteryId, noticeReq.getLotteryId()).eq(BetInfoEntity::getIsCancel, 0)
-							.eq(BetInfoEntity::getPrizeStatus, 0));
-			List<BetInfoEntity> list = page.getResult();
-			if(list.isEmpty()) {
-				break;
-			}
-			pageNo +=1;
-			// 将开奖号码转换为list
-			List<BetInfoEntity> allWinList = Lists.newArrayList();
-			//1D头、尾 2D头尾,3D头校验
-			List<BetInfoEntity> collect = list.stream().filter(vo->(headCode.indexOf(vo.getCode()) >= 0 && ("1D头".equals(vo.getMethodCode()) || "3D头".equals(vo.getMethodCode())))
-					|| (endCode.indexOf(vo.getCode()) >= 0 && ("1D尾".equals(vo.getMethodCode()) || "2D尾".equals(vo.getMethodCode())))
-					|| (headCode.substring(1, 3).indexOf(vo.getCode()) >= 0 && "2D头".equals(vo.getMethodCode()))).collect(Collectors.toList());
-			allWinList.addAll(collect);
 
-			//3D组选
-			List<BetInfoEntity> collect2 = list.stream().filter(vo->endCode.indexOf(vo.getCode().substring(0,1)+vo.getCode().substring(1,2)+vo.getCode().substring(2,3)) >= 0
-						|| endCode.indexOf(vo.getCode().substring(0,1)+vo.getCode().substring(2,3)+vo.getCode().substring(1,2)) >= 0
-						|| endCode.indexOf(vo.getCode().substring(1,2)+vo.getCode().substring(0,1)+vo.getCode().substring(2,3)) >= 0
-						|| endCode.indexOf(vo.getCode().substring(1,2)+vo.getCode().substring(2,3)+vo.getCode().substring(0,1)) >= 0
-						|| endCode.indexOf(vo.getCode().substring(2,3)+vo.getCode().substring(0,1)+vo.getCode().substring(1,2)) >= 0
-						|| endCode.indexOf(vo.getCode().substring(2,3)+vo.getCode().substring(1,2)+vo.getCode().substring(0,1)) >= 0
-					).collect(Collectors.toList());
-			allWinList.addAll(collect2);
 
-			//中奖订单 allWinList
-			//中奖订单ID列表
-			List<String> winIdList = allWinList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-			//未中奖订单ID
-			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
-					.collect(Collectors.toList());
-		}
-	}
 
-	@Override
-	public void noticeKs(NoticeReq noticeReq) {
-		// TODO Auto-generated method stub
-		int pageSize = 3000;
-		int pageNo = 0;
-		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
-		int totalNum = Integer.parseInt(codeList.get(0)) + Integer.parseInt(codeList.get(1)) + Integer.parseInt(codeList.get(2));
-		while (true) {
-			PageHelper.startPage(pageNo, pageSize);
-			// TODO Auto-generated method stub
-			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
-			Page<BetInfoEntity> page = (Page<BetInfoEntity>)betInfoMapper.selectList(
-					new QueryWrapper<BetInfoEntity>().lambda().eq(BetInfoEntity::getIssue, noticeReq.getIssue())
-							.eq(BetInfoEntity::getLotteryId, noticeReq.getLotteryId()).eq(BetInfoEntity::getIsCancel, 0)
-							.eq(BetInfoEntity::getPrizeStatus, 0));
-			List<BetInfoEntity> list = page.getResult();
-			if(list.isEmpty()) {
-				break;
-			}
-			pageNo +=1;
-
-			List<BetInfoEntity> allWinList = list.stream().filter(vo-> ((vo.getCode().indexOf(codeList.get(0)+codeList.get(1)+codeList.get(2)) >= 0
-					|| vo.getCode().indexOf(codeList.get(0)+codeList.get(2)+codeList.get(1)) >= 0
-					|| vo.getCode().indexOf(codeList.get(1)+codeList.get(0)+codeList.get(2)) >= 1
-					|| vo.getCode().indexOf(codeList.get(1)+codeList.get(2)+codeList.get(0)) >= 0
-					|| vo.getCode().indexOf(codeList.get(2)+codeList.get(0)+codeList.get(1)) >= 0
-					|| vo.getCode().indexOf(codeList.get(2)+codeList.get(1)+codeList.get(0)) >= 0)
-					&& ("三同号".equals(vo.getMethodCode()) || "三不号".equals(vo.getMethodCode()) ||"二同号".equals(vo.getMethodCode()) ||"二不同号".equals(vo.getMethodCode())))
-					|| ((vo.getCode().indexOf(codeList.get(0)) >=0 || vo.getCode().indexOf(codeList.get(1)) >=0 || vo.getCode().indexOf(codeList.get(2)) >=0)
-						 && "猜一个号".equals(vo.getMethodCode())	)
-					|| (totalNum < 10 && vo.getCode().indexOf("0"+totalNum) >= 0 && "和值".equals(vo.getMethodCode()))
-					|| (totalNum >= 10 && vo.getCode().indexOf(String.valueOf(totalNum)) >= 0 && "和值".equals(vo.getMethodCode()))).collect(Collectors.toList());
-			//中奖订单 allWinList
-			//中奖订单ID列表
-			List<String> winIdList = allWinList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-			//未中奖订单ID
-			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
-					.collect(Collectors.toList());
-		}
-	}
-
-	/**
-	 * 相同投注订单计算中奖总金额
-	 * @author yangxy
-	 * @version 创建时间：2025年12月30日 下午7:26:09
-	 * @param allWinList
-	 * @return
-	 */
-	private List<BetInfoEntity> getSumList(List<BetInfoEntity> allWinList) {
-
-		return allWinList.stream()
-				.collect(Collectors.collectingAndThen(
-						Collectors.groupingBy(
-								BetInfoEntity::getProjectId,
-								Collectors.collectingAndThen(
-										Collectors.toList(),
-										group -> {
-											// 计算总分
-											Double totalScore = group.stream()
-													.mapToDouble(BetInfoEntity::getWinbonus)
-													.sum();
-
-											// 获取第一条记录
-											BetInfoEntity first = group.get(0);
-
-											BetInfoEntity vo = new BetInfoEntity();
-											BeanUtils.copyProperties(first, vo);
-											vo.setBonus(totalScore);
-											vo.setIsGetprize(1);
-											// 创建汇总对象
-											return vo;
-										}
-								)
-						),
-						map -> new ArrayList<>(map.values())
-				));
-	}
 
 	/**
 	 * 生成数据-测试
