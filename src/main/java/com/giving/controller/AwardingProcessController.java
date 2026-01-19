@@ -1,5 +1,6 @@
 package com.giving.controller;
 
+import com.giving.base.resp.ApiResp;
 import com.giving.req.DrawSourceReq;
 import com.giving.req.ListIssueReq;
 import com.giving.service.AwardingProcessService;
@@ -30,8 +31,8 @@ public class AwardingProcessController {
      */
     @PostMapping("/drawsource")
     @ApiOperation("录号派奖")
-    public void drawSource(@RequestBody @Valid DrawSourceReq req) {
-        awardingProcessService.drawSource(req);
+    public ApiResp<String> drawSource(@RequestBody @Valid DrawSourceReq req) {
+        return awardingProcessService.drawSource(req);
     }
 
     /**
@@ -40,8 +41,8 @@ public class AwardingProcessController {
      */
     @PostMapping("/reste")
     @ApiOperation("重新派奖")
-    public void resteDrawSource(@RequestBody @Valid ListIssueReq req) {
-        awardingProcessService.resteDrawSource(req);
+    public ApiResp<String> resteDrawSource(@RequestBody @Valid ListIssueReq req) {
+        return awardingProcessService.resteDrawSource(req);
     }
 
 }

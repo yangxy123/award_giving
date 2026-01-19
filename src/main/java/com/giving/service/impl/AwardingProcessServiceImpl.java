@@ -1,6 +1,7 @@
 package com.giving.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.LotteryEntity;
 import com.giving.entity.RoomMasterEntity;
@@ -52,7 +53,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      * @param req
      */
     @Override
-    public void drawSource(DrawSourceReq req) {
+    public ApiResp<String> drawSource(DrawSourceReq req) {
         //判断是否存在奖期
         LambdaQueryWrapper<IssueInfoEntity> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(IssueInfoEntity::getLotteryId,req.getLotteryId());
@@ -61,12 +62,12 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         //如果存在就修改奖期
         if(ObjectUtils.isEmpty(issueInfo)){
             log.info("========奖期不存在===========");
-            return;
+            return ApiResp.paramError("奖期不存在");
         }
         if(!StringUtils.isEmpty(issueInfo.getCode()))
         {
             log.info("========Code不存在===========");
-            return;
+            return ApiResp.paramError("Code不存在");
         }
         //修改奖期
         issueInfo.setCode(req.getWinCode());
@@ -85,6 +86,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 
         }).start();
         updateRoomsIssueInfo(issueInfo);
+        return ApiResp.sucess();
     }
 
     /**
@@ -92,7 +94,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      * @param req
      */
     @Override
-    public void resteDrawSource(ListIssueReq req){
+    public ApiResp<String> resteDrawSource(ListIssueReq req){
         //判断是否存在奖期
         LambdaQueryWrapper<IssueInfoEntity> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(IssueInfoEntity::getLotteryId,req.getLotteryId());
@@ -100,6 +102,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         IssueInfoEntity issueInfo = issueInfoMapper.selectOne(queryWrapper);
 
         updateRoomsIssueInfo(issueInfo);
+        return ApiResp.sucess();
     }
     /**
      * 写入各平台商的平台商奖期表

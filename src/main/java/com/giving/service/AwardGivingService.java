@@ -1,5 +1,6 @@
 package com.giving.service;
 
+import com.giving.base.resp.ApiResp;
 import com.giving.req.NoticeReq;
 
 /** 
@@ -47,5 +48,5 @@ public interface AwardGivingService {
 	 */
 	public void noticeKs(NoticeReq noticeReq);
 
-	void createData(Integer count);
+	ApiResp<String> createData(Integer count);
 }

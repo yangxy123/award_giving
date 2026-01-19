@@ -6,6 +6,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.OrdersEntity;
 import com.giving.entity.UserFundEntity;
@@ -983,7 +984,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 	/**
 	 * 生成数据-测试
 	 */
-	public void createData(Integer count) {
+	public ApiResp<String> createData(Integer count) {
 		List<String> uuidList = new ArrayList<>();
 
 		Date currentDate = new Date();
@@ -1003,6 +1004,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
 		projectsTmpMapper.createData(uuidList,issue);
 		projectsTmpMapper.createIssueData(issue);
+		return ApiResp.sucess();
 	}
 
 

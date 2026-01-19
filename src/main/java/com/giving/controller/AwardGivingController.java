@@ -2,6 +2,7 @@ package com.giving.controller;
 
 import javax.validation.Valid;
 
+import com.giving.base.resp.ApiResp;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,16 +23,10 @@ public class AwardGivingController {
 
 	@Autowired
 	private AwardGivingService awardGivingService;
-	
-	@PostMapping("/notice")
-	@ApiOperation("通知派奖")
-	public void notice(@RequestBody @Valid NoticeReq noticeReq) {
-		awardGivingService.notice(noticeReq);
-	}
 
 	@GetMapping("/createData/{count}")
 	@ApiOperation("生成数据")
-	public void createData(@PathVariable("count") Integer count) {
-		awardGivingService.createData(count);
+	public ApiResp<String> createData(@PathVariable("count") Integer count) {
+		return awardGivingService.createData(count);
 	}
 }

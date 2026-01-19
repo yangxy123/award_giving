@@ -1,5 +1,6 @@
 package com.giving.controller;
 
+import com.giving.base.resp.ApiResp;
 import com.giving.req.ManualDistributionReq;
 import com.giving.service.OPissueToolService;
 import io.swagger.annotations.Api;
@@ -23,7 +24,7 @@ public class OPissueToolController {
 
     @PostMapping("/manualDistribution")
     @ApiOperation("手动厅组录号派奖")
-    public void manualDistribution(ManualDistributionReq req){
-        opissueToolService.manualDistribution(req);
+    public ApiResp<String> manualDistribution(ManualDistributionReq req){
+        return opissueToolService.manualDistribution(req);
     }
 }
