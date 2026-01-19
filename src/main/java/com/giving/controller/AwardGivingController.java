@@ -29,9 +29,9 @@ public class AwardGivingController {
 		awardGivingService.notice(noticeReq);
 	}
 
-	@GetMapping("/createData")
+	@GetMapping("/createData/{count}")
 	@ApiOperation("生成数据")
-	public void createData() {
-		awardGivingService.createData();
+	public void createData(@PathVariable("count") Integer count) {
+		awardGivingService.createData(count);
 	}
 }

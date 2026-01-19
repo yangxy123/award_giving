@@ -983,19 +983,26 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 	/**
 	 * 生成数据-测试
 	 */
-	public void createData() {
+	public void createData(Integer count) {
 		List<String> uuidList = new ArrayList<>();
-		for (int i = 1000; i<6000; i++){
-			uuidList.add("3406965fcd2"+ i);
+
+		Date currentDate = new Date();
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTime(currentDate);
+		calendar.add(Calendar.SECOND, 20); // 加20秒
+		Date newDate = calendar.getTime();
+		LambdaQueryWrapper<IssueInfoEntity> IssuequeryWrapper =  new LambdaQueryWrapper<>();
+		IssuequeryWrapper.eq(IssueInfoEntity::getLotteryId,count)
+				.le(IssueInfoEntity::getSaleStart, newDate)  // sale_start <= now
+				.gt(IssueInfoEntity::getSaleEnd, newDate);   // sale_end   > now;
+		IssueInfoEntity issue = issueInfoMapper.selectOne(IssuequeryWrapper);
+
+		for (int i = 1000; i<2200; i++){
+			uuidList.add(uniqId().substring(0,10) + i);
 		}
 
-		Date now = new Date();
-		LambdaQueryWrapper<IssueInfoEntity> IssuequeryWrapper =  new LambdaQueryWrapper<>();
-		IssuequeryWrapper.eq(IssueInfoEntity::getLotteryId,212)
-				.le(IssueInfoEntity::getSaleStart, now)  // sale_start <= now
-				.gt(IssueInfoEntity::getSaleEnd, now);   // sale_end   > now;
-		IssueInfoEntity issue = issueInfoMapper.selectOne(IssuequeryWrapper);
 		projectsTmpMapper.createData(uuidList,issue);
+		projectsTmpMapper.createIssueData(issue);
 	}
 
 

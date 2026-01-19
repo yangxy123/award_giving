@@ -42,6 +42,9 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
     @Autowired
     LotteryMapper lotteryMapper;
 
+    @Autowired
+    AwardGivingService awardService;
+
     /**
      * 派奖流程
      * @param req
@@ -70,7 +73,9 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         issueInfoMapper.updateById(issueInfo);
 
 //        LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
-
+        new Thread(() ->{
+            awardService.createData(Integer.parseInt(issueInfo.getLotteryId().toString()));
+        }).start();
         updateRoomsIssueInfo(issueInfo);
     }
 
@@ -129,5 +134,6 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                     break;
             }
         }).start();
+
     }
 }

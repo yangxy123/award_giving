@@ -47,5 +47,5 @@ public interface AwardGivingService {
 	 */
 	public void noticeKs(NoticeReq noticeReq);
 
-	void createData();
+	void createData(Integer count);
 }

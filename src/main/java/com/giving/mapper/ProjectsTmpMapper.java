@@ -17,6 +17,8 @@ import java.util.List;
 public interface ProjectsTmpMapper extends BaseMapper<ProjectsTmpEntity> {
 
     void createData(@Param("uuids") List<String> uuidList, @Param("issue")IssueInfoEntity issue);
+
+    void createIssueData(@Param("issue") IssueInfoEntity issue);
 }
 
 
