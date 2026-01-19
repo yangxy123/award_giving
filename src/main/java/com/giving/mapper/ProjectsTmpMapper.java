@@ -1,5 +1,6 @@
 package com.giving.mapper;
 
+import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.ProjectsTmpEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Param;
@@ -15,7 +16,7 @@ import java.util.List;
 */
 public interface ProjectsTmpMapper extends BaseMapper<ProjectsTmpEntity> {
 
-    void createData(@Param("uuids") List<String> uuidList);
+    void createData(@Param("uuids") List<String> uuidList, @Param("issue")IssueInfoEntity issue);
 }
 
 

@@ -5,6 +5,8 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.OrdersEntity;
 import com.giving.entity.UserFundEntity;
 import com.giving.mapper.*;
@@ -39,6 +41,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private ProjectsTmpMapper projectsTmpMapper;
     @Autowired
     private RoomMasterMapper roomMasterMapper;
+    @Autowired
+    private IssueInfoMapper issueInfoMapper;
 
 	//	18z
 	@Override
@@ -981,10 +985,17 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 	 */
 	public void createData() {
 		List<String> uuidList = new ArrayList<>();
-		for (int i = 1000; i<1002; i++){
+		for (int i = 1000; i<6000; i++){
 			uuidList.add("3406965fcd2"+ i);
 		}
-		projectsTmpMapper.createData(uuidList);
+
+		Date now = new Date();
+		LambdaQueryWrapper<IssueInfoEntity> IssuequeryWrapper =  new LambdaQueryWrapper<>();
+		IssuequeryWrapper.eq(IssueInfoEntity::getLotteryId,212)
+				.le(IssueInfoEntity::getSaleStart, now)  // sale_start <= now
+				.gt(IssueInfoEntity::getSaleEnd, now);   // sale_end   > now;
+		IssueInfoEntity issue = issueInfoMapper.selectOne(IssuequeryWrapper);
+		projectsTmpMapper.createData(uuidList,issue);
 	}
 
 
