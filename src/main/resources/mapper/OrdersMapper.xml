@@ -60,17 +60,15 @@
         third_party_trx_id
     </sql>
     <insert id="addOrdersList">
-        INSERT into ${title}_orders  (
-            lottery_id, method_id, task_id, project_id, fromuser_id, order_type_id,
-            title, amount, description, pre_balance, pre_available, pre_hold,
-            channel_balance, available_balance, hold_balance, issue, modes,
-            created_at, updated_at, action_time
-        ) VALUES (
-                     #{order.lotteryId}, #{order.methodId}, #{order.taskId}, #{order.projectId},
-                     #{order.fromuserId}, #{order.orderTypeId}, #{order.title}, #{order.amount},
-                     #{order.description}, #{order.preBalance}, #{order.preAvailable}, #{order.preHold},
-                     #{order.channelBalance}, #{order.availableBalance}, #{order.holdBalance},
-                     #{order.issue}, #{order.modes}, #{order.createdAt}, #{order.updatedAt}, #{order.actionTime}
-                 )
+            INSERT INTO ${title}_orders (`entry`, `lottery_id`, `method_id`, `task_id`, `project_id`, `fromuser_id`,
+                                         `touser_id`, `agent_id`, `admin_id`, `order_type_id`, `admin_name`, `issue`, `title`, `amount`, `description`,
+                                         `pre_balance`, `pre_available`,`pre_hold`,  `channel_balance`, `hold_balance`, `available_balance`,
+                                         `client_ip`, `proxy_ip`, `times`, `action_time`, `transfer_user_id`, `transfer_channel_id`, `transfer_order_id`,
+                                         `transfer_status`, `unique_key`, `modes`, `cardnotice`, `send_money_to_platform`, `platform`, `created_at`, `updated_at`, `third_party_trx_id`) VALUES
+            (#{order.entry}, #{order.lotteryId}, #{order.methodId},  #{order.taskId},  #{order.projectId},  #{order.fromuserId},
+             '0', '0', 0, #{order.orderTypeId}, '', #{order.issue},  #{order.title},  #{order.amount},  #{order.description},
+            #{order.preBalance}, #{order.preAvailable}, #{order.preHold},  #{order.channelBalance}, #{order.holdBalance}, #{order.availableBalance},
+            '0.0.0.0', '0.0.0.0', #{order.actionTime}, #{order.actionTime}, '0', 0, '0',
+             0, '1768909114.1641', #{order.modes}, '', 1, 'web', #{order.createdAt},  #{order.updatedAt}, '0');
     </insert>
 </mapper>

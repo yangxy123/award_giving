@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 
 /**
@@ -105,7 +106,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             }
             //修改為真實扣款進行中
             issueInfo.setStatusDeduct(1);
-            if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(),issueInfo) != 1 ) {
+            if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
                 throw new RuntimeException("修改奖期为真实扣款中失败");
             }
             // 获取所有尚未'真实扣款'的方案
@@ -113,7 +114,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
             if (ObjectUtils.isEmpty(projects)) {
                 issueInfo.setStatusDeduct(2);
-                if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(),issueInfo) != 1) {
+                if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
                     throw new RuntimeException("修改奖期为真实扣款完成失败");
                 }
             }
@@ -121,25 +122,26 @@ public class OPissueToolServiceImpl implements OPissueToolService {
 //            List<String> userIds = projects.stream().map(BetInfoEntity::getUserId).collect(Collectors.toList());
             for (BetInfoEntity project : projects) {
                 //锁定用户资金 -- 上鎖
-                if (!this.doLockUserFund(project.getUserId(), true, 4, "CR_001")) {
-                    continue;
-                }
-                try{
+                this.doLockUserFund(project.getUserId(), true, 4, "CR_001",roomMasterEntity.getTitle());
+                try {
                     //添加账变
-                    this.addOrdersList(project.getUserId(), project, 3, 4,roomMasterEntity.getTitle());
+                    if (!this.addOrdersList(project.getUserId(), project, 4, roomMasterEntity.getTitle())){
+                        throw new RuntimeException("新增账变异常");
+                    }
                     //解锁
-                    this.doLockUserFund(project.getUserId(), false, 4, "CR_004");
+                    this.doLockUserFund(project.getUserId(), false, 4, "CR_004",roomMasterEntity.getTitle());
                 } catch (Exception e) {
+                    this.doLockUserFund(project.getUserId(), false, 4, "CR_004",roomMasterEntity.getTitle());
                     throw new RuntimeException(e);
                 }
             }
             //真實扣款 - 最後確認
 //            List<BetInfoEntity> projects2 = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
 //            if (ObjectUtils.isEmpty(projects2)) {
-                issueInfo.setStatusDeduct(2);
-                if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(),issueInfo) != 1) {
-                    throw new RuntimeException("修改奖期为真实扣款完成失败");
-                }
+            issueInfo.setStatusDeduct(2);
+            if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
+                throw new RuntimeException("修改奖期为真实扣款完成失败");
+            }
 //            }
             return ApiResp.sucess();
         } catch (RuntimeException e) {
@@ -147,7 +149,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
         }
     }
 
-    public Boolean doLockUserFund(String userId, Boolean bIsLocked, Integer sWalletType, String lockAction) {
+    public Boolean doLockUserFund(String userId, Boolean bIsLocked, Integer sWalletType, String lockAction,String title) {
         try {
 
             // TRUE : 上鎖 ； FALSE : 解鎖
@@ -162,15 +164,20 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             LambdaQueryWrapper<UserFundEntity> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(UserFundEntity::getUserid, userId);
             wrapper.eq(UserFundEntity::getIslocked, sNowIsLock);
+            wrapper.eq(UserFundEntity::getWalletType, sWalletType);
+            List<UserFundEntity> userFundS;
             if (iWalletType > 0) {
-                wrapper.eq(UserFundEntity::getWalletType, sWalletType);
+                userFundS = userFundMapper.selectByUserAndTypeLock(title,userId,sNowIsLock,sWalletType);
+            }else {
+                userFundS = userFundMapper.selectByUserAndTypeAll(title,userId,sNowIsLock);
             }
-            List<UserFundEntity> userFundS = userFundMapper.selectList(wrapper);
+
+
             int updateCount = 0;
             for (UserFundEntity userFund : userFundS) {
                 userFund.setIslocked(sToIsLock);
                 userFund.setLockAction(sLockAction);
-                updateCount += userFundMapper.updateById(userFund); // 每次返回 0/1
+                updateCount += userFundMapper.updateLockedById(title,userFund); // 每次返回 0/1
             }
             if (!(updateCount >= iAffectNumber) && bIsLocked) {
                 throw new Exception("失敗");
@@ -181,27 +188,25 @@ public class OPissueToolServiceImpl implements OPissueToolService {
         }
     }
 
-    public Boolean addOrdersList(String userId, BetInfoEntity project, int bUpdateProjectsType, int sWalletType,String title) {
+    public Boolean addOrdersList(String userId, BetInfoEntity project, int sWalletType, String title) {
         try {
-            LambdaQueryWrapper<UserFundEntity> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(UserFundEntity::getUserid, userId);
-            wrapper.eq(UserFundEntity::getWalletType, sWalletType);
-            UserFundEntity userFundEntity = userFundMapper.selectOne(wrapper);
-            if (ObjectUtils.isEmpty(userFundEntity)) {
+            UserFundEntity userFund = userFundMapper.selectByUserAndType(title,sWalletType,userId);
+            if (ObjectUtils.isEmpty(userFund)) {
                 throw new Exception("错误未查询到用户钱包");
             }
+            System.out.println("查询到钱包");
 
             Date date = new Date();
-            BigDecimal preChannelBalance = userFundEntity.getChannelbalance();
-            BigDecimal preAvailableBalance = userFundEntity.getAvailablebalance();
-            BigDecimal preHoldBalance = userFundEntity.getHoldbalance();
+            BigDecimal preChannelBalance = userFund.getChannelbalance();
+            BigDecimal preAvailableBalance = userFund.getAvailablebalance();
+            BigDecimal preHoldBalance = userFund.getHoldbalance();
             BigDecimal amount = BigDecimal.valueOf(project.getTotalPrice());
 
             BigDecimal channelBalance = preChannelBalance.subtract(amount);
             BigDecimal holdBalance = preHoldBalance.subtract(amount);
-            BigDecimal availableBalance = preAvailableBalance;
 
             OrdersEntity order = new OrdersEntity();
+            order.setEntry(uniqId().substring(0,10));
             order.setLotteryId(project.getLotteryId());
             order.setMethodId(project.getMethodId());
             order.setTaskId(project.getTaskId());
@@ -215,7 +220,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             order.setPreAvailable(preAvailableBalance);
             order.setPreHold(preHoldBalance);
             order.setChannelBalance(channelBalance);
-            order.setAvailableBalance(availableBalance);
+            order.setAvailableBalance(preAvailableBalance);
             order.setHoldBalance(holdBalance);
             order.setIssue(project.getIssue());
             order.setModes(project.getModes());
@@ -223,45 +228,31 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             order.setUpdatedAt(date);
             order.setActionTime(date);
 
-            if (ordersMapper.addOrdersList(order,title) <= 0) {
+            if (ordersMapper.addOrdersList(order, title) <= 0) {
                 throw new IllegalStateException("新增Orders 资料失败");
             }
-
-            if (bUpdateProjectsType == 3) {
-                BetInfoEntity updateProject = new BetInfoEntity();
-                updateProject.setIsDeduct(1);
-                updateProject.setDeductTime(date);
-                updateProject.setUpdateTime(date);
-                updateProject.setUpdatedAt(date);
-
-//                LambdaQueryWrapper<BetInfoEntity> projectWrapper = new LambdaQueryWrapper<>();
-//                projectWrapper.eq(BetInfoEntity::getProjectId, project.getProjectId());
-//                projectWrapper.eq(BetInfoEntity::getIsDeduct, 0);
-                if (betInfoMapper.updateDeduct(updateProject,title) <= 0) {
-                    throw new IllegalStateException("更新projects真实扣款状态失败");
-                }
-            }
+            BetInfoEntity updateProject = new BetInfoEntity();
+            updateProject.setIsDeduct(1);
+            updateProject.setDeductTime(date);
+            updateProject.setUpdateTime(date);
+            updateProject.setUpdatedAt(date);
+            betInfoMapper.updateDeduct(updateProject, title);
 
             UserFundEntity updateFund = new UserFundEntity();
             updateFund.setChannelbalance(channelBalance);
-            updateFund.setAvailablebalance(availableBalance);
+            updateFund.setAvailablebalance(preAvailableBalance);
             updateFund.setHoldbalance(holdBalance);
             updateFund.setUpdatedAt(date);
-
-//            LambdaQueryWrapper<UserFundEntity> fundWrapper = new LambdaQueryWrapper<>();
-//            fundWrapper.eq(UserFundEntity::getUserid, userId);
-//            fundWrapper.eq(UserFundEntity::getWalletType, sWalletType);
-//            fundWrapper.eq(UserFundEntity::getIslocked, 1);
-
-
-            if (userFundMapper.updateAddOrdersList(updateFund,userId,sWalletType,1,title) <= 0) {
-                throw new IllegalStateException("更新用户钱包失败");
-            }
+            userFundMapper.updateAddOrdersList(updateFund, userId, sWalletType, 1, title);
 
             return true;
         } catch (Exception e) {
+            System.out.println(e.getMessage());
             return false;
         }
     }
-
+    static String uniqId() {
+        // 类似 uniqid：时间 + 随机
+        return Long.toHexString(System.nanoTime()) + Long.toHexString(ThreadLocalRandom.current().nextLong());
+    }
 }

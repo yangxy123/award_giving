@@ -48,7 +48,6 @@
               updated_at = #{updateFund.updatedAt}
         WHERE userid = #{userId}
           AND wallet_type = #{sWalletType}
-          AND islocked = #{islocked}
     </update>
 
     <select id="selectByNotice" resultType="com.giving.entity.UserFundEntity">
@@ -56,4 +55,20 @@
         where userid = #{userId}
          and islocked = 0 and wallet_type = 0
     </select>
+
+    <select id="selectByUserAndType" resultType="com.giving.entity.UserFundEntity">
+        SELECT * FROM `${title}_user_fund` WHERE userid = #{userId} AND wallet_type =#{type}
+    </select>
+    <select id="selectByUserAndTypeLock" resultType="com.giving.entity.UserFundEntity">
+        SELECT * FROM `${title}_user_fund` WHERE userid = #{userId} AND wallet_type =#{sWalletType}
+    </select>
+    <select id="selectByUserAndTypeAll" resultType="com.giving.entity.UserFundEntity">
+        SELECT * FROM `${title}_user_fund` WHERE userid = #{userId}
+    </select>
+    <update id="updateLockedById" >
+        update ${title}_user_fund
+        SET islocked = #{userFund.islockde},
+            lock_action = #{userFund.lockAction}
+        WHERE entry = #{userFund.entry}
+    </update>
 </mapper>
