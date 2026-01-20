@@ -59,4 +59,18 @@
         platform,created_at,updated_at,
         third_party_trx_id
     </sql>
+    <insert id="addOrdersList">
+        INSERT into ${title}_orders  (
+            lottery_id, method_id, task_id, project_id, fromuser_id, order_type_id,
+            title, amount, description, pre_balance, pre_available, pre_hold,
+            channel_balance, available_balance, hold_balance, issue, modes,
+            created_at, updated_at, action_time
+        ) VALUES (
+                     #{order.lotteryId}, #{order.methodId}, #{order.taskId}, #{order.projectId},
+                     #{order.fromuserId}, #{order.orderTypeId}, #{order.title}, #{order.amount},
+                     #{order.description}, #{order.preBalance}, #{order.preAvailable}, #{order.preHold},
+                     #{order.channelBalance}, #{order.availableBalance}, #{order.holdBalance},
+                     #{order.issue}, #{order.modes}, #{order.createdAt}, #{order.updatedAt}, #{order.actionTime}
+                 )
+    </insert>
 </mapper>

@@ -2,6 +2,7 @@ package com.giving.mapper;
 
 import com.giving.entity.OrdersEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Param;
 
 /**
 * @author zzby
@@ -11,6 +12,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 */
 public interface OrdersMapper extends BaseMapper<OrdersEntity> {
 
+    int addOrdersList(@Param("order") OrdersEntity order,@Param("title") String title);
 }
 
 

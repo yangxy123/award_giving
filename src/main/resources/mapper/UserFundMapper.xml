@@ -39,6 +39,18 @@
             AND islocked = 1
         </foreach>
     </update>
+
+    <update id="updateAddOrdersList">
+        update ${title}_user_fund
+        SET channelbalance = #{updateFund.channelbalance},
+              availablebalance = #{updateFund.availablebalance},
+              holdbalance = #{updateFund.holdbalance},
+              updated_at = #{updateFund.updatedAt}
+        WHERE userid = #{userId}
+          AND wallet_type = #{sWalletType}
+          AND islocked = #{islocked}
+    </update>
+
     <select id="selectByNotice" resultType="com.giving.entity.UserFundEntity">
         select * from `${noticeReq.title}_user_fund`
         where userid = #{userId}

@@ -1,5 +1,6 @@
 package com.giving.mapper;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.giving.entity.BetInfoEntity;
 import com.giving.entity.UserFundEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -21,6 +22,12 @@ public interface UserFundMapper extends BaseMapper<UserFundEntity> {
     UserFundEntity selectByNotice(@Param("noticeReq") NoticeReq noticeReq,@Param("userId") String userId);
 
     void updateUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("bonusMap") Map<String, BigDecimal> bonusMap);
+
+    int updateAddOrdersList(@Param("updateFund") UserFundEntity updateFund,
+                            @Param("userId") String userId,
+                            @Param("sWalletType") int sWalletType,
+                            @Param("islocked") int islocked,
+                            @Param("title") String title);
 }
 
 

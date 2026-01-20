@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 
 
@@ -40,6 +41,8 @@ public class OPissueToolServiceImpl implements OPissueToolService {
     private BetInfoMapper betInfoMapper;
     @Autowired
     private UserFundMapper userFundMapper;
+    @Autowired
+    private OrdersMapper ordersMapper;
 
     //public AwardingProcessServiceImpl awardingProcess = new AwardingProcessServiceImpl();
 
@@ -121,7 +124,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 }
                 try{
                     //添加账变
-                    this.addOrdersList(project.getUserId(), project, 3, 4);
+                    this.addOrdersList(project.getUserId(), project, 3, 4,roomMasterEntity.getTitle());
                     //解锁
                     this.doLockUserFund(project.getUserId(), false, 4, "CR_004");
                 } catch (Exception e) {
@@ -176,7 +179,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
         }
     }
 
-    public Boolean addOrdersList(String userId, BetInfoEntity project, int bUpdateProjectsType, int sWalletType) {
+    public Boolean addOrdersList(String userId, BetInfoEntity project, int bUpdateProjectsType, int sWalletType,String title) {
         try {
             LambdaQueryWrapper<UserFundEntity> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(UserFundEntity::getUserid, userId);
@@ -186,6 +189,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 throw new Exception("错误未查询到用户钱包");
             }
 
+            Date date = new Date();
             BigDecimal preChannelBalance = userFundEntity.getChannelbalance();
             BigDecimal preAvailableBalance = userFundEntity.getAvailablebalance();
             BigDecimal preHoldBalance = userFundEntity.getHoldbalance();
@@ -213,19 +217,20 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             order.setHoldBalance(holdBalance);
             order.setIssue(project.getIssue());
             order.setModes(project.getModes());
-            order.setCreatedAt(LocalDateTime.now());
-            order.setUpdatedAt(LocalDateTime.now());
-            order.setActionTime(LocalDateTime.now());
-            if (ordersMapper.insert(order) <= 0) {
+            order.setCreatedAt(date);
+            order.setUpdatedAt(date);
+            order.setActionTime(date);
+
+            if (ordersMapper.addOrdersList(order,title) <= 0) {
                 throw new IllegalStateException("新增Orders 资料失败");
             }
 
             if (bUpdateProjectsType == 3) {
                 BetInfoEntity updateProject = new BetInfoEntity();
                 updateProject.setIsDeduct(1);
-                updateProject.setDeductTime(LocalDateTime.now());
-                updateProject.setUpdateTime(LocalDateTime.now());
-                updateProject.setUpdatedAt(LocalDateTime.now());
+                updateProject.setDeductTime(date);
+                updateProject.setUpdateTime(date);
+                updateProject.setUpdatedAt(date);
 
                 LambdaQueryWrapper<BetInfoEntity> projectWrapper = new LambdaQueryWrapper<>();
                 projectWrapper.eq(BetInfoEntity::getProjectId, project.getProjectId());
@@ -239,13 +244,15 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             updateFund.setChannelbalance(channelBalance);
             updateFund.setAvailablebalance(availableBalance);
             updateFund.setHoldbalance(holdBalance);
-            updateFund.setUpdatedAt(LocalDateTime.now());
+            updateFund.setUpdatedAt(date);
 
-            LambdaQueryWrapper<UserFundEntity> fundWrapper = new LambdaQueryWrapper<>();
-            fundWrapper.eq(UserFundEntity::getUserid, userId);
-            fundWrapper.eq(UserFundEntity::getWalletType, sWalletType);
-            fundWrapper.eq(UserFundEntity::getIslocked, 1);
-            if (userFundMapper.update(updateFund, fundWrapper) <= 0) {
+//            LambdaQueryWrapper<UserFundEntity> fundWrapper = new LambdaQueryWrapper<>();
+//            fundWrapper.eq(UserFundEntity::getUserid, userId);
+//            fundWrapper.eq(UserFundEntity::getWalletType, sWalletType);
+//            fundWrapper.eq(UserFundEntity::getIslocked, 1);
+
+
+            if (userFundMapper.updateAddOrdersList(updateFund,userId,sWalletType,1,title) <= 0) {
                 throw new IllegalStateException("更新用户钱包失败");
             }
 

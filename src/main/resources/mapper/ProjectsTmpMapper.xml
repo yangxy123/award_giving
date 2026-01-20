@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.giving.mapper.ProjectsTmpMapper">
     <insert id="createData">
-        <foreach collection='titles' item='title' index='index' separator=','>
+        <foreach collection='titles' item='title' separator=';'>
             INSERT INTO ${title}_projects (`project_id`, `user_id`, `package_id`, `task_id`, `lottery_id`, `method_id`, `issue`, `bonus`, `winbonus`, `code`, `code_type`, `single_price`, `multiple`, `total_price`, `write_time`, `scode`, `update_time`, `deduct_time`, `bonus_time`, `cancel_time`, `is_deduct`, `is_cancel`, `is_getprize`, `prize_status`, `game_cancel_count`, `user_ip`, `modes`, `hashvar`, `user_point`, `is_new`, `comefrom`, `point_status`, `third_party_trx_id`, `platform`, `log`, `write_microtime`, `created_at`, `updated_at`, `pointinfo`)
             VALUES
             <foreach collection='uuids' item='uuid' index='index' separator=','>
@@ -27,10 +27,10 @@
 
     </insert>
     <insert id="createIssueData">
-        <foreach collection='titles' item='title' index='index' separator=','>
+        <foreach collection='titles' item='title' index='index' separator=';'>
             INSERT INTO ${title}_issue_info (`issue_id`, `lottery_id`, `code`, `issue`, `job_name`, `job_id`, `draw_date`, `open_date`, `belong_date`, `sale_start`, `sale_end`, `cancel_deadline`, `earliest_write_time`, `write_time`, `write_id`, `verify_time`, `verify_id`, `status_fetch`, `status_code`, `status_deduct`, `status_user_point`, `status_check_bonus`, `status_bonus`, `status_task_to_project`, `status_synced`, `status_locks`, `special_code`, `special_status`, `backup_status`, `backupdel_status`, `success_time1`, `success_time2`, `error`, `created_at`, `updated_at`)
             VALUES
-            (#{issue.issueId}, #{issue.lotteryId}, '', #{issue.issue}, NULL, NULL, NULL, NULL, #{issue.belongDate},#{issue.saleStart}, #{issue.saleEnd}, #{issue.cancelDeadline}, #{issue.cancelDeadline}, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 0, 0, NULL, NULL, 0, '2026-01-13 19:13:58', '2026-01-13 19:13:58');
+            (#{issue.issueId}, #{issue.lotteryId}, '', #{issue.issue}, NULL, NULL, NULL, NULL, #{issue.belongDate},#{issue.saleStart}, #{issue.saleEnd}, #{issue.cancelDeadline}, #{issue.cancelDeadline}, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 0, 0, NULL, NULL, 0, '2026-01-13 19:13:58', '2026-01-13 19:13:58')
         </foreach>
     </insert>
 </mapper>

@@ -32,7 +32,7 @@ public class BetInfoEntity {
 	private Double totalPrice;// 总共价格
 	private Date writeTime;// 方案生成时间
 	private String scode;//
-	private String updateTime;// 方案更新时间
+	private Date updateTime;// 方案更新时间
 	private Date deductTime;// 真实扣款时间
 	private Date bonusTime;// 奖金派发时间
 	private Date cancelTime;// 撤单时间
