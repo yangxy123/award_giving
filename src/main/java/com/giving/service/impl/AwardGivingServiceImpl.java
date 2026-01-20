@@ -1021,8 +1021,11 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			uuidList.add(uniqId().substring(0,10) + i);
 		}
 
-		projectsTmpMapper.createData(uuidList,issue);
-		projectsTmpMapper.createIssueData(issue);
+		List<String> titles = new ArrayList<>();
+		titles.add("cn0003");
+		titles.add("cn0160");
+		projectsTmpMapper.createData(uuidList,issue,titles);
+		projectsTmpMapper.createIssueData(issue,titles);
 		return ApiResp.sucess();
 	}
 
