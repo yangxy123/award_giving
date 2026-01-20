@@ -190,11 +190,7 @@
                    AND is_deduct=0 AND is_cancel=0 ORDER BY created_at;
     </select>
     <update id="updateDeduct">
-        UPDATE  ${title}_projects SET is_deduct = #{project.isDeduct}
-        <where>
-            AND project_id = #{project.projectId}
-            AND is_deduct =1
-        </where>
+        UPDATE  ${title}_projects SET is_deduct = #{project.isDeduct} WHERE project_id = #{project.projectId} AND is_deduct =0
     </update>
 
 </mapper>

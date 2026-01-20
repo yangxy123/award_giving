@@ -68,5 +68,5 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 * @param updateProject
 	 * @return
 	 */
-    int updateDeduct(@Param("project") BetInfoEntity updateProject,@Param("title") String title);
+    void updateDeduct(@Param("project") BetInfoEntity updateProject,@Param("title") String title);
 }

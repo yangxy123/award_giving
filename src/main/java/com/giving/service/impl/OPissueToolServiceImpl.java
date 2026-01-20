@@ -232,6 +232,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 throw new IllegalStateException("新增Orders 资料失败");
             }
             BetInfoEntity updateProject = new BetInfoEntity();
+            updateProject.setProjectId(project.getProjectId());
             updateProject.setIsDeduct(1);
             updateProject.setDeductTime(date);
             updateProject.setUpdateTime(date);
