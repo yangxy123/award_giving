@@ -107,22 +107,28 @@
         UPDATE ${noticeReq.title}_user_fund set islocked = 1,
         lock_action = 1,-- 资金被锁状态, 0=正常, 1=被锁
         updated_at = now()
-        WHERE userid in
-        <foreach collection="userIds" item="item" open="(" close=")" separator=",">
-              #{item}
-        </foreach>
-        AND islocked = 0 AND wallet_type = 5;
+        <where>
+            and userid in
+            <foreach collection="userIds" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+            AND islocked = 0 AND wallet_type = 5;
+        </where>
+
     </update>
     <update id="unLockUserFund">
         UPDATE ${noticeReq.title}_user_fund
         SET islocked = 0,
             lock_action = 'RW_001 解锁',
             updated_at = now()
-        WHERE userid in
-        <foreach collection="userIds" item="item" open="(" close=")" separator=",">
-            #{item}
-        </foreach>
+        <where>
+            and userid in
+            <foreach collection="userIds" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
             AND islocked = 1 AND wallet_type = 5;
+        </where>
+
     </update>
 
     <!-- 查询钱包余额（FOR UPDATE 可选，但建议） -->

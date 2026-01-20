@@ -836,6 +836,15 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			betInfoMapper.updateWinbonus(noticeReq,sumList,bonusTime);
 		}
 		List<String> userIds = sumList.stream().map(BetInfoEntity::getUserId).collect(Collectors.toSet()).stream().collect(Collectors.toList());
+
+		//删除临时注单记录 1
+		List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+		projectsTmpMapper.deleteBatchIds(projectIds);
+
+		//中奖
+		if(userIds == null || userIds.size() == 0){
+			return;
+		}
 		//锁定用户资金
 		betInfoMapper.doLockUserFund(noticeReq, userIds);
 		//汇总累加用户奖金
@@ -850,9 +859,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		//账变写入 orders
 		List<String> orderIds = addOrdersReArrayUtil(noticeReq,sumList);
 
-		//删除临时注单记录
-		List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-		projectsTmpMapper.deleteBatchIds(projectIds);
+//		//删除临时注单记录 1
+//		List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+//		projectsTmpMapper.deleteBatchIds(projectIds);
 
 		//生成抄单（Speculation）记录（依业务类型）
 		roomMasterMapper.createSpeculation(noticeReq.getRoomMaster(),orderIds);
