@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import java.io.Serializable;
 import java.util.Date;
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
  * 奖期信息
@@ -14,6 +15,7 @@ import lombok.Data;
  */
 @TableName(value ="TEMP_issue_info")
 @Data
+@Accessors(chain = true)
 public class TempIssueInfoEntity implements Serializable {
     /**
      * 奖期ID

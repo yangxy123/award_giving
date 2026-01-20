@@ -27,4 +27,10 @@ public class OPissueToolController {
     public ApiResp<String> manualDistribution(ManualDistributionReq req){
         return opissueToolService.manualDistribution(req);
     }
+
+    @PostMapping("/doCongealToReal")
+    @ApiOperation("手动结算")
+    public ApiResp<String> doCongealToReal(ManualDistributionReq req){
+        return opissueToolService.manualDistribution(req);
+    }
 }

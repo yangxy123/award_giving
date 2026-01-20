@@ -85,7 +85,7 @@
         where pr.issue = #{noticeReq.issue} and pr.lottery_id = #{noticeReq.lotteryId} and is_getprize = 0 and is_cancel = 0
         order by pr.project_id
     </select>
-
+    <!--    更新注单中奖状态 已经中奖-->
     <update id="updateWinbonus">
         <foreach collection="sumList" item="item" open="" close="" separator=";">
         update ${noticeReq.title}_projects set
@@ -97,12 +97,13 @@
           where project_id = #{item.projectId} and is_cancel = 0
         </foreach>
     </update>
-
+    <!--    更新注单中奖状态 未中奖-->
     <update id="updateByNotWinList">
         <foreach collection="notWinList" item="item" open="" close="" separator=";">
             update ${noticeReq.title}_projects set is_getprize = 2,prize_status = 1,updated_at = now() where project_id = #{item.projectId}
         </foreach>
     </update>
+    <!--    执行用户钱包锁定与解锁-->
     <update id="doLockUserFund">
         UPDATE ${noticeReq.title}_user_fund set islocked = 1,
         lock_action = 1,-- 资金被锁状态, 0=正常, 1=被锁
@@ -183,5 +184,9 @@
             )
         </foreach>
     </insert>
+    <!--    获取所有尚未'真实扣款'的方案-->
+    <select id="checkProjects" resultType="com.giving.entity.BetInfoEntity">
+        SELECT * FROM ${title}_projects WHERE lottery_id = #{issue.lotteryId} AND issue = #{issue.issue} AND is_deduct=0 AND is_cancel=0 ORDER BY created_at;
+    </select>
 
 </mapper>

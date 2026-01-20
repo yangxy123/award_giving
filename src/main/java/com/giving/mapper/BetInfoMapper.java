@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 import com.giving.entity.OrdersEntity;
+import com.giving.entity.TempIssueInfoEntity;
 import com.giving.entity.UserFundEntity;
 import com.giving.req.NoticeReq;
 import org.apache.catalina.User;
@@ -20,7 +21,9 @@ import org.apache.ibatis.annotations.Update;
 * @version 创建时间：2025年12月30日 下午5:10:22 
 */
 public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
-	@Select({
+
+
+    @Select({
 		"<script>"
 		+ "select project_id projectId from ${table} "
 		+ "where project_id = #{where1} and ttt=#{where2}"
@@ -49,12 +52,13 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 
 	void unLockUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("userIds") List<String> userIds);
 
-
-
-
-
-
 	List<UserFundEntity> selectUserFundBalancesForUpdate(@Param("noticeReq") NoticeReq noticeReq, @Param("userIds") List<String> userIds);
 
 	int batchInsertOrders(@Param("noticeReq") NoticeReq noticeReq, @Param("orders") List<OrdersEntity> orders);
+
+	/**
+	 * 获取所有尚未'真实扣款'的方案
+	 * @return
+	 */
+	List<BetInfoEntity> checkProjects(@Param("title") String title, @Param("Issue") TempIssueInfoEntity issue);
 }

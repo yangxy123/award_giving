@@ -2,6 +2,8 @@ package com.giving.mapper;
 
 import com.giving.entity.TempIssueInfoEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.giving.req.ManualDistributionReq;
+import org.apache.ibatis.annotations.Param;
 
 /**
 * @author zzby
@@ -11,6 +13,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 */
 public interface TempIssueInfoMapper extends BaseMapper<TempIssueInfoEntity> {
 
+    TempIssueInfoEntity selectByTitle(@Param("titles") String title, @Param("req") ManualDistributionReq req);
 }
 
 

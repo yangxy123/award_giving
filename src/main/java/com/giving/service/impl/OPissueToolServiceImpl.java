@@ -2,10 +2,14 @@ package com.giving.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.giving.base.resp.ApiResp;
+import com.giving.entity.BetInfoEntity;
 import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.RoomMasterEntity;
+import com.giving.entity.TempIssueInfoEntity;
+import com.giving.mapper.BetInfoMapper;
 import com.giving.mapper.IssueInfoMapper;
 import com.giving.mapper.RoomMasterMapper;
+import com.giving.mapper.TempIssueInfoMapper;
 import com.giving.req.ManualDistributionReq;
 import com.giving.service.AwardingProcessService;
 import com.giving.service.OPissueToolService;
@@ -32,6 +36,10 @@ public class OPissueToolServiceImpl implements OPissueToolService {
     private IssueInfoMapper issueInfoMapper;
     @Autowired
     private AwardingProcessService awardingProcessService;
+    @Autowired
+    private TempIssueInfoMapper tempIssueInfoMapper;
+    @Autowired
+    private BetInfoMapper betInfoMapper;
 
     //public AwardingProcessServiceImpl awardingProcess = new AwardingProcessServiceImpl();
 
@@ -72,5 +80,51 @@ public class OPissueToolServiceImpl implements OPissueToolService {
 
         return ApiResp.sucess();
 
+    }
+
+    @Override
+    public ApiResp<String> doCongealToReal(ManualDistributionReq req) {
+        try{
+            LambdaQueryWrapper<RoomMasterEntity> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(RoomMasterEntity::getMasterId,req.getMasterId());
+            RoomMasterEntity roomMasterEntity = roomMasterMapper.selectOne(wrapper);
+            if(ObjectUtils.isEmpty(roomMasterEntity)){
+                throw new RuntimeException("[厅主不存在] 厅主ID:"+req.getMasterId());
+            }
+            TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMasterEntity.getTitle(),req);
+            if (ObjectUtils.isEmpty(issueInfo)){
+                throw new RuntimeException("[厅主奖期不存在] 厅主ID:"+req.getMasterId()+"奖期："+req.getIssue());
+            }
+            if (issueInfo.getStatusDeduct() == 2){
+                throw new RuntimeException("真實扣款已完成 status_deduct=2");
+            }
+            //修改為真實扣款進行中
+            issueInfo.setStatusDeduct(1);
+            if (tempIssueInfoMapper.updateById(issueInfo) != 1){
+                throw new RuntimeException("修改奖期为真实扣款中失败");
+            }
+            // 获取所有尚未'真实扣款'的方案
+//            isDeduct = 0
+            List<BetInfoEntity> projects = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
+            //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
+            if (ObjectUtils.isEmpty(projects)){
+                issueInfo.setStatusDeduct(2);
+                if (tempIssueInfoMapper.updateById(issueInfo) != 1){
+                    throw new RuntimeException("修改奖期为真实扣款完成失败");
+                }
+            }
+            
+            //真實扣款 - 最後確認
+            List<BetInfoEntity> projects2 = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
+            if (ObjectUtils.isEmpty(projects2)){
+                issueInfo.setStatusDeduct(2);
+                if (tempIssueInfoMapper.updateById(issueInfo) != 1){
+                    throw new RuntimeException("修改奖期为真实扣款完成失败");
+                }
+            }
+            return ApiResp.sucess();
+        } catch (RuntimeException e) {
+            return ApiResp.paramError(e.getMessage());
+        }
     }
 }

@@ -56,4 +56,9 @@
         success_time1,success_time2,error,
         created_at,updated_at
     </sql>
+
+    <select id="selectByTitle" resultType="com.giving.entity.IssueInfoEntity">
+        select * from ${titles}_issue_info
+        where lottery_id = #{req.lotteryId} and issue = #{req.issue}
+    </select>
 </mapper>

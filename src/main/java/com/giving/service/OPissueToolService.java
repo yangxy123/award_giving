@@ -9,4 +9,11 @@ import com.giving.req.ManualDistributionReq;
  */
 public interface OPissueToolService {
     ApiResp<String> manualDistribution(ManualDistributionReq req);
+
+    /**
+     * 订单结算
+     * @param req
+     * @return
+     */
+    ApiResp<String> doCongealToReal(ManualDistributionReq req);
 }
