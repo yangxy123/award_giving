@@ -234,10 +234,10 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 updateProject.setUpdateTime(date);
                 updateProject.setUpdatedAt(date);
 
-                LambdaQueryWrapper<BetInfoEntity> projectWrapper = new LambdaQueryWrapper<>();
-                projectWrapper.eq(BetInfoEntity::getProjectId, project.getProjectId());
-                projectWrapper.eq(BetInfoEntity::getIsDeduct, 0);
-                if (betInfoMapper.update(updateProject, projectWrapper) <= 0) {
+//                LambdaQueryWrapper<BetInfoEntity> projectWrapper = new LambdaQueryWrapper<>();
+//                projectWrapper.eq(BetInfoEntity::getProjectId, project.getProjectId());
+//                projectWrapper.eq(BetInfoEntity::getIsDeduct, 0);
+                if (betInfoMapper.updateDeduct(updateProject,title) <= 0) {
                     throw new IllegalStateException("更新projects真实扣款状态失败");
                 }
             }

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.giving.entity.OrdersEntity;
 import com.giving.entity.TempIssueInfoEntity;
 import com.giving.entity.UserFundEntity;
@@ -61,4 +62,11 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 * @return
 	 */
 	List<BetInfoEntity> checkProjects(@Param("title") String title, @Param("issue") TempIssueInfoEntity issue);
+
+	/**
+	 * 修改为已扣款
+	 * @param updateProject
+	 * @return
+	 */
+    int updateDeduct(@Param("project") BetInfoEntity updateProject,@Param("title") String title);
 }

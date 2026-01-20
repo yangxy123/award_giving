@@ -189,5 +189,12 @@
                  WHERE lottery_id = #{issue.lotteryId} AND issue = #{issue.issue}
                    AND is_deduct=0 AND is_cancel=0 ORDER BY created_at;
     </select>
+    <update id="updateDeduct">
+        UPDATE  ${title}_projects SET is_deduct = #{project.isDeduct}
+        <where>
+            AND project_id = #{project.project_id}
+            AND is_deduct =0
+        </where>
+    </update>
 
 </mapper>
