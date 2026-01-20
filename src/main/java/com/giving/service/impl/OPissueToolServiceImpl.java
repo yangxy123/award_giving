@@ -2,14 +2,8 @@ package com.giving.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.giving.base.resp.ApiResp;
-import com.giving.entity.BetInfoEntity;
-import com.giving.entity.IssueInfoEntity;
-import com.giving.entity.RoomMasterEntity;
-import com.giving.entity.TempIssueInfoEntity;
-import com.giving.mapper.BetInfoMapper;
-import com.giving.mapper.IssueInfoMapper;
-import com.giving.mapper.RoomMasterMapper;
-import com.giving.mapper.TempIssueInfoMapper;
+import com.giving.entity.*;
+import com.giving.mapper.*;
 import com.giving.req.ManualDistributionReq;
 import com.giving.service.AwardingProcessService;
 import com.giving.service.OPissueToolService;
@@ -45,6 +39,8 @@ public class OPissueToolServiceImpl implements OPissueToolService {
     private TempIssueInfoMapper tempIssueInfoMapper;
     @Autowired
     private BetInfoMapper betInfoMapper;
+    @Autowired
+    private UserFundMapper userFundMapper;
 
     //public AwardingProcessServiceImpl awardingProcess = new AwardingProcessServiceImpl();
 
@@ -139,39 +135,35 @@ public class OPissueToolServiceImpl implements OPissueToolService {
         }
     }
 
-    public boolean doLockUserFund(List<String> userIds,boolean bIsLocked,Integer sWalletType,String lockAction){
+    public Boolean doLockUserFund(List<String> userIds,Boolean bIsLocked,Integer sWalletType,String lockAction){
         try {
+            for (String userId : userIds) {
+                // TRUE : 上鎖 ； FALSE : 解鎖
+                // 钱包类别
+                // 0: 充提, 1: 投注, 2: 验派, 3: 撤单, 4: 扣款, 5: 单注验派
+                int sNowIsLock    = (bIsLocked) ? 0 : 1;
+                int sToIsLock     = (bIsLocked) ? 1 : 0;
+                int iWalletType = (int)sWalletType;
+                int iAffectNumber = (iWalletType == 0)? 6:1;
+                String sLockAction  = lockAction+((bIsLocked) ? " 上锁" : " 解锁");// TRUE : 上鎖 ; FALSE : 解鎖
 
-            // TRUE : 上鎖 ； FALSE : 解鎖
-            // 钱包类别
-            // 0: 充提, 1: 投注, 2: 验派, 3: 撤单, 4: 扣款, 5: 单注验派
-            int sNowIsLock    = (bIsLocked) ? 0 : 1;
-            int sToIsLock     = (bIsLocked) ? 1 : 0;
-            int iWalletType = (int)sWalletType;
-            int iAffectNumber = (iWalletType == 0)? 6:1;
-            String sLockAction  = lockAction+((bIsLocked) ? " 上锁" : " 解锁");// TRUE : 上鎖 ; FALSE : 解鎖
-
-            Map<String,String> aConditions = new HashMap<>();
-            aConditions.put("userid","$sUserId");
-            aConditions.put("islocked",String.valueOf(sNowIsLock));
-            if (iWalletType > 0) {
-                aConditions.put("wallet_type",String.valueOf(sWalletType));
-            }
-
-            Map<String,String> data = new HashMap<>();
-            data.put("islocked",String.valueOf(sToIsLock));
-            data.put("lock_action",sLockAction);
-//                    'updated_at' => Carbon::now()->toDateTimeString(),
-
-            if ( ! (($this->model->where($aConditions)->update($data) >= $iAffectNumber))) {
-                if ($bIsLocked) {
-                    throw new \Exception($sUserId."-".$sLockAction."失敗");
-                } else {
-                    DB::rollBack();
-                    return true;
+                LambdaQueryWrapper<UserFundEntity> wrapper = new LambdaQueryWrapper<>();
+                wrapper.eq(UserFundEntity::getUserid,userId);
+                wrapper.eq(UserFundEntity::getIslocked,sNowIsLock);
+                if (iWalletType > 0) {
+                    wrapper.eq(UserFundEntity::getWalletType,sWalletType);
+                }
+                List<UserFundEntity> userFundS = userFundMapper.selectList(wrapper);
+                int updateCount = 0;
+                for (UserFundEntity userFund : userFundS) {
+                    userFund.setIslocked(sToIsLock);
+                    userFund.setLockAction(sLockAction);
+                    updateCount += userFundMapper.updateById(userFund); // 每次返回 0/1
+                }
+                if (! (updateCount>=iAffectNumber) && bIsLocked){
+                    throw new Exception("失敗");
                 }
             }
-            DB::commit();
             return true;
         }catch (Exception e){
             return false;

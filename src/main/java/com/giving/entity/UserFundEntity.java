@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
  * 用户钱包
@@ -14,6 +15,7 @@ import lombok.Data;
  */
 @TableName(value ="TEMP_user_fund")
 @Data
+@Accessors(chain = true)
 public class UserFundEntity implements Serializable {
     /**
      * 编号
