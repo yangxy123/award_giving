@@ -16,10 +16,8 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 
 /**
@@ -229,10 +227,10 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 updateProject.setUpdateTime(LocalDateTime.now());
                 updateProject.setUpdatedAt(LocalDateTime.now());
 
-                LambdaQueryWrapper<ProjectsEntity> projectWrapper = new LambdaQueryWrapper<>();
-                projectWrapper.eq(ProjectsEntity::getProjectId, project.getProjectId());
-                projectWrapper.eq(ProjectsEntity::getIsDeduct, 0);
-                if (projectsMapper.update(updateProject, projectWrapper) <= 0) {
+                LambdaQueryWrapper<BetInfoEntity> projectWrapper = new LambdaQueryWrapper<>();
+                projectWrapper.eq(BetInfoEntity::getProjectId, project.getProjectId());
+                projectWrapper.eq(BetInfoEntity::getIsDeduct, 0);
+                if (betInfoMapper.update(updateProject, projectWrapper) <= 0) {
                     throw new IllegalStateException("更新projects真实扣款状态失败");
                 }
             }
