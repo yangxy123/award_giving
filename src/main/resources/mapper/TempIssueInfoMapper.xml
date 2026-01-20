@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.TempIssueInfoMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.TempIssueInfoEntity">
+            <id property="issueId" column="issue_id" jdbcType="INTEGER"/>
+            <result property="lotteryId" column="lottery_id" jdbcType="BIGINT"/>
+            <result property="code" column="code" jdbcType="VARCHAR"/>
+            <result property="issue" column="issue" jdbcType="VARCHAR"/>
+            <result property="jobName" column="job_name" jdbcType="VARCHAR"/>
+            <result property="jobId" column="job_id" jdbcType="VARCHAR"/>
+            <result property="drawDate" column="draw_date" jdbcType="TIMESTAMP"/>
+            <result property="openDate" column="open_date" jdbcType="TIMESTAMP"/>
+            <result property="belongDate" column="belong_date" jdbcType="VARCHAR"/>
+            <result property="saleStart" column="sale_start" jdbcType="TIMESTAMP"/>
+            <result property="saleEnd" column="sale_end" jdbcType="TIMESTAMP"/>
+            <result property="cancelDeadline" column="cancel_deadline" jdbcType="TIMESTAMP"/>
+            <result property="earliestWriteTime" column="earliest_write_time" jdbcType="TIMESTAMP"/>
+            <result property="writeTime" column="write_time" jdbcType="TIMESTAMP"/>
+            <result property="writeId" column="write_id" jdbcType="INTEGER"/>
+            <result property="verifyTime" column="verify_time" jdbcType="TIMESTAMP"/>
+            <result property="verifyId" column="verify_id" jdbcType="INTEGER"/>
+            <result property="statusFetch" column="status_fetch" jdbcType="INTEGER"/>
+            <result property="statusCode" column="status_code" jdbcType="INTEGER"/>
+            <result property="statusDeduct" column="status_deduct" jdbcType="INTEGER"/>
+            <result property="statusUserPoint" column="status_user_point" jdbcType="INTEGER"/>
+            <result property="statusCheckBonus" column="status_check_bonus" jdbcType="INTEGER"/>
+            <result property="statusBonus" column="status_bonus" jdbcType="INTEGER"/>
+            <result property="statusTaskToProject" column="status_task_to_project" jdbcType="INTEGER"/>
+            <result property="statusSynced" column="status_synced" jdbcType="INTEGER"/>
+            <result property="statusLocks" column="status_locks" jdbcType="INTEGER"/>
+            <result property="specialCode" column="special_code" jdbcType="VARCHAR"/>
+            <result property="specialStatus" column="special_status" jdbcType="INTEGER"/>
+            <result property="backupStatus" column="backup_status" jdbcType="INTEGER"/>
+            <result property="backupdelStatus" column="backupdel_status" jdbcType="INTEGER"/>
+            <result property="successTime1" column="success_time1" jdbcType="TIMESTAMP"/>
+            <result property="successTime2" column="success_time2" jdbcType="TIMESTAMP"/>
+            <result property="error" column="error" jdbcType="INTEGER"/>
+            <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+            <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        issue_id,lottery_id,code,
+        issue,job_name,job_id,
+        draw_date,open_date,belong_date,
+        sale_start,sale_end,cancel_deadline,
+        earliest_write_time,write_time,write_id,
+        verify_time,verify_id,status_fetch,
+        status_code,status_deduct,status_user_point,
+        status_check_bonus,status_bonus,status_task_to_project,
+        status_synced,status_locks,special_code,
+        special_status,backup_status,backupdel_status,
+        success_time1,success_time2,error,
+        created_at,updated_at
+    </sql>
+</mapper>
