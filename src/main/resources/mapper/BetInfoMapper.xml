@@ -105,7 +105,7 @@
     </update>
     <!--    执行用户钱包锁定与解锁-->
     <update id="doLockUserFund">
-        UPDATE ${noticeReq.title}_user_fund set islocked = 1,
+        UPDATE ${title}_user_fund set islocked = 1,
         lock_action = 1,-- 资金被锁状态, 0=正常, 1=被锁
         updated_at = now()
         <where>
@@ -113,9 +113,8 @@
             <foreach collection="userIds" item="item" open="(" close=")" separator=",">
                 #{item}
             </foreach>
-            AND islocked = 0 AND wallet_type = 5;
+            AND islocked = 0 AND wallet_type = #{walletType};
         </where>
-
     </update>
     <update id="unLockUserFund">
         UPDATE ${noticeReq.title}_user_fund

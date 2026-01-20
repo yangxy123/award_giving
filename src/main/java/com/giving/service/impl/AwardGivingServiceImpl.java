@@ -846,7 +846,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			return;
 		}
 		//锁定用户资金
-		betInfoMapper.doLockUserFund(noticeReq, userIds);
+		betInfoMapper.doLockUserFund(noticeReq.getTitle(), userIds,5);
 		//汇总累加用户奖金
 		Map<String, BigDecimal> bonusMap = new HashMap<>();
 		for (BetInfoEntity i : sumList) {

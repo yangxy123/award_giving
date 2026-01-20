@@ -46,7 +46,7 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 
 	void updateByNotWinList(@Param("noticeReq") NoticeReq noticeReq,@Param("notWinList") List<BetInfoEntity> notWinList);
 
-	void doLockUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("userIds") List<String> userIds);
+	void doLockUserFund(@Param("title") String title,@Param("userIds") List<String> userIds,@Param("walletType") Integer walletType);
 
 	//void addOrdersReArray(@Param("noticeReq") NoticeReq noticeReq,@Param("sumList") List<BetInfoEntity> sumList);
 
