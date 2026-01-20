@@ -60,5 +60,5 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 * 获取所有尚未'真实扣款'的方案
 	 * @return
 	 */
-	List<BetInfoEntity> checkProjects(@Param("title") String title, @Param("Issue") TempIssueInfoEntity issue);
+	List<BetInfoEntity> checkProjects(@Param("title") String title, @Param("issue") TempIssueInfoEntity issue);
 }

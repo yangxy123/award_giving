@@ -56,9 +56,13 @@
         success_time1,success_time2,error,
         created_at,updated_at
     </sql>
+    <update id="updateByTitleStatusDeduct">
+        update ${titles}_issue_info set status_deduct = #{issueInfo.statusDeduct}
+        where lottery_id = #{issueInfo.lotteryId} and issue = #{issueInfo.issue}
+    </update>
 
-    <select id="selectByTitle" resultType="com.giving.entity.IssueInfoEntity">
+    <select id="selectByTitle" resultType="com.giving.entity.TempIssueInfoEntity">
         select * from ${titles}_issue_info
-        where lottery_id = #{req.lotteryId} and issue = #{req.issue}
+        where lottery_id = #{lotteryId} and issue = #{issue}
     </select>
 </mapper>

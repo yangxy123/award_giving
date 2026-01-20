@@ -94,7 +94,9 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             if (ObjectUtils.isEmpty(roomMasterEntity)) {
                 throw new RuntimeException("[厅主不存在] 厅主ID:" + req.getMasterId());
             }
-            TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMasterEntity.getTitle(), req);
+            TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMasterEntity.getTitle(),
+                    req.getLotteryId().toString(),
+                    req.getIssue());
             if (ObjectUtils.isEmpty(issueInfo)) {
                 throw new RuntimeException("[厅主奖期不存在] 厅主ID:" + req.getMasterId() + "奖期：" + req.getIssue());
             }
@@ -103,7 +105,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             }
             //修改為真實扣款進行中
             issueInfo.setStatusDeduct(1);
-            if (tempIssueInfoMapper.updateById(issueInfo) != 1) {
+            if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(),issueInfo) != 1 ) {
                 throw new RuntimeException("修改奖期为真实扣款中失败");
             }
             // 获取所有尚未'真实扣款'的方案
@@ -111,7 +113,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
             if (ObjectUtils.isEmpty(projects)) {
                 issueInfo.setStatusDeduct(2);
-                if (tempIssueInfoMapper.updateById(issueInfo) != 1) {
+                if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(),issueInfo) != 1) {
                     throw new RuntimeException("修改奖期为真实扣款完成失败");
                 }
             }
@@ -132,13 +134,13 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 }
             }
             //真實扣款 - 最後確認
-            List<BetInfoEntity> projects2 = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
-            if (ObjectUtils.isEmpty(projects2)) {
+//            List<BetInfoEntity> projects2 = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
+//            if (ObjectUtils.isEmpty(projects2)) {
                 issueInfo.setStatusDeduct(2);
-                if (tempIssueInfoMapper.updateById(issueInfo) != 1) {
+                if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(),issueInfo) != 1) {
                     throw new RuntimeException("修改奖期为真实扣款完成失败");
                 }
-            }
+//            }
             return ApiResp.sucess();
         } catch (RuntimeException e) {
             return ApiResp.paramError(e.getMessage());

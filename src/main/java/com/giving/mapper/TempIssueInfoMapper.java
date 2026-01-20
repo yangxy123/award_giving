@@ -13,7 +13,11 @@ import org.apache.ibatis.annotations.Param;
 */
 public interface TempIssueInfoMapper extends BaseMapper<TempIssueInfoEntity> {
 
-    TempIssueInfoEntity selectByTitle(@Param("titles") String title, @Param("req") ManualDistributionReq req);
+    TempIssueInfoEntity selectByTitle(@Param("titles") String title,
+                                      @Param("lotteryId") String lotteryId,
+                                      @Param("issue") String issue);
+
+    int updateByTitleStatusDeduct(@Param("titles") String title,@Param("issueInfo") TempIssueInfoEntity issueInfo);
 }
 
 

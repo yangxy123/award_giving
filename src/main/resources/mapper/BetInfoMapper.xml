@@ -185,7 +185,9 @@
     </insert>
     <!--    获取所有尚未'真实扣款'的方案-->
     <select id="checkProjects" resultType="com.giving.entity.BetInfoEntity">
-        SELECT * FROM ${title}_projects WHERE lottery_id = #{issue.lotteryId} AND issue = #{issue.issue} AND is_deduct=0 AND is_cancel=0 ORDER BY created_at;
+        SELECT * FROM ${title}_projects
+                 WHERE lottery_id = #{issue.lotteryId} AND issue = #{issue.issue}
+                   AND is_deduct=0 AND is_cancel=0 ORDER BY created_at;
     </select>
 
 </mapper>
