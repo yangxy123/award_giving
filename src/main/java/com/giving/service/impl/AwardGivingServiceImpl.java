@@ -377,10 +377,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			}
 		}
 		Long endTime = System.currentTimeMillis();
-		System.out.println("\n开始时间: " + startTime);
-		System.out.println("结束时间: " + endTime);
-		System.out.println("耗时: " + (endTime - startTime));
-		log.info("\n==============================" +
+		log.info("\n============== notice ================" +
 				"\nlotteryId = {}" +
 				"\nissue = {}" +
 				"\n注单数(3000):{}" +
@@ -402,11 +399,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			PageHelper.startPage(pageNo, pageSize);
 			// TODO Auto-generated method stub
 			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
-			Page<BetInfoEntity> page = (Page<BetInfoEntity>)betInfoMapper.selectList(
-					new QueryWrapper<BetInfoEntity>().lambda().eq(BetInfoEntity::getIssue, noticeReq.getIssue())
-							.eq(BetInfoEntity::getLotteryId, noticeReq.getLotteryId()).eq(BetInfoEntity::getIsCancel, 0)
-							.eq(BetInfoEntity::getPrizeStatus, 0));
-			List<BetInfoEntity> list = page.getResult();
+			List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
 			if(list.isEmpty()) {
 				break;
 			}
@@ -622,11 +615,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			PageHelper.startPage(pageNo, pageSize);
 			// TODO Auto-generated method stub
 			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
-			Page<BetInfoEntity> page = (Page<BetInfoEntity>)betInfoMapper.selectList(
-					new QueryWrapper<BetInfoEntity>().lambda().eq(BetInfoEntity::getIssue, noticeReq.getIssue())
-							.eq(BetInfoEntity::getLotteryId, noticeReq.getLotteryId()).eq(BetInfoEntity::getIsCancel, 0)
-							.eq(BetInfoEntity::getPrizeStatus, 0));
-			List<BetInfoEntity> list = page.getResult();
+			List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
 			if(list.isEmpty()) {
 				break;
 			}
@@ -703,11 +692,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			PageHelper.startPage(pageNo, pageSize);
 			// TODO Auto-generated method stub
 			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
-			Page<BetInfoEntity> page = (Page<BetInfoEntity>)betInfoMapper.selectList(
-					new QueryWrapper<BetInfoEntity>().lambda().eq(BetInfoEntity::getIssue, noticeReq.getIssue())
-							.eq(BetInfoEntity::getLotteryId, noticeReq.getLotteryId()).eq(BetInfoEntity::getIsCancel, 0)
-							.eq(BetInfoEntity::getPrizeStatus, 0));
-			List<BetInfoEntity> list = page.getResult();
+			List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
 			if(list.isEmpty()) {
 				break;
 			}
@@ -750,11 +735,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			PageHelper.startPage(pageNo, pageSize);
 			// TODO Auto-generated method stub
 			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
-			Page<BetInfoEntity> page = (Page<BetInfoEntity>)betInfoMapper.selectList(
-					new QueryWrapper<BetInfoEntity>().lambda().eq(BetInfoEntity::getIssue, noticeReq.getIssue())
-							.eq(BetInfoEntity::getLotteryId, noticeReq.getLotteryId()).eq(BetInfoEntity::getIsCancel, 0)
-							.eq(BetInfoEntity::getPrizeStatus, 0));
-			List<BetInfoEntity> list = page.getResult();
+			List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
 			if(list.isEmpty()) {
 				break;
 			}

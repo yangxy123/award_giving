@@ -82,8 +82,8 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
             if(!lottery.getFunctionType().equals("K3")) {
                 awardService.createData(Integer.parseInt(issueInfo.getLotteryId().toString()));
             }
-
         }).start();
+
         updateRoomsIssueInfo(issueInfo);
         return ApiResp.sucess();
     }
