@@ -76,7 +76,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         issueInfo.setWriteId(0);
         issueInfoMapper.updateById(issueInfo);
 
-//        LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
+        //LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
 //        new Thread(() ->{
 //            LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
 //            if(!lottery.getFunctionType().equals("K3")) {

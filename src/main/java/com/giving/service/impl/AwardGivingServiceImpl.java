@@ -959,6 +959,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		if (orders.isEmpty()) {
 			return null;
 		}
+		log.info("============插入order\nnoticReq:  {}\norders:  {}",noticeReq,orders);
 		betInfoMapper.batchInsertOrders(noticeReq, orders);
 		return entryList;
 	}
@@ -984,7 +985,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				.gt(IssueInfoEntity::getSaleEnd, newDate);   // sale_end   > now;
 		IssueInfoEntity issue = issueInfoMapper.selectOne(IssuequeryWrapper);
 
-		for (int i = 1000; i<1002; i++){
+		for (int i = 1000; i<2000; i++){
 			uuidList.add(uniqId().substring(0,10) + i);
 		}
 
