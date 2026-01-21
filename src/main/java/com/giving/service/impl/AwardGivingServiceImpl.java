@@ -66,17 +66,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			allBetList.add(list);
 			pageNo += 1;
 		}
-//		while (true) {
-//			PageHelper.startPage(pageNo, pageSize);
-//			// TODO Auto-generated method stub
-//			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
-//
-//			List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
-//			if (list.isEmpty()) {
-//				break;
-//			}
-//			Page<BetInfoEntity> page = (Page<BetInfoEntity>) list;
-//			pageNo += 1;
 		int count = 0;
 		List<Integer> countList = Lists.newArrayList();
 		for(List<BetInfoEntity> list: allBetList){
@@ -377,13 +366,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			}
 		}
 		Long endTime = System.currentTimeMillis();
-		log.info("\n============== notice ================" +
+		log.info("\n============== notice - {} ================" +
 				"\nlotteryId = {}" +
 				"\nissue = {}" +
 				"\n注单数(3000):{}" +
 				"\n开始时间:{}" +
 				"\n结束时间:{}" +
-				"\n耗时:{}",noticeReq.getLotteryId(),noticeReq.getIssue(),allBetList.size(),startTime,endTime,endTime - startTime);
+				"\n耗时:{}",noticeReq.getTitle(),noticeReq.getLotteryId(),noticeReq.getIssue(),allBetList.size(),startTime,endTime,endTime - startTime);
 	}
 
 	@Override
@@ -840,10 +829,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		//账变写入 orders
 		List<String> orderIds = addOrdersReArrayUtil(noticeReq,sumList);
 
-//		//删除临时注单记录 1
-//		List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-//		projectsTmpMapper.deleteBatchIds(projectIds);
-
 		//生成抄单（Speculation）记录（依业务类型）
 		roomMasterMapper.createSpeculation(noticeReq.getRoomMaster(),orderIds);
 
@@ -970,6 +955,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
 			orders.add(o);
 		}
+
 		if (orders.isEmpty()) {
 			return null;
 		}
@@ -998,7 +984,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				.gt(IssueInfoEntity::getSaleEnd, newDate);   // sale_end   > now;
 		IssueInfoEntity issue = issueInfoMapper.selectOne(IssuequeryWrapper);
 
-		for (int i = 1000; i<2200; i++){
+		for (int i = 1000; i<1002; i++){
 			uuidList.add(uniqId().substring(0,10) + i);
 		}
 
