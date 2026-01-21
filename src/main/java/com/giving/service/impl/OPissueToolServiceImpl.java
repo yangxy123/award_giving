@@ -206,7 +206,8 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             BigDecimal holdBalance = preHoldBalance.subtract(amount);
 
             OrdersEntity order = new OrdersEntity();
-            order.setEntry(uniqId().substring(0,10));
+            String uuid = String.format("%03d", project.getProjectId()).substring(0,3) + uniqId().substring(0,13);
+            order.setEntry(uuid);
             order.setLotteryId(project.getLotteryId());
             order.setMethodId(project.getMethodId());
             order.setTaskId(project.getTaskId());

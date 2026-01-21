@@ -11,6 +11,7 @@ import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.OrdersEntity;
 import com.giving.entity.UserFundEntity;
 import com.giving.mapper.*;
+import com.giving.util.JdbcCreateSqlUtil;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private RoomMasterMapper roomMasterMapper;
     @Autowired
     private IssueInfoMapper issueInfoMapper;
+
+	@Autowired
+	private JdbcCreateSqlUtil jdbcCreateSqlUtil;
 
 	@Override
 	public void notice(NoticeReq noticeReq) {
@@ -786,6 +790,30 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 						map -> new ArrayList<>(map.values())
 				));
 	}
+
+//	public void newUpdateAll(List<BetInfoEntity> sumList,NoticeReq noticeReq,List<BetInfoEntity> list,Date bonusTime){
+//		//中奖订单ID列表
+//		List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+//		//未中奖订单ID
+//		List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
+//				.collect(Collectors.toList());
+//		if(!notWinList.isEmpty()){
+//			List<BetInfoEntity> tempList = new ArrayList<>();
+//			tempList.addAll(notWinList);
+//			tempList.forEach(vo -> {
+//				vo.setIsGetprize(2);
+//				vo.setPrizeStatus(1);
+//				vo.setUpdatedAt(new Date());
+//			});
+//			jdbcCreateSqlUtil.batchUpdate(notWinList,
+//					"update "+ noticeReq.getTitle()
+//							+"set is_getprize = ?,prize_status = ?,updated_at = ? where project_id = #{item.projectId}",);
+//			betInfoMapper.updateByNotWinList(noticeReq, notWinList);
+//		}
+//		if(!sumList.isEmpty()){
+//			betInfoMapper.updateWinbonus(noticeReq,sumList,bonusTime);
+//		}
+//	}
 
 	/**
 	 * 更新注单数据
