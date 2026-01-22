@@ -93,6 +93,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      * 写入各平台商的平台商奖期表
      * @param issueInfo
      */
+    @Override
     public void updateRoomsIssueInfo(IssueInfoEntity issueInfo){
         //2.取得平台商信息表中的平台商前缀
         List<RoomMasterEntity> roomMasters = roomMasterMapper.selectTitle();

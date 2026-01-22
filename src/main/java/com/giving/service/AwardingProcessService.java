@@ -18,6 +18,7 @@ public interface AwardingProcessService {
      */
     ApiResp<String> drawSource(DrawSourceReq req);
 
+    void updateRoomsIssueInfo(IssueInfoEntity issueInfo);
 
     void lotteryDraw(RoomMasterEntity roomMaster, IssueInfoEntity issueInfo);
 }
