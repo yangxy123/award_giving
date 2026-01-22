@@ -9,7 +9,11 @@ import com.giving.req.ManualDistributionReq;
  * @version 创建时间： 2026/1/18 下午3:11
  */
 public interface OPissueToolService {
-
+    /**
+     * 已经录号完全 -- 执行尚未派奖订单
+     * @param req
+     * @return
+     */
     ApiResp<String> resteDrawSource(ListIssueReq req);
 
     ApiResp<String> manualDistribution(ManualDistributionReq req);

@@ -381,6 +381,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
 	@Override
 	public void noticeNorth(NoticeReq noticeReq) {
+		try {
+
+
 		// TODO Auto-generated method stub
 		int pageSize = 3000;
 		int pageNo = 0;
@@ -590,8 +593,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 //			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
 //					.collect(Collectors.toList());
 
-			updateDataAll(sumList,noticeReq,list,bonusTime);
+			this.updateDataAll(sumList,noticeReq,list,bonusTime);
 
+		}
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 	}
 

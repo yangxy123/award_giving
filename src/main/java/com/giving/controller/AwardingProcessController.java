@@ -44,7 +44,7 @@ public class AwardingProcessController {
      * @param req
      */
     @PostMapping("/reste")
-    @ApiOperation("重新派奖")
+    @ApiOperation("已经录号-重新验派")
     public ApiResp<String> resteDrawSource(@RequestBody @Valid ListIssueReq req) {
         return opissueToolService.resteDrawSource(req);
     }

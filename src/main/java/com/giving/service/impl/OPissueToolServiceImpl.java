@@ -60,10 +60,8 @@ public class OPissueToolServiceImpl implements OPissueToolService {
         IssueInfoEntity issueInfo = issueInfoMapper.selectOne(queryWrapper);
         List<RoomMasterEntity> roomMasters = roomMasterMapper.selectTitle();
         for (RoomMasterEntity roomMaster : roomMasters) {
-            TempIssueInfoEntity TempIssueInfo = tempIssueInfoMapper.selectByTitle(roomMaster.getTitle(), req.getLotteryId(),req.getIssue());
+            awardingProcessService.lotteryDraw(roomMaster,issueInfo);
         }
-
-        awardingProcessService.updateRoomsIssueInfo(issueInfo);
         return ApiResp.sucess();
     }
 
