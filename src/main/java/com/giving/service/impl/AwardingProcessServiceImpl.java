@@ -5,9 +5,11 @@ import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.LotteryEntity;
 import com.giving.entity.RoomMasterEntity;
+import com.giving.entity.TempIssueInfoEntity;
 import com.giving.mapper.IssueInfoMapper;
 import com.giving.mapper.LotteryMapper;
 import com.giving.mapper.RoomMasterMapper;
+import com.giving.mapper.TempIssueInfoMapper;
 import com.giving.req.DrawSourceReq;
 import com.giving.req.ListIssueReq;
 import com.giving.req.NoticeReq;
@@ -47,6 +49,8 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 
     @Autowired
     AwardGivingService awardService;
+    @Autowired
+    private TempIssueInfoMapper tempIssueInfoMapper;
 
     /**
      * 派奖流程
@@ -76,33 +80,15 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         issueInfo.setWriteId(0);
         issueInfoMapper.updateById(issueInfo);
 
-        //LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
-//        new Thread(() ->{
-//            LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
-//            if(!lottery.getFunctionType().equals("K3")) {
-//                awardService.createData(Integer.parseInt(issueInfo.getLotteryId().toString()));
-//            }
-//        }).start();
+        //测试时自动向数据库插入下一期数据
+        //this.FakeIssue(issueInfo);
 
         updateRoomsIssueInfo(issueInfo);
+
         return ApiResp.sucess();
     }
 
-    /**
-     *
-     * @param req
-     */
-    @Override
-    public ApiResp<String> resteDrawSource(ListIssueReq req){
-        //判断是否存在奖期
-        LambdaQueryWrapper<IssueInfoEntity> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(IssueInfoEntity::getLotteryId,req.getLotteryId());
-        queryWrapper.eq(IssueInfoEntity::getIssue,req.getIssue());
-        IssueInfoEntity issueInfo = issueInfoMapper.selectOne(queryWrapper);
 
-        updateRoomsIssueInfo(issueInfo);
-        return ApiResp.sucess();
-    }
     /**
      * 写入各平台商的平台商奖期表
      * @param issueInfo
@@ -117,13 +103,10 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         for (RoomMasterEntity roomMaster : roomMasters) {
             lotteryDraw(roomMaster,issueInfo);
         }
-        //  5.验派后出现的金额变化写入账变表(cn007_orders)，并修改用户余额(cn007_user_fund)
     }
 
-    //根据采种方法执行对应的验证流程
-
     /**
-     *
+     *根据采种方法执行对应的验证流程
      * @param roomMaster
      * @param issueInfo
      */
@@ -160,5 +143,16 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
             }
         }).start();
 
+    }
+
+    //测试数据生成
+    private void FakeIssue(IssueInfoEntity issueInfo){
+
+        new Thread(() ->{
+            LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
+            if(!lottery.getFunctionType().equals("K3")) {
+                awardService.createData(Integer.parseInt(issueInfo.getLotteryId().toString()));
+            }
+        }).start();
     }
 }

@@ -38,7 +38,7 @@ public interface AwardGivingService {
 	* @version 创建时间：2025年12月30日 下午5:09:24
 	* @param noticeReq
 	 */
-	public void noticeLw(NoticeReq noticeReq);
+    void noticeLw(NoticeReq noticeReq);
 
 	/**
 	 * 通知派奖（快三）
@@ -46,7 +46,8 @@ public interface AwardGivingService {
 	* @version 创建时间：2025年12月30日 下午5:09:24
 	* @param noticeReq
 	 */
-	public void noticeKs(NoticeReq noticeReq);
+    void noticeKs(NoticeReq noticeReq);
 
+	//生成测试数据
 	ApiResp<String> createData(Integer count);
 }

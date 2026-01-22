@@ -1,6 +1,7 @@
 package com.giving.service;
 
 import com.giving.base.resp.ApiResp;
+import com.giving.req.ListIssueReq;
 import com.giving.req.ManualDistributionReq;
 
 /**
@@ -8,6 +9,9 @@ import com.giving.req.ManualDistributionReq;
  * @version 创建时间： 2026/1/18 下午3:11
  */
 public interface OPissueToolService {
+
+    ApiResp<String> resteDrawSource(ListIssueReq req);
+
     ApiResp<String> manualDistribution(ManualDistributionReq req);
 
     /**

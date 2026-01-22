@@ -11,9 +11,13 @@ import com.giving.req.ListIssueReq;
  * @version 创建时间： 2026/1/4 上午11:47
  */
 public interface AwardingProcessService {
+    /**
+     * 录号派奖
+     * @param req
+     * @return
+     */
     ApiResp<String> drawSource(DrawSourceReq req);
 
-    ApiResp<String> resteDrawSource(ListIssueReq req);
 
     void lotteryDraw(RoomMasterEntity roomMaster, IssueInfoEntity issueInfo);
 }

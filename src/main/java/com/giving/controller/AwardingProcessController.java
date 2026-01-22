@@ -3,7 +3,9 @@ package com.giving.controller;
 import com.giving.base.resp.ApiResp;
 import com.giving.req.DrawSourceReq;
 import com.giving.req.ListIssueReq;
+import com.giving.req.ManualDistributionReq;
 import com.giving.service.AwardingProcessService;
+import com.giving.service.OPissueToolService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +26,8 @@ import javax.validation.Valid;
 public class AwardingProcessController {
     @Autowired
     private AwardingProcessService awardingProcessService;
+    @Autowired
+    private OPissueToolService opissueToolService;
 
     /**
      * 1.根据彩种奖期取到号码->写入主奖期表中（issue_info）
@@ -42,7 +46,19 @@ public class AwardingProcessController {
     @PostMapping("/reste")
     @ApiOperation("重新派奖")
     public ApiResp<String> resteDrawSource(@RequestBody @Valid ListIssueReq req) {
-        return awardingProcessService.resteDrawSource(req);
+        return opissueToolService.resteDrawSource(req);
+    }
+
+    @PostMapping("/manualDistribution")
+    @ApiOperation("手动厅组录号派奖")
+    public ApiResp<String> manualDistribution(@RequestBody @Valid ManualDistributionReq req){
+        return opissueToolService.manualDistribution(req);
+    }
+
+    @PostMapping("/manualdoCongealToReal")
+    @ApiOperation("手动结算")
+    public ApiResp<String> doCongealToReal(@RequestBody @Valid ManualDistributionReq req){
+        return opissueToolService.doCongealToReal(req);
     }
 
 }

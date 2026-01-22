@@ -4,11 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.*;
 import com.giving.mapper.*;
+import com.giving.req.ListIssueReq;
 import com.giving.req.ManualDistributionReq;
 import com.giving.service.AwardingProcessService;
 import com.giving.service.OPissueToolService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 import org.slf4j.Logger;
@@ -45,7 +47,25 @@ public class OPissueToolServiceImpl implements OPissueToolService {
     @Autowired
     private OrdersMapper ordersMapper;
 
-    //public AwardingProcessServiceImpl awardingProcess = new AwardingProcessServiceImpl();
+    /**
+     *
+     * @param req
+     */
+    @Override
+    public ApiResp<String> resteDrawSource(ListIssueReq req){
+        //判断是否存在奖期
+        LambdaQueryWrapper<IssueInfoEntity> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(IssueInfoEntity::getLotteryId,req.getLotteryId());
+        queryWrapper.eq(IssueInfoEntity::getIssue,req.getIssue());
+        IssueInfoEntity issueInfo = issueInfoMapper.selectOne(queryWrapper);
+        List<RoomMasterEntity> roomMasters = roomMasterMapper.selectTitle();
+        for (RoomMasterEntity roomMaster : roomMasters) {
+            TempIssueInfoEntity TempIssueInfo = tempIssueInfoMapper.selectByTitle(roomMaster.getTitle(), req.getLotteryId(),req.getIssue());
+        }
+
+        awardingProcessService.updateRoomsIssueInfo(issueInfo);
+        return ApiResp.sucess();
+    }
 
     @Override
     public ApiResp<String> manualDistribution(ManualDistributionReq req) {
@@ -96,7 +116,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 throw new RuntimeException("[厅主不存在] 厅主ID:" + req.getMasterId());
             }
             TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMasterEntity.getTitle(),
-                    req.getLotteryId().toString(),
+                    Math.toIntExact(req.getLotteryId()),
                     req.getIssue());
             if (ObjectUtils.isEmpty(issueInfo)) {
                 throw new RuntimeException("[厅主奖期不存在] 厅主ID:" + req.getMasterId() + "奖期：" + req.getIssue());
@@ -150,42 +170,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
     }
 
     public Boolean doLockUserFund(String userId, Boolean bIsLocked, Integer sWalletType, String lockAction,String title) {
-        try {
-
-            // TRUE : 上鎖 ； FALSE : 解鎖
-            // 钱包类别
-            // 0: 充提, 1: 投注, 2: 验派, 3: 撤单, 4: 扣款, 5: 单注验派
-            int sNowIsLock = (bIsLocked) ? 0 : 1;
-            int sToIsLock = (bIsLocked) ? 1 : 0;
-            int iWalletType = (int) sWalletType;
-            int iAffectNumber = (iWalletType == 0) ? 6 : 1;
-            String sLockAction = lockAction + ((bIsLocked) ? " 上锁" : " 解锁");// TRUE : 上鎖 ; FALSE : 解鎖
-
-            LambdaQueryWrapper<UserFundEntity> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(UserFundEntity::getUserid, userId);
-            wrapper.eq(UserFundEntity::getIslocked, sNowIsLock);
-            wrapper.eq(UserFundEntity::getWalletType, sWalletType);
-            List<UserFundEntity> userFundS;
-            if (iWalletType > 0) {
-                userFundS = userFundMapper.selectByUserAndTypeLock(title,userId,sNowIsLock,sWalletType);
-            }else {
-                userFundS = userFundMapper.selectByUserAndTypeAll(title,userId,sNowIsLock);
-            }
-
-
-            int updateCount = 0;
-            for (UserFundEntity userFund : userFundS) {
-                userFund.setIslocked(sToIsLock);
-                userFund.setLockAction(sLockAction);
-                updateCount += userFundMapper.updateLockedById(title,userFund); // 每次返回 0/1
-            }
-            if (!(updateCount >= iAffectNumber) && bIsLocked) {
-                throw new Exception("失敗");
-            }
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+        return  false;
     }
 
     public Boolean addOrdersList(String userId, BetInfoEntity project, int sWalletType, String title) {
