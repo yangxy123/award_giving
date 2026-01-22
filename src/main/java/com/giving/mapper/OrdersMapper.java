@@ -13,6 +13,8 @@ import org.apache.ibatis.annotations.Param;
 public interface OrdersMapper extends BaseMapper<OrdersEntity> {
 
     int addOrdersList(@Param("order") OrdersEntity order,@Param("title") String title);
+
+    int addOrdersList2(@Param("o") OrdersEntity order,@Param("title") String title);
 }
 
 
