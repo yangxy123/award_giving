@@ -1061,7 +1061,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				.gt(IssueInfoEntity::getSaleEnd, newDate);   // sale_end   > now;
 		IssueInfoEntity issue = issueInfoMapper.selectOne(IssuequeryWrapper);
 
-		for (int i = 1000; i<2000; i++){
+		for (int i = 1000; i<1500; i++){
 			uuidList.add(uniqId().substring(0,10) + i);
 		}
 

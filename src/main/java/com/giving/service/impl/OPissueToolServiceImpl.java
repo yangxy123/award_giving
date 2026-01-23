@@ -1,6 +1,7 @@
 package com.giving.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.github.pagehelper.PageHelper;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.*;
 import com.giving.mapper.*;
@@ -12,15 +13,14 @@ import com.giving.service.UserFundLockTxService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.ObjectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
@@ -107,6 +107,8 @@ public class OPissueToolServiceImpl implements OPissueToolService {
 
     @Override
     public ApiResp<String> doCongealToReal(ManualDistributionReq req) {
+        Long startTime = System.currentTimeMillis();
+
         try {
             LambdaQueryWrapper<RoomMasterEntity> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(RoomMasterEntity::getMasterId, req.getMasterId());
@@ -130,36 +132,75 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 }
             }
 
-            // 获取所有尚未'真实扣款'的方案
-            List<BetInfoEntity> projects = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
-            //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
-            if (ObjectUtils.isEmpty(projects)) {
-                issueInfo.setStatusDeduct(2);
-                if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
-                    throw new RuntimeException("修改奖期为真实扣款完成失败");
+            int pageNum = 1;
+            int pageSize = 500;
+            List<List<BetInfoEntity>> allProjects = new ArrayList<>();
+            while(true) {
+                PageHelper.startPage(pageNum, pageSize);
+                // 获取所有尚未'真实扣款'的方案
+                List<BetInfoEntity> projects = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
+                //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
+                if (ObjectUtils.isEmpty(projects) || projects == null) {
+                    issueInfo.setStatusDeduct(2);
+                    if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
+                        throw new RuntimeException("修改奖期为真实扣款完成失败");
+                    }
+                    break;
+                }
+                allProjects.add(projects);
+                pageNum++;
+            }
+            List<Integer> flags = new ArrayList<>();
+            for (List<BetInfoEntity> projects : allProjects) {
+                new Thread(() -> {
+                    for (BetInfoEntity project : projects) {
+                        //todo 锁定用户资金 -- 上鎖
+                        if (!userFundLockTxService.doLockUserFund(project.getUserId(), true, 4, "CR_001", roomMasterEntity.getTitle())) {
+                            throw new RuntimeException("--锁定用户钱包失败");
+                        }
+                        //添加账变
+                        if(!userFundLockTxService.addOrdersList(project.getUserId(), project, roomMasterEntity.getTitle())){
+                            if (!userFundLockTxService.doLockUserFund(project.getUserId(), false, 4, "CR_004", roomMasterEntity.getTitle())) {
+                                throw new RuntimeException("--解锁用户钱包失败");
+                            }
+                            throw new RuntimeException("--添加账变异常");
+                        }
+                        //todo 锁定用户资金 -- 解锁
+                        if (!userFundLockTxService.doLockUserFund(project.getUserId(), false, 4, "CR_004", roomMasterEntity.getTitle())) {
+                            throw new RuntimeException("--解锁用户钱包失败");
+                        }
+                    }
+                    flags.add(1);
+                }).start();
+            }
+            //判断所有子线程是否执行完成
+            while (true){
+                if(allProjects.size() == flags.size()){
+                    break;
+                }
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
             }
-            for (BetInfoEntity project : projects) {
-                //todo 锁定用户资金 -- 上鎖
-                if (!userFundLockTxService.doLockUserFund(project.getUserId(), true, 4, "CR_001", roomMasterEntity.getTitle())) {
-                    throw new RuntimeException("--锁定用户钱包失败");
-                }
-                //添加账变
-                userFundLockTxService.addOrdersList(project.getUserId(), project, roomMasterEntity.getTitle());
-                //todo 锁定用户资金 -- 解锁
-                if (!userFundLockTxService.doLockUserFund(project.getUserId(), false, 4, "CR_004", roomMasterEntity.getTitle())) {
-                    throw new RuntimeException("--解锁用户钱包失败");
-                }
-            }
+
+
+
             //真實扣款
             issueInfo.setStatusDeduct(2);
             if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
                 throw new RuntimeException("修改奖期为真实扣款完成失败");
             }
+            Long endTime = System.currentTimeMillis();
+            log.info("==================耗时: {}",endTime - startTime);
             return ApiResp.sucess();
         } catch (RuntimeException e) {
+            //手动标记回滚
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return ApiResp.paramError(e.getMessage());
         }
+
     }
 
 }

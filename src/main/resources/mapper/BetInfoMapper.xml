@@ -192,7 +192,7 @@
     <select id="checkProjects" resultType="com.giving.entity.BetInfoEntity">
         SELECT * FROM ${title}_projects
                  WHERE lottery_id = #{issue.lotteryId} AND issue = #{issue.issue}
-                   AND is_deduct=0 AND is_cancel=0 ORDER BY created_at;
+                   AND is_deduct=0 AND is_cancel=0 ORDER BY created_at
     </select>
     <update id="updateDeduct">
         UPDATE  ${title}_projects SET is_deduct = #{project.isDeduct} WHERE project_id = #{project.projectId} AND is_deduct =0

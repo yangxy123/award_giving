@@ -34,7 +34,7 @@
             channelbalance   = channelbalance   + #{bonus},
             availablebalance = availablebalance + #{bonus},
             updated_at = NOW()
-            WHERE userid = #{userId}
+            WHERE userid = #{userid}
             AND wallet_type = 5
             AND islocked = 1
         </foreach>
@@ -46,7 +46,7 @@
               availablebalance = #{updateFund.availablebalance},
               holdbalance = #{updateFund.holdbalance},
               updated_at = #{updateFund.updatedAt}
-        WHERE userid = #{updateFund.userId}
+        WHERE userid = #{updateFund.userid}
           AND wallet_type = #{updateFund.walletType}
           AND islocked = 1
     </update>
