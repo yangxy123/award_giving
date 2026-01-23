@@ -53,7 +53,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 	public void notice(NoticeReq noticeReq) {
 		Long startTime = System.currentTimeMillis();
 		int pageSize = 3000;
-		int pageNo = 0;
+		int pageNo = 1;
 		Date bonusTime = new Date();
 		// 将开奖号码转换为list
 		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
@@ -64,7 +64,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			// TODO Auto-generated method stub
 			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
 			List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
-			if (list.isEmpty()) {
+			if (list.isEmpty() || list == null) {
+				log.info("===========订单查询完毕 page:{}",pageNo);
 				break;
 			}
 			allBetList.add(list);
@@ -350,33 +351,33 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				}
 				//中奖订单
 				List<BetInfoEntity> sumList = getSumList(allWinList);
-				updateDataAll(sumList,noticeReq,list,bonusTime);
+				updateDataAll(sumList,noticeReq,list,bonusTime,"notice");
 				countList.add(i);
 			}).start();
 			count++;
 		}
-		while (true){
-			System.out.println("\n============== " + countList.size() + " / " + allBetList.size());
-			for (Integer i : countList) {
-				System.out.print(i+" ");
-			}
-			if(countList.size() == allBetList.size()){
-				break;
-			}
-			try {
-				Thread.sleep(200);
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
-		}
-		Long endTime = System.currentTimeMillis();
-		log.info("\n============== notice - {} ================" +
-				"\nlotteryId = {}" +
-				"\nissue = {}" +
-				"\n注单数(3000):{}" +
-				"\n开始时间:{}" +
-				"\n结束时间:{}" +
-				"\n耗时:{}",noticeReq.getTitle(),noticeReq.getLotteryId(),noticeReq.getIssue(),allBetList.size(),startTime,endTime,endTime - startTime);
+//		while (true){
+//			System.out.println("\n============== " + countList.size() + " / " + allBetList.size());
+//			for (Integer i : countList) {
+//				System.out.print(i+" ");
+//			}
+//			if(countList.size() == allBetList.size()){
+//				break;
+//			}
+//			try {
+//				Thread.sleep(200);
+//			} catch (InterruptedException e) {
+//				throw new RuntimeException(e);
+//			}
+//		}
+//		Long endTime = System.currentTimeMillis();
+//		log.info("\n============== notice - {} ================" +
+//				"\nlotteryId = {}" +
+//				"\nissue = {}" +
+//				"\n注单数(3000):{}" +
+//				"\n开始时间:{}" +
+//				"\n结束时间:{}" +
+//				"\n耗时:{}",noticeReq.getTitle(),noticeReq.getLotteryId(),noticeReq.getIssue(),allBetList.size(),startTime,endTime,endTime - startTime);
 	}
 
 	@Override
@@ -386,7 +387,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
 		// TODO Auto-generated method stub
 		int pageSize = 3000;
-		int pageNo = 0;
+		int pageNo = 1;
 		// 将开奖号码转换为list
 		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
 		int maxSize = codeList.size() - 1;
@@ -587,13 +588,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             }
 			//中奖订单
 			List<BetInfoEntity> sumList = getSumList(allWinList);
-//			//中奖订单ID列表
-//			List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-//			//未中奖订单ID
-//			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
-//					.collect(Collectors.toList());
-
-			this.updateDataAll(sumList,noticeReq,list,bonusTime);
+			updateDataAll(sumList,noticeReq,list,bonusTime,"noticeNorth");
 
 		}
 		} catch (Exception e) {
@@ -606,7 +601,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 	public void noticeTh(NoticeReq noticeReq) {
 		// TODO Auto-generated method stub
 		int pageSize = 3000;
-		int pageNo = 0;
+		int pageNo = 1;
 		// 将开奖号码转换为list
 		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
 		int maxSize = codeList.size() - 1;
@@ -676,15 +671,16 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 //			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
 //					.collect(Collectors.toList());
 
-			updateDataAll(sumList,noticeReq,list,bonusTime);
+			updateDataAll(sumList,noticeReq,list,bonusTime,"noticeTh");
 		}
 	}
 
 	@Override
 	public void noticeLw(NoticeReq noticeReq) {
+		Date bonusTime = new Date();
 		// TODO Auto-generated method stub
 		int pageSize = 3000;
-		int pageNo = 0;
+		int pageNo = 1;
 		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
 		String headCode = codeList.get(0);
 		String endCode = codeList.get(1);
@@ -717,18 +713,23 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
 			//中奖订单 allWinList
 			//中奖订单ID列表
-			List<String> winIdList = allWinList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-			//未中奖订单ID
-			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
-					.collect(Collectors.toList());
+//			List<String> winIdList = allWinList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+//			//未中奖订单ID
+//			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
+//					.collect(Collectors.toList());
+
+			List<BetInfoEntity> sumList = getSumList(allWinList);
+
+			updateDataAll(sumList,noticeReq,list,bonusTime,"noticeLw");
 		}
 	}
 
 	@Override
 	public void noticeKs(NoticeReq noticeReq) {
+		Date bonusTime = new Date();
 		// TODO Auto-generated method stub
 		int pageSize = 3000;
-		int pageNo = 0;
+		int pageNo = 1;
 		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
 		int totalNum = Integer.parseInt(codeList.get(0)) + Integer.parseInt(codeList.get(1)) + Integer.parseInt(codeList.get(2));
 		while (true) {
@@ -754,10 +755,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 					|| (totalNum >= 10 && vo.getCode().indexOf(String.valueOf(totalNum)) >= 0 && "和值".equals(vo.getMethodCode()))).collect(Collectors.toList());
 			//中奖订单 allWinList
 			//中奖订单ID列表
-			List<String> winIdList = allWinList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-			//未中奖订单ID
-			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
-					.collect(Collectors.toList());
+//			List<String> winIdList = allWinList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+//			//未中奖订单ID
+//			List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
+//					.collect(Collectors.toList());
+
+			List<BetInfoEntity> sumList = getSumList(allWinList);
+			updateDataAll(sumList,noticeReq,list,bonusTime,"noticeLw");
 		}
 	}
 
@@ -798,29 +802,58 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				));
 	}
 
-//	public void newUpdateAll(List<BetInfoEntity> sumList,NoticeReq noticeReq,List<BetInfoEntity> list,Date bonusTime){
-//		//中奖订单ID列表
-//		List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-//		//未中奖订单ID
-//		List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
-//				.collect(Collectors.toList());
-//		if(!notWinList.isEmpty()){
-//			List<BetInfoEntity> tempList = new ArrayList<>();
-//			tempList.addAll(notWinList);
-//			tempList.forEach(vo -> {
-//				vo.setIsGetprize(2);
-//				vo.setPrizeStatus(1);
-//				vo.setUpdatedAt(new Date());
-//			});
-//			jdbcCreateSqlUtil.batchUpdate(notWinList,
-//					"update "+ noticeReq.getTitle()
-//							+"set is_getprize = ?,prize_status = ?,updated_at = ? where project_id = #{item.projectId}",);
-//			betInfoMapper.updateByNotWinList(noticeReq, notWinList);
-//		}
-//		if(!sumList.isEmpty()){
-//			betInfoMapper.updateWinbonus(noticeReq,sumList,bonusTime);
-//		}
-//	}
+	public void newUpdateAll(List<BetInfoEntity> sumList,NoticeReq noticeReq,List<BetInfoEntity> list,Date bonusTime){
+		//中奖订单ID列表
+		List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+		//未中奖订单ID
+		List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
+				.collect(Collectors.toList());
+		if(!notWinList.isEmpty()){
+			List<BetInfoEntity> tempList = new ArrayList<>();
+			tempList.addAll(notWinList);
+			tempList.forEach(vo -> {
+				vo.setIsGetprize(2);
+				vo.setPrizeStatus(1);
+				vo.setUpdatedAt(new Date());
+			});
+			List<String> setCloumList = Lists.newArrayList("isGetprize","prizeStatus","updatedAt");
+			List<String> whereValueList = Lists.newArrayList("projectId");
+			jdbcCreateSqlUtil.batchUpdate(tempList,
+					"update "+ noticeReq.getTitle() + "_projects "
+							+"set is_getprize = ?,prize_status = ?,updated_at = ? " +
+							"where project_id = ?",
+					setCloumList,whereValueList);
+		}
+		if(!sumList.isEmpty()){
+			List<BetInfoEntity> tempList = new ArrayList<>();
+			tempList.addAll(sumList);
+			tempList.forEach(vo -> {
+				vo.setBonus(vo.getWinbonus());
+				vo.setIsGetprize(1);
+				vo.setBonusTime(new Date());
+				vo.setUpdateTime(new Date());
+				vo.setUpdatedAt(new Date());
+			});
+			List<String> setCloumList = Lists.newArrayList("bonus","isGetprize","bonusTime","updateTime","updatedAt");
+			List<String> whereValueList = Lists.newArrayList("projectId");
+			jdbcCreateSqlUtil.batchUpdate(tempList,
+					"update "+ noticeReq.getTitle() + "_projects set "
+							+"bonus = ?, is_getprize = ?, bonus_time = ?, update_time = ? updated_at = ? " +
+							"where project_id = ? and is_cancel = 0",
+					setCloumList,whereValueList);
+		}
+		List<String> userIds = sumList.stream().map(BetInfoEntity::getUserId).collect(Collectors.toSet()).stream().collect(Collectors.toList());
+		//删除临时注单记录 1
+		List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+		projectsTmpMapper.deleteBatchIds(projectIds);
+
+		//中奖
+		if(userIds == null || userIds.size() == 0){
+			return;
+		}
+		//锁定用户资金
+		betInfoMapper.doLockUserFund(noticeReq.getTitle(), userIds,5);
+	}
 
 	/**
 	 * 更新注单数据
@@ -828,7 +861,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 	 * @param noticeReq
 	 * @param list
 	 */
-	public void updateDataAll(List<BetInfoEntity> sumList,NoticeReq noticeReq,List<BetInfoEntity> list,Date bonusTime){
+	public void updateDataAll(List<BetInfoEntity> sumList,NoticeReq noticeReq,List<BetInfoEntity> list,Date bonusTime,String funName){
+		log.info("=========== 更新注单数据  from : {}  title : {}",funName,noticeReq.getTitle());
 		//中奖订单ID列表
 		List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
 		//未中奖订单ID
@@ -863,6 +897,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		}
 		//账变写入 orders
 		List<String> orderIds = addOrdersReArrayUtil(noticeReq,sumList);
+
+		if(orderIds.isEmpty() || orderIds == null){
+			log.info("订单不存在 - 解锁用户资金");
+			//解锁用户资金
+			betInfoMapper.unLockUserFund(noticeReq, userIds);
+			return;
+		}
 
 		//生成抄单（Speculation）记录（依业务类型）
 		roomMasterMapper.createSpeculation(noticeReq.getRoomMaster(),orderIds);
