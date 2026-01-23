@@ -69,7 +69,7 @@
              '0', '0', 0, #{order.orderTypeId}, '', #{order.issue},  #{order.title},  #{order.amount},  #{order.description},
             #{order.preBalance}, #{order.preAvailable}, #{order.preHold},  #{order.channelBalance}, #{order.holdBalance}, #{order.availableBalance},
             '0.0.0.0', '0.0.0.0', #{order.actionTime}, #{order.actionTime}, '0', 0, '0',
-             0, '1768909114.1641', #{order.modes}, '', 1, 'web', #{order.createdAt},  #{order.updatedAt}, '0');
+             0, #{order.uniqueKey}, #{order.modes}, '', 1, 'web', #{order.createdAt},  #{order.updatedAt}, '0');
     </insert>
 
     <insert id="addOrdersList2">

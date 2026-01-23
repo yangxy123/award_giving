@@ -46,8 +46,9 @@
               availablebalance = #{updateFund.availablebalance},
               holdbalance = #{updateFund.holdbalance},
               updated_at = #{updateFund.updatedAt}
-        WHERE userid = #{userId}
-          AND wallet_type = #{sWalletType}
+        WHERE userid = #{updateFund.userId}
+          AND wallet_type = #{updateFund.walletType}
+          AND islocked = 1
     </update>
 
     <select id="selectByNotice" resultType="com.giving.entity.UserFundEntity">
@@ -57,18 +58,30 @@
     </select>
 
     <select id="selectByUserAndType" resultType="com.giving.entity.UserFundEntity">
-        SELECT * FROM `${title}_user_fund` WHERE userid = #{userId} AND wallet_type =#{type}
+        SELECT * FROM `${title}_user_fund`
+        WHERE userid = #{userFund.userid}
+          AND islocked= #{userFund.islocked}
     </select>
-    <select id="selectByUserAndTypeLock" resultType="com.giving.entity.UserFundEntity">
-        SELECT * FROM `${title}_user_fund` WHERE userid = #{userId} AND wallet_type =#{sWalletType}
+    <select id="selectByUserAndTypeOne" resultType="com.giving.entity.UserFundEntity">
+        SELECT * FROM `${title}_user_fund`
+        WHERE userid = #{userFund.userid}
+          AND wallet_type = #{userFund.walletType}
+          AND islocked= #{userFund.islocked}
     </select>
-    <select id="selectByUserAndTypeAll" resultType="com.giving.entity.UserFundEntity">
-        SELECT * FROM `${title}_user_fund` WHERE userid = #{userId}
-    </select>
+
     <update id="updateLockedById" >
         update ${title}_user_fund
-        SET islocked = #{userFund.islockde},
+        SET islocked = #{userFund.islocked},
             lock_action = #{userFund.lockAction}
-        WHERE entry = #{userFund.entry}
+        WHERE userid = #{userFund.userid}
+          AND wallet_type = #{userFund.walletType}
     </update>
+
+    <select id="selectByUserSum" resultType="com.giving.entity.UserFundEntity">
+        SELECT userid,SUM(channelbalance) channelbalance,SUM(availablebalance) availablebalance,SUM(holdbalance) holdbalance
+        FROM `${title}_user_fund`
+        WHERE userid = #{userId}
+          AND islocked = 0
+        GROUP BY userid;
+    </select>
 </mapper>

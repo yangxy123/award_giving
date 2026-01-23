@@ -8,9 +8,9 @@ import com.giving.req.ListIssueReq;
 import com.giving.req.ManualDistributionReq;
 import com.giving.service.AwardingProcessService;
 import com.giving.service.OPissueToolService;
+import com.giving.service.UserFundLockTxService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 import org.slf4j.Logger;
@@ -18,7 +18,6 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -46,6 +45,8 @@ public class OPissueToolServiceImpl implements OPissueToolService {
     private UserFundMapper userFundMapper;
     @Autowired
     private OrdersMapper ordersMapper;
+    @Autowired
+    private UserFundLockTxService userFundLockTxService;
 
     /**
      *
@@ -121,12 +122,14 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             }
             if (issueInfo.getStatusDeduct() == 2) {
                 throw new RuntimeException("真實扣款已完成 status_deduct=2");
+            } else if (issueInfo.getStatusDeduct() == 0){
+                //修改為真實扣款進行中
+                issueInfo.setStatusDeduct(1);
+                if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
+                    throw new RuntimeException("修改奖期为真实扣款中失败");
+                }
             }
-            //修改為真實扣款進行中
-            issueInfo.setStatusDeduct(1);
-            if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
-                throw new RuntimeException("修改奖期为真实扣款中失败");
-            }
+
             // 获取所有尚未'真实扣款'的方案
             List<BetInfoEntity> projects = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
             //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
@@ -139,41 +142,39 @@ public class OPissueToolServiceImpl implements OPissueToolService {
 
 //            List<String> userIds = projects.stream().map(BetInfoEntity::getUserId).collect(Collectors.toList());
             for (BetInfoEntity project : projects) {
-                //锁定用户资金 -- 上鎖
-                this.doLockUserFund(project.getUserId(), true, 4, "CR_001",roomMasterEntity.getTitle());
                 try {
+                    //锁定用户资金 -- 上鎖
+                    if (!userFundLockTxService.doLockUserFund(project.getUserId(), true, 4, "CR_001",roomMasterEntity.getTitle())){
+                        throw new RuntimeException("--锁定用户钱包失败");
+                    }
                     //添加账变
                     if (!this.addOrdersList(project.getUserId(), project, 4, roomMasterEntity.getTitle())){
                         throw new RuntimeException("新增账变异常");
                     }
                     //解锁
-                    this.doLockUserFund(project.getUserId(), false, 4, "CR_004",roomMasterEntity.getTitle());
+                    if (!userFundLockTxService.doLockUserFund(project.getUserId(), false, 4, "CR_004",roomMasterEntity.getTitle())){
+                        throw new RuntimeException("--解锁用户钱包失败");
+                    }
                 } catch (Exception e) {
-                    this.doLockUserFund(project.getUserId(), false, 4, "CR_004",roomMasterEntity.getTitle());
+                    userFundLockTxService.doLockUserFund(project.getUserId(), false, 4, "CR_004",roomMasterEntity.getTitle());
                     throw new RuntimeException(e);
                 }
             }
-            //真實扣款 - 最後確認
-//            List<BetInfoEntity> projects2 = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
-//            if (ObjectUtils.isEmpty(projects2)) {
+            //真實扣款
             issueInfo.setStatusDeduct(2);
             if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
                 throw new RuntimeException("修改奖期为真实扣款完成失败");
             }
-//            }
             return ApiResp.sucess();
         } catch (RuntimeException e) {
             return ApiResp.paramError(e.getMessage());
         }
     }
 
-    public Boolean doLockUserFund(String userId, Boolean bIsLocked, Integer sWalletType, String lockAction,String title) {
-        return  false;
-    }
 
     public Boolean addOrdersList(String userId, BetInfoEntity project, int sWalletType, String title) {
         try {
-            UserFundEntity userFund = userFundMapper.selectByUserAndType(title,sWalletType,userId);
+            UserFundEntity userFund = userFundMapper.selectByUserSum(title,userId);
             if (ObjectUtils.isEmpty(userFund)) {
                 throw new Exception("错误未查询到用户钱包");
             }
@@ -189,7 +190,8 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             BigDecimal holdBalance = preHoldBalance.subtract(amount);
 
             OrdersEntity order = new OrdersEntity();
-            String uuid = String.format("%03d", project.getProjectId()).substring(0,3) + uniqId().substring(0,13);
+            String uuid = uniqId().substring(0,16);
+            System.out.println(uuid);
             order.setEntry(uuid);
             order.setLotteryId(project.getLotteryId());
             order.setMethodId(project.getMethodId());
@@ -197,6 +199,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             order.setProjectId(project.getProjectId());
             order.setFromuserId(project.getUserId());
             order.setOrderTypeId(8);
+            order.setIssue(project.getIssue());
             order.setTitle("游戏扣款");
             order.setAmount(amount);
             order.setDescription("游戏扣款");
@@ -206,7 +209,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             order.setChannelBalance(channelBalance);
             order.setAvailableBalance(preAvailableBalance);
             order.setHoldBalance(holdBalance);
-            order.setIssue(project.getIssue());
+            order.setUniqueKey(String.valueOf(System.currentTimeMillis()));
             order.setModes(project.getModes());
             order.setCreatedAt(date);
             order.setUpdatedAt(date);
@@ -223,16 +226,27 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             updateProject.setUpdatedAt(date);
             betInfoMapper.updateDeduct(updateProject, title);
 
-            UserFundEntity updateFund = new UserFundEntity();
-            updateFund.setChannelbalance(channelBalance);
-            updateFund.setAvailablebalance(preAvailableBalance);
-            updateFund.setHoldbalance(holdBalance);
-            updateFund.setUpdatedAt(date);
-            userFundMapper.updateAddOrdersList(updateFund, userId, sWalletType, 1, title);
+            //修改钱包
+            UserFundEntity o = new UserFundEntity();
+            o.setUserid(userId);
+            o.setIslocked(1);
+            o.setWalletType(4);
+            List<UserFundEntity> updateFundS = userFundMapper.selectByUserAndType(title,o);
+            for (UserFundEntity updateFund : updateFundS) {
+                updateFund.setChannelbalance(channelBalance);
+                updateFund.setHoldbalance(holdBalance);
+                updateFund.setUpdatedAt(date);
+                updateFund.setUserid(userId);
+                if (!(userFundMapper.updateAddOrdersList(updateFund, title) ==1)){
+                    throw new Exception("修改用户钱包失败");
+                }
+
+            }
 
             return true;
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+//            System.out.println(e.getMessage());
+//            throw new RuntimeException(e.getMessage());
             return false;
         }
     }

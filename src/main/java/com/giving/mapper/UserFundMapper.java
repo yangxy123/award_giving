@@ -1,7 +1,5 @@
 package com.giving.mapper;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.giving.entity.BetInfoEntity;
 import com.giving.entity.UserFundEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.giving.req.NoticeReq;
@@ -19,21 +17,32 @@ import java.util.Map;
 */
 public interface UserFundMapper extends BaseMapper<UserFundEntity> {
 
-    UserFundEntity selectByNotice(@Param("noticeReq") NoticeReq noticeReq,@Param("userId") String userId);
-
     void updateUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("bonusMap") Map<String, BigDecimal> bonusMap);
 
-    int updateAddOrdersList(@Param("updateFund") UserFundEntity updateFund,
-                            @Param("userId") String userId,
-                            @Param("sWalletType") int sWalletType,
-                            @Param("islocked") int islocked,
-                            @Param("title") String title);
+    /**
+     * 修改已经锁定的钱包金额
+     * @param updateFund
+     * @param title
+     * @return
+     */
+    int updateAddOrdersList(@Param("updateFund") UserFundEntity updateFund, @Param("title") String title);
 
-    UserFundEntity selectByUserAndType(@Param("title") String title,@Param("type") Integer type,@Param("userId")String userId);
 
-    List<UserFundEntity> selectByUserAndTypeLock(@Param("title") String title,@Param("userId")String userId, @Param("sNowIsLock")int sNowIsLock, @Param("sWalletType")Integer sWalletType);
+    /**
+     *通过type 与锁定状态取得List
+     * @param title
+     * @param userFund
+     * @return
+     */
+    List<UserFundEntity> selectByUserAndType(@Param("title") String title, @Param("userFund")UserFundEntity userFund);
 
-    List<UserFundEntity> selectByUserAndTypeAll(@Param("title") String title,@Param("userId")String userId, @Param("sNowIsLock")int sNowIsLock);
+    /**
+     *通过type 与锁定状态取得一条
+     * @param title
+     * @param userFund
+     * @return
+     */
+    List<UserFundEntity> selectByUserAndTypeOne(@Param("title") String title, @Param("userFund")UserFundEntity userFund);
 
     /**
      * 执行锁定用户钱包
@@ -41,7 +50,15 @@ public interface UserFundMapper extends BaseMapper<UserFundEntity> {
      * @param userFund
      * @return
      */
-    int updateLockedById(@Param("title") String title,@Param("userFund") UserFundEntity userFund);
+    int updateLockedById(@Param("title") String title, @Param("userFund") UserFundEntity userFund);
+
+    /**
+     * 取得用户全部钱包合集
+     * @param title
+     * @param userId
+     * @return
+     */
+    UserFundEntity selectByUserSum(@Param("title") String title, @Param("userId")String userId);
 }
 
 
