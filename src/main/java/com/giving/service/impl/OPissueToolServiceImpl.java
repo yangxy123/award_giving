@@ -53,15 +53,15 @@ public class OPissueToolServiceImpl implements OPissueToolService {
      * @param req
      */
     @Override
-    public ApiResp<String> resteDrawSource(ListIssueReq req){
+    public ApiResp<String> resteDrawSource(ListIssueReq req) {
         //判断是否存在奖期
         LambdaQueryWrapper<IssueInfoEntity> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(IssueInfoEntity::getLotteryId,req.getLotteryId());
-        queryWrapper.eq(IssueInfoEntity::getIssue,req.getIssue());
+        queryWrapper.eq(IssueInfoEntity::getLotteryId, req.getLotteryId());
+        queryWrapper.eq(IssueInfoEntity::getIssue, req.getIssue());
         IssueInfoEntity issueInfo = issueInfoMapper.selectOne(queryWrapper);
         List<RoomMasterEntity> roomMasters = roomMasterMapper.selectTitle();
         for (RoomMasterEntity roomMaster : roomMasters) {
-            awardingProcessService.lotteryDraw(roomMaster,issueInfo);
+            awardingProcessService.lotteryDraw(roomMaster, issueInfo);
         }
         return ApiResp.sucess();
     }
@@ -122,7 +122,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             }
             if (issueInfo.getStatusDeduct() == 2) {
                 throw new RuntimeException("真實扣款已完成 status_deduct=2");
-            } else if (issueInfo.getStatusDeduct() == 0){
+            } else if (issueInfo.getStatusDeduct() == 0) {
                 //修改為真實扣款進行中
                 issueInfo.setStatusDeduct(1);
                 if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
@@ -139,25 +139,16 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                     throw new RuntimeException("修改奖期为真实扣款完成失败");
                 }
             }
-
-//            List<String> userIds = projects.stream().map(BetInfoEntity::getUserId).collect(Collectors.toList());
             for (BetInfoEntity project : projects) {
-                try {
-                    //锁定用户资金 -- 上鎖
-                    if (!userFundLockTxService.doLockUserFund(project.getUserId(), true, 4, "CR_001",roomMasterEntity.getTitle())){
-                        throw new RuntimeException("--锁定用户钱包失败");
-                    }
-                    //添加账变
-                    if (!this.addOrdersList(project.getUserId(), project, 4, roomMasterEntity.getTitle())){
-                        throw new RuntimeException("新增账变异常");
-                    }
-                    //解锁
-                    if (!userFundLockTxService.doLockUserFund(project.getUserId(), false, 4, "CR_004",roomMasterEntity.getTitle())){
-                        throw new RuntimeException("--解锁用户钱包失败");
-                    }
-                } catch (Exception e) {
-                    userFundLockTxService.doLockUserFund(project.getUserId(), false, 4, "CR_004",roomMasterEntity.getTitle());
-                    throw new RuntimeException(e);
+                //todo 锁定用户资金 -- 上鎖
+                if (!userFundLockTxService.doLockUserFund(project.getUserId(), true, 4, "CR_001", roomMasterEntity.getTitle())) {
+                    throw new RuntimeException("--锁定用户钱包失败");
+                }
+                //添加账变
+                userFundLockTxService.addOrdersList(project.getUserId(), project, roomMasterEntity.getTitle());
+                //todo 锁定用户资金 -- 解锁
+                if (!userFundLockTxService.doLockUserFund(project.getUserId(), false, 4, "CR_004", roomMasterEntity.getTitle())) {
+                    throw new RuntimeException("--解锁用户钱包失败");
                 }
             }
             //真實扣款
@@ -171,87 +162,4 @@ public class OPissueToolServiceImpl implements OPissueToolService {
         }
     }
 
-
-    public Boolean addOrdersList(String userId, BetInfoEntity project, int sWalletType, String title) {
-        try {
-            UserFundEntity userFund = userFundMapper.selectByUserSum(title,userId);
-            if (ObjectUtils.isEmpty(userFund)) {
-                throw new Exception("错误未查询到用户钱包");
-            }
-            System.out.println("查询到钱包");
-
-            Date date = new Date();
-            BigDecimal preChannelBalance = userFund.getChannelbalance();
-            BigDecimal preAvailableBalance = userFund.getAvailablebalance();
-            BigDecimal preHoldBalance = userFund.getHoldbalance();
-            BigDecimal amount = BigDecimal.valueOf(project.getTotalPrice());
-
-            BigDecimal channelBalance = preChannelBalance.subtract(amount);
-            BigDecimal holdBalance = preHoldBalance.subtract(amount);
-
-            OrdersEntity order = new OrdersEntity();
-            String uuid = uniqId().substring(0,16);
-            System.out.println(uuid);
-            order.setEntry(uuid);
-            order.setLotteryId(project.getLotteryId());
-            order.setMethodId(project.getMethodId());
-            order.setTaskId(project.getTaskId());
-            order.setProjectId(project.getProjectId());
-            order.setFromuserId(project.getUserId());
-            order.setOrderTypeId(8);
-            order.setIssue(project.getIssue());
-            order.setTitle("游戏扣款");
-            order.setAmount(amount);
-            order.setDescription("游戏扣款");
-            order.setPreBalance(preChannelBalance);
-            order.setPreAvailable(preAvailableBalance);
-            order.setPreHold(preHoldBalance);
-            order.setChannelBalance(channelBalance);
-            order.setAvailableBalance(preAvailableBalance);
-            order.setHoldBalance(holdBalance);
-            order.setUniqueKey(String.valueOf(System.currentTimeMillis()));
-            order.setModes(project.getModes());
-            order.setCreatedAt(date);
-            order.setUpdatedAt(date);
-            order.setActionTime(date);
-
-            if (ordersMapper.addOrdersList(order, title) <= 0) {
-                throw new IllegalStateException("新增Orders 资料失败");
-            }
-            BetInfoEntity updateProject = new BetInfoEntity();
-            updateProject.setProjectId(project.getProjectId());
-            updateProject.setIsDeduct(1);
-            updateProject.setDeductTime(date);
-            updateProject.setUpdateTime(date);
-            updateProject.setUpdatedAt(date);
-            betInfoMapper.updateDeduct(updateProject, title);
-
-            //修改钱包
-            UserFundEntity o = new UserFundEntity();
-            o.setUserid(userId);
-            o.setIslocked(1);
-            o.setWalletType(4);
-            List<UserFundEntity> updateFundS = userFundMapper.selectByUserAndType(title,o);
-            for (UserFundEntity updateFund : updateFundS) {
-                updateFund.setChannelbalance(channelBalance);
-                updateFund.setHoldbalance(holdBalance);
-                updateFund.setUpdatedAt(date);
-                updateFund.setUserid(userId);
-                if (!(userFundMapper.updateAddOrdersList(updateFund, title) ==1)){
-                    throw new Exception("修改用户钱包失败");
-                }
-
-            }
-
-            return true;
-        } catch (Exception e) {
-//            System.out.println(e.getMessage());
-//            throw new RuntimeException(e.getMessage());
-            return false;
-        }
-    }
-    static String uniqId() {
-        // 类似 uniqid：时间 + 随机
-        return Long.toHexString(System.nanoTime()) + Long.toHexString(ThreadLocalRandom.current().nextLong());
-    }
 }

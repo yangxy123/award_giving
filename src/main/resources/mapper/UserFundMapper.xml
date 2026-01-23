@@ -66,13 +66,13 @@
         SELECT * FROM `${title}_user_fund`
         WHERE userid = #{userFund.userid}
           AND wallet_type = #{userFund.walletType}
-          AND islocked= #{userFund.islocked}
     </select>
 
     <update id="updateLockedById" >
         update ${title}_user_fund
         SET islocked = #{userFund.islocked},
-            lock_action = #{userFund.lockAction}
+            lock_action = #{userFund.lockAction},
+            updated_at = now()
         WHERE userid = #{userFund.userid}
           AND wallet_type = #{userFund.walletType}
     </update>

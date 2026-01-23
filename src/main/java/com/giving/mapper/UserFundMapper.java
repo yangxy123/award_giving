@@ -42,7 +42,7 @@ public interface UserFundMapper extends BaseMapper<UserFundEntity> {
      * @param userFund
      * @return
      */
-    List<UserFundEntity> selectByUserAndTypeOne(@Param("title") String title, @Param("userFund")UserFundEntity userFund);
+    UserFundEntity selectByUserAndTypeOne(@Param("title") String title, @Param("userFund")UserFundEntity userFund);
 
     /**
      * 执行锁定用户钱包
