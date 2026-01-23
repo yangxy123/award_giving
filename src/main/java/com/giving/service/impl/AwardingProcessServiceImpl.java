@@ -81,7 +81,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         issueInfoMapper.updateById(issueInfo);
 
         //测试时自动向数据库插入下一期数据
-        //this.FakeIssue(issueInfo);
+//        this.FakeIssue(issueInfo);
 
         updateRoomsIssueInfo(issueInfo);
 

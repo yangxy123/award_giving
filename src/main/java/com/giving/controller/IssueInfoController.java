@@ -8,10 +8,7 @@ import com.giving.service.IssueInfoService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 
@@ -30,5 +27,11 @@ public class IssueInfoController {
     @ApiOperation("用户注单查询")
     public ApiResp<Page<UserNoteListResp>> userNoteList(@RequestBody @Valid UserNoteListReq req) {
         return issueInfoService.userNoteList(req);
+    }
+
+    @PostMapping("/nowthreshold/{threshold}")
+    @ApiOperation("设置当前盈利率")
+    public ApiResp<String> nowthreshold(@PathVariable("threshold") String threshold) {
+        return issueInfoService.nowthreshold(threshold);
     }
 }
