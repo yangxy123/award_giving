@@ -65,7 +65,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			// 获取对应奖期对应彩种未撤单且未派奖的所有订单
 			List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
 			if (list.isEmpty() || list == null) {
-				log.info("===========订单查询完毕 page:{}",pageNo);
+				//log.info("===========订单查询完毕 page:{}",pageNo);
 				break;
 			}
 			allBetList.add(list);
@@ -356,28 +356,28 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			}).start();
 			count++;
 		}
-//		while (true){
+		while (true){
 //			System.out.println("\n============== " + countList.size() + " / " + allBetList.size());
 //			for (Integer i : countList) {
 //				System.out.print(i+" ");
 //			}
-//			if(countList.size() == allBetList.size()){
-//				break;
-//			}
-//			try {
-//				Thread.sleep(200);
-//			} catch (InterruptedException e) {
-//				throw new RuntimeException(e);
-//			}
-//		}
-//		Long endTime = System.currentTimeMillis();
-//		log.info("\n============== notice - {} ================" +
-//				"\nlotteryId = {}" +
-//				"\nissue = {}" +
-//				"\n注单数(3000):{}" +
-//				"\n开始时间:{}" +
-//				"\n结束时间:{}" +
-//				"\n耗时:{}",noticeReq.getTitle(),noticeReq.getLotteryId(),noticeReq.getIssue(),allBetList.size(),startTime,endTime,endTime - startTime);
+			if(countList.size() == allBetList.size()){
+				break;
+			}
+			try {
+				Thread.sleep(200);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		Long endTime = System.currentTimeMillis();
+		log.info("\n============== notice - {} ================" +
+				"\nlotteryId = {}" +
+				"\nissue = {}" +
+				"\n注单数(3000):{}" +
+				"\n开始时间:{}" +
+				"\n结束时间:{}" +
+				"\n耗时:{}",noticeReq.getTitle(),noticeReq.getLotteryId(),noticeReq.getIssue(),allBetList.size(),startTime,endTime,endTime - startTime);
 	}
 
 	@Override
@@ -862,7 +862,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 	 * @param list
 	 */
 	public void updateDataAll(List<BetInfoEntity> sumList,NoticeReq noticeReq,List<BetInfoEntity> list,Date bonusTime,String funName){
-		log.info("=========== 更新注单数据  from : {}  title : {}",funName,noticeReq.getTitle());
+		//log.info("=========== 更新注单数据  from : {}  title : {}",funName,noticeReq.getTitle());
 		//中奖订单ID列表
 		List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
 		//未中奖订单ID
@@ -1035,7 +1035,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		if (orders.isEmpty()) {
 			return null;
 		}
-		log.info("============插入order\nnoticReq:  {}\norders:  {}",noticeReq,orders);
+		//log.info("============插入order\nnoticReq:  {}\norders:  {}",noticeReq,orders);
 		betInfoMapper.batchInsertOrders(noticeReq, orders);
 		return entryList;
 	}

@@ -15,4 +15,6 @@ import com.giving.resp.UserNoteListResp;
 public interface IssueInfoService extends IService<IssueInfoEntity> {
 
     ApiResp<Page<UserNoteListResp>> userNoteList(UserNoteListReq req);
+
+    ApiResp<String> nowthreshold(String threshold);
 }

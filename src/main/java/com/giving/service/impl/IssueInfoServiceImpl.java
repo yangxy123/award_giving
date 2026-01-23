@@ -1,5 +1,6 @@
 package com.giving.service.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
@@ -10,7 +11,9 @@ import com.giving.req.UserNoteListReq;
 import com.giving.resp.UserNoteListResp;
 import com.giving.service.IssueInfoService;
 import com.giving.mapper.IssueInfoMapper;
+import com.giving.util.HttpUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -27,6 +30,8 @@ public class IssueInfoServiceImpl extends ServiceImpl<IssueInfoMapper, IssueInfo
     private IssueInfoMapper issueInfoMapper;
     @Autowired
     private RoomMasterMapper roomMasterMapper;
+    @Autowired
+    private HttpUtil httpUtil;
 
 
     /**
@@ -44,6 +49,13 @@ public class IssueInfoServiceImpl extends ServiceImpl<IssueInfoMapper, IssueInfo
         List<UserNoteListResp> list = issueInfoMapper.selectUserNoteList(req,title);
         Page<UserNoteListResp> page = (Page<UserNoteListResp>) list;
         return ApiResp.page(page);
+    }
+
+    @Override
+    public ApiResp<String> nowthreshold(String threshold) {
+        String url = "http://192.168.124.17:8991/merchant/nowthreshold";
+        httpUtil.doJsonPost(url,"{\"threshold\": "+threshold+"}",null);
+        return ApiResp.sucess();
     }
 }
 
