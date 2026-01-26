@@ -731,7 +731,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		int pageSize = 3000;
 		int pageNo = 1;
 		List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
+		List<String> collect = codeList.stream().distinct().collect(Collectors.toList());
 		int totalNum = Integer.parseInt(codeList.get(0)) + Integer.parseInt(codeList.get(1)) + Integer.parseInt(codeList.get(2));
+		
 		while (true) {
 			PageHelper.startPage(pageNo, pageSize);
 			// TODO Auto-generated method stub
@@ -741,18 +743,47 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 				break;
 			}
 			pageNo +=1;
-
-			List<BetInfoEntity> allWinList = list.stream().filter(vo-> ((vo.getCode().indexOf(codeList.get(0)+codeList.get(1)+codeList.get(2)) >= 0
-					|| vo.getCode().indexOf(codeList.get(0)+codeList.get(2)+codeList.get(1)) >= 0
-					|| vo.getCode().indexOf(codeList.get(1)+codeList.get(0)+codeList.get(2)) >= 1
-					|| vo.getCode().indexOf(codeList.get(1)+codeList.get(2)+codeList.get(0)) >= 0
-					|| vo.getCode().indexOf(codeList.get(2)+codeList.get(0)+codeList.get(1)) >= 0
-					|| vo.getCode().indexOf(codeList.get(2)+codeList.get(1)+codeList.get(0)) >= 0)
-					&& ("三同号".equals(vo.getMethodCode()) || "三不号".equals(vo.getMethodCode()) ||"二同号".equals(vo.getMethodCode()) ||"二不同号".equals(vo.getMethodCode())))
-					|| ((vo.getCode().indexOf(codeList.get(0)) >=0 || vo.getCode().indexOf(codeList.get(1)) >=0 || vo.getCode().indexOf(codeList.get(2)) >=0)
-						 && "猜一个号".equals(vo.getMethodCode())	)
-					|| (totalNum < 10 && vo.getCode().indexOf("0"+totalNum) >= 0 && "和值".equals(vo.getMethodCode()))
-					|| (totalNum >= 10 && vo.getCode().indexOf(String.valueOf(totalNum)) >= 0 && "和值".equals(vo.getMethodCode()))).collect(Collectors.toList());
+			
+			List<BetInfoEntity> allWinList = Lists.newArrayList();
+			if(collect.size() == 1) {//三个号码相同
+				allWinList = list.stream().filter(vo-> 
+						(vo.getCode().indexOf(collect.get(0)) >=0 && "三同号".equals(vo.getMethodCode()))
+						|| ((vo.getCode().indexOf(codeList.get(0)) >=0 || vo.getCode().indexOf(codeList.get(1)) >=0 || vo.getCode().indexOf(codeList.get(2)) >=0)
+							 && "猜一个号".equals(vo.getMethodCode())	)
+						|| (totalNum < 10 && vo.getCode().indexOf("0"+totalNum) >= 0 && "和值".equals(vo.getMethodCode()))
+						|| (totalNum >= 10 && vo.getCode().indexOf(String.valueOf(totalNum)) >= 0 && "和值".equals(vo.getMethodCode()))).collect(Collectors.toList());
+			}else if(collect.size() == 2) {//二个号码相同
+				Map<String, Long> countMap = codeList.stream()
+						.collect(Collectors.groupingBy(s -> s, Collectors.counting()));
+				List<String> codeList1 = Lists.newArrayList();
+				for(String key:countMap.keySet()) {
+					if(countMap.get(key) > 1) {
+						codeList1.add(key);
+						break;
+					}
+				}
+				allWinList = list.stream().filter(vo-> 
+						(vo.getCode().indexOf(collect.get(0)) >=0 && vo.getCode().indexOf(collect.get(1)) >=0 && "二同号单选".equals(vo.getMethodCode()))
+						|| (!codeList1.isEmpty() && vo.getCode().indexOf(codeList1.get(0)) >= 0 && "二同号复选".equals(vo.getMethodCode()))
+						|| ((vo.getCode().indexOf(codeList.get(0)) >=0 || vo.getCode().indexOf(codeList.get(1)) >=0 || vo.getCode().indexOf(codeList.get(2)) >=0)
+							 && "猜一个号".equals(vo.getMethodCode())	)
+						|| (totalNum < 10 && vo.getCode().indexOf("0"+totalNum) >= 0 && "和值".equals(vo.getMethodCode()))
+						|| (totalNum >= 10 && vo.getCode().indexOf(String.valueOf(totalNum)) >= 0 && "和值".equals(vo.getMethodCode()))).collect(Collectors.toList());
+			}if(collect.size() == 3) {//三个号码都不 相同
+				allWinList = list.stream().filter(vo-> 
+						(vo.getCode().indexOf(codeList.get(0)) >=0 && vo.getCode().indexOf(codeList.get(1)) >=0
+						 && vo.getCode().indexOf(codeList.get(2)) >=0 && "三不同号".equals(vo.getMethodCode()))
+						|| ((vo.getCode().indexOf(codeList.get(0)+codeList.get(1)) >= 0 
+							|| vo.getCode().indexOf(codeList.get(0)+codeList.get(2)) >= 0
+							|| vo.getCode().indexOf(codeList.get(1)+codeList.get(0)) >= 0
+							|| vo.getCode().indexOf(codeList.get(1)+codeList.get(2)) >= 0	
+							|| vo.getCode().indexOf(codeList.get(2)+codeList.get(0)) >= 0
+							|| vo.getCode().indexOf(codeList.get(2)+codeList.get(1)) >= 0) && "二不同号".equals(vo.getMethodCode()))
+						|| ((vo.getCode().indexOf(codeList.get(0)) >=0 || vo.getCode().indexOf(codeList.get(1)) >=0 || vo.getCode().indexOf(codeList.get(2)) >=0)
+							 && "猜一个号".equals(vo.getMethodCode())	)
+						|| (totalNum < 10 && vo.getCode().indexOf("0"+totalNum) >= 0 && "和值".equals(vo.getMethodCode()))
+						|| (totalNum >= 10 && vo.getCode().indexOf(String.valueOf(totalNum)) >= 0 && "和值".equals(vo.getMethodCode()))).collect(Collectors.toList());
+			}
 			//中奖订单 allWinList
 			//中奖订单ID列表
 //			List<String> winIdList = allWinList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
