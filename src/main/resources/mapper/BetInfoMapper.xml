@@ -141,7 +141,7 @@
     <select id="checkProjects" resultType="com.giving.entity.BetInfoEntity">
         SELECT * FROM ${title}_projects
                  WHERE lottery_id = #{issue.lotteryId} AND issue = #{issue.issue}
-                   AND is_deduct=0 AND is_cancel=0 ORDER BY created_at
+                   AND is_deduct=0 AND is_cancel=0 ORDER BY user_id
     </select>
     <!--    修改注单状态为已经结算-->
     <update id="updateDeduct">

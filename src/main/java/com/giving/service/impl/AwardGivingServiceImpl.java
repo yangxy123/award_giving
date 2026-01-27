@@ -385,20 +385,21 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         doCongealToReal(noticeReq);
 
         Long endTime = System.currentTimeMillis();
-        log.info("\n============== notice - {} ================" +
-                "\nlotteryId = {}" +
-                "\nissue = {}" +
-                "\n注单数(3000):{}" +
-                "\n开始时间:{}" +
-                "\n结束时间:{}" +
-                "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), allBetList.size(), startTime, endTime, endTime - startTime);
-    }
+        if(allBetList.size() > 0){
+            log.info("\n============== notice - {} ================" +
+                    "\nlotteryId = {}" +
+                    "\nissue = {}" +
+                    "\n注单数(3000):{}" +
+                    "\n开始时间:{}" +
+                    "\n结束时间:{}" +
+                    "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), allBetList.size(), startTime, endTime, endTime - startTime);
+        }
+}
 
     @Override
     public void noticeNorth(NoticeReq noticeReq) {
         try {
-
-
+            Long startTime = System.currentTimeMillis();
             // TODO Auto-generated method stub
             int pageSize = 3000;
             int pageNo = 1;
@@ -616,6 +617,16 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             }
 
             doCongealToReal(noticeReq);
+            Long endTime = System.currentTimeMillis();
+            if(pageNo > 1){
+                log.info("\n============== noticeNorth - {} ================" +
+                        "\nlotteryId = {}" +
+                        "\nissue = {}" +
+                        "\n注单数(3000):{}" +
+                        "\n开始时间:{}" +
+                        "\n结束时间:{}" +
+                        "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo-1, startTime, endTime, endTime - startTime);
+            }
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -624,6 +635,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
     @Override
     public void noticeTh(NoticeReq noticeReq) {
+        Long startTime = System.currentTimeMillis();
         // TODO Auto-generated method stub
         int pageSize = 3000;
         int pageNo = 1;
@@ -707,11 +719,21 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             }
         }
         doCongealToReal(noticeReq);
-
+        Long endTime = System.currentTimeMillis();
+        if(pageNo > 1){
+            log.info("\n============== noticeTh - {} ================" +
+                    "\nlotteryId = {}" +
+                    "\nissue = {}" +
+                    "\n注单数(3000):{}" +
+                    "\n开始时间:{}" +
+                    "\n结束时间:{}" +
+                    "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo-1, startTime, endTime, endTime - startTime);
+        }
     }
 
     @Override
     public void noticeLw(NoticeReq noticeReq) {
+        Long startTime = System.currentTimeMillis();
         Date bonusTime = new Date();
         // TODO Auto-generated method stub
         int pageSize = 3000;
@@ -749,10 +771,22 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             updateDataAll(sumList, noticeReq, list, bonusTime);
         }
         doCongealToReal(noticeReq);
+
+        Long endTime = System.currentTimeMillis();
+        if(pageNo > 1){
+            log.info("\n============== noticeLw - {} ================" +
+                    "\nlotteryId = {}" +
+                    "\nissue = {}" +
+                    "\n注单数(3000):{}" +
+                    "\n开始时间:{}" +
+                    "\n结束时间:{}" +
+                    "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo-1, startTime, endTime, endTime - startTime);
+        }
     }
 
     @Override
     public void noticeKs(NoticeReq noticeReq) {
+        Long startTime = System.currentTimeMillis();
         Date bonusTime = new Date();
         // TODO Auto-generated method stub
         int pageSize = 3000;
@@ -787,6 +821,17 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             updateDataAll(sumList, noticeReq, list, bonusTime);
         }
         doCongealToReal(noticeReq);
+
+        Long endTime = System.currentTimeMillis();
+        if(pageNo > 1){
+            log.info("\n============== noticeKs - {} ================" +
+                    "\nlotteryId = {}" +
+                    "\nissue = {}" +
+                    "\n注单数(3000):{}" +
+                    "\n开始时间:{}" +
+                    "\n结束时间:{}" +
+                    "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo-1, startTime, endTime, endTime - startTime);
+        }
     }
 
     /**
@@ -928,13 +973,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 .gt(IssueInfoEntity::getSaleEnd, newDate);   // sale_end   > now;
         IssueInfoEntity issue = issueInfoMapper.selectOne(IssuequeryWrapper);
 
-        for (int i = 1000; i < 6000; i++) {
+        for (int i = 1000; i < 3000; i++) {
             uuidList.add(uniqId().substring(0, 10) + i);
         }
 
         List<String> titles = new ArrayList<>();
 //        titles.add("cn0003");
-        titles.add("cn0170");
+        titles.add("cn0160");
         projectsTmpMapper.createData(uuidList, issue, titles);
         projectsTmpMapper.createIssueData(issue, titles);
         return ApiResp.sucess();

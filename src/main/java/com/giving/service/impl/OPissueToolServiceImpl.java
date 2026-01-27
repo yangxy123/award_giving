@@ -1,6 +1,7 @@
 package com.giving.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.github.pagehelper.PageHelper;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.*;
 import com.giving.mapper.*;
@@ -108,6 +109,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
 
     @Override
     public ApiResp<String> doCongealToReal(ManualDistributionReq req) {
+        Long startTime = System.currentTimeMillis();
         try {
             LambdaQueryWrapper<RoomMasterEntity> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(RoomMasterEntity::getMasterId, req.getMasterId());
@@ -131,24 +133,51 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 }
             }
 
+            int pageNo = 1;
+            int pageSize = 3000;
+            List<Integer> waitList = new ArrayList<>();
             // 获取所有尚未'真实扣款'的方案
-            List<BetInfoEntity> projects = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
-            //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
-            if (ObjectUtils.isEmpty(projects)) {
-                issueInfo.setStatusDeduct(2);
-                if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
-                    throw new RuntimeException("修改奖期为真实扣款完成失败");
+            while (true){
+                PageHelper.startPage(pageNo,pageSize);
+                List<BetInfoEntity> projects = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
+                //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
+                if (ObjectUtils.isEmpty(projects) || projects == null) {
+                    issueInfo.setStatusDeduct(2);
+                    break;
                 }
-            }
-            if(!ordersToolService.getOrdersListAll(projects,roomMasterEntity.getTitle(),8,roomMasterEntity)){
-                throw new RuntimeException("新增账变失败");
+                new Thread(()->{
+                    if(!ordersToolService.getOrdersListAll(projects,roomMasterEntity.getTitle(),8,roomMasterEntity)){
+                        throw new RuntimeException("新增账变失败");
+                    }
+                    //真實扣款
+//                issueInfo.setStatusDeduct(2);
+//                if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
+//                    throw new RuntimeException("修改奖期为真实扣款完成失败");
+//                }
+                    waitList.add(1);
+                }).start();
+                pageNo++ ;
             }
 
-            //真實扣款
-            issueInfo.setStatusDeduct(2);
+            while (true){
+                if(waitList.size() == (pageNo - 1)){
+                    break;
+                }
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
             if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
                 throw new RuntimeException("修改奖期为真实扣款完成失败");
             }
+            Long endTime = System.currentTimeMillis();
+            log.info("\n====结算进程 - {} - {} - {}" +
+                    "\n开始时间:{}" +
+                    "\n结束时间:{}" +
+                    "\n耗时:{}",req.getIssue(),req.getLotteryId(),req.getMasterId(),startTime, endTime, endTime - startTime);
+
             return ApiResp.sucess();
         } catch (RuntimeException e) {
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
