@@ -33,10 +33,4 @@ public class AwardGivingController {
 	public ApiResp<String> createData(@PathVariable("count") Integer count) {
 		return awardGivingService.createData(count);
 	}
-
-	@GetMapping("/test")
-	@ApiOperation("测试收集数据")
-	public ApiResp<Integer> test() {
-		return issueInfoService.test();
-	}
 }

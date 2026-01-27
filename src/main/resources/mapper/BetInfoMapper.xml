@@ -64,28 +64,70 @@
 
 
     <!--    批量修改派奖状态-->
+<!--    <update id="updatePrizeStatus">-->
+<!--        <foreach collection="projects" item="project" open="" close="" separator=";">-->
+<!--            UPDATE ${title}_projects SET-->
+<!--            bonus = #{project.bonus},-->
+<!--            is_getprize = 1,-->
+<!--            prize_status = #{project.prizeStatus},-->
+<!--            bonus_time = now(),-->
+<!--            updated_at = now()-->
+<!--            WHERE project_id = #{project.projectId}-->
+<!--              AND is_cancel = 0-->
+<!--              AND prize_status = 0-->
+<!--        </foreach>-->
+<!--    </update>-->
     <update id="updatePrizeStatus">
-        <foreach collection="projects" item="project" open="" close="" separator=";">
-            UPDATE ${title}_projects SET
-            bonus = #{project.bonus},
-            is_getprize = 1,
-            prize_status = #{project.prizeStatus},
-            bonus_time = now(),
-            updated_at = now()
-            WHERE project_id = #{project.projectId}
-              AND is_cancel = 0
-              AND prize_status = 0
+        UPDATE ${title}_projects
+        SET
+        bonus =
+        CASE
+        <foreach collection="projects" item="project" separator=" ">
+            WHEN project_id = #{project.projectId} THEN #{project.bonus}
         </foreach>
+        END,
+        is_getprize = 1,
+        prize_status =
+        CASE
+        <foreach collection="projects" item="project" separator=" ">
+            WHEN project_id = #{project.projectId} THEN #{project.prizeStatus}
+        </foreach>
+        END,
+        bonus_time = now(),
+        updated_at = now()
+        WHERE project_id IN
+        <foreach collection="projects" item="project" open="(" close=")" separator=",">
+            #{project.projectId}
+        </foreach>
+        AND is_cancel = 0
+        AND prize_status = 0
     </update>
+
     <!--    批量修改注单状态为已经结算-->
+<!--    <update id="updateIsDeduct">-->
+<!--        <foreach collection="projects" item="project" open="" close="" separator=";">-->
+<!--            UPDATE  ${title}_projects-->
+<!--            SET is_deduct = #{project.isDeduct}, deduct_time=now()-->
+<!--            WHERE project_id = #{project.projectId}-->
+<!--            AND is_deduct =0-->
+<!--            AND is_cancel =0-->
+<!--        </foreach>-->
+<!--    </update>-->
     <update id="updateIsDeduct">
-        <foreach collection="projects" item="project" open="" close="" separator=";">
-            UPDATE  ${title}_projects
-            SET is_deduct = #{project.isDeduct}, deduct_time=now()
-            WHERE project_id = #{project.projectId}
-            AND is_deduct =0
-            AND is_cancel =0
+        UPDATE ${title}_projects
+        SET is_deduct =
+        CASE
+        <foreach collection="projects" item="project" separator=" ">
+            WHEN project_id = #{project.projectId} THEN #{project.isDeduct}
         </foreach>
+        END,
+        deduct_time = now()
+        WHERE project_id IN
+        <foreach collection="projects" item="project" open="(" close=")" separator=",">
+            #{project.projectId}
+        </foreach>
+        AND is_deduct = 0
+        AND is_cancel = 0
     </update>
 
     <!--    更新注单中奖状态 未中奖-->

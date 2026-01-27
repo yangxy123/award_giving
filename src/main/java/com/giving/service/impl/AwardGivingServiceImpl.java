@@ -928,13 +928,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 .gt(IssueInfoEntity::getSaleEnd, newDate);   // sale_end   > now;
         IssueInfoEntity issue = issueInfoMapper.selectOne(IssuequeryWrapper);
 
-        for (int i = 1000; i < 1300; i++) {
+        for (int i = 1000; i < 6000; i++) {
             uuidList.add(uniqId().substring(0, 10) + i);
         }
 
         List<String> titles = new ArrayList<>();
-        titles.add("cn0003");
-        titles.add("cn0160");
+//        titles.add("cn0003");
+        titles.add("cn0170");
         projectsTmpMapper.createData(uuidList, issue, titles);
         projectsTmpMapper.createIssueData(issue, titles);
         return ApiResp.sucess();

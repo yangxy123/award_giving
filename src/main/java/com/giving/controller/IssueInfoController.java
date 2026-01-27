@@ -35,10 +35,4 @@ public class IssueInfoController {
     public ApiResp<String> nowthreshold(@PathVariable("threshold") String threshold) {
         return issueInfoService.nowthreshold(threshold);
     }
-    @PostMapping("betAuto")
-    @ApiOperation("批量投注")
-    public ApiResp<String> AutoBet(@RequestBody @Valid FakeBetReq req) {
-        return issueInfoService.AutoBet(req);
-    }
-
 }
