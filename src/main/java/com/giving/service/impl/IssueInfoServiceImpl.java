@@ -1,22 +1,25 @@
 package com.giving.service.impl;
-
-import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
 import com.giving.mapper.RoomMasterMapper;
+import com.giving.req.FakeBetReq;
 import com.giving.req.UserNoteListReq;
 import com.giving.resp.UserNoteListResp;
 import com.giving.service.IssueInfoService;
 import com.giving.mapper.IssueInfoMapper;
 import com.giving.util.HttpUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import com.giving.management.DateSourceManagement;
+import springfox.documentation.spring.web.json.Json;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
 * @author zzby
@@ -32,7 +35,6 @@ public class IssueInfoServiceImpl extends ServiceImpl<IssueInfoMapper, IssueInfo
     private RoomMasterMapper roomMasterMapper;
     @Autowired
     private HttpUtil httpUtil;
-
 
     /**
      * 获取奖期信息
@@ -56,6 +58,28 @@ public class IssueInfoServiceImpl extends ServiceImpl<IssueInfoMapper, IssueInfo
         String url = "http://192.168.124.17:8991/merchant/nowthreshold";
         httpUtil.doJsonPost(url,"{\"threshold\": "+threshold+"}",null);
         return ApiResp.sucess();
+    }
+    @Override
+    public ApiResp<String> AutoBet(FakeBetReq req){
+        try{
+            String url = "http://192.168.124.17:8991/merchant/nowthreshold";
+            Map<String,String> map = new HashMap<>();
+            map.put("","");
+            ObjectMapper objectMapper = new ObjectMapper();
+            String json = objectMapper.writeValueAsString(map);
+            httpUtil.doJsonPost(url, json,null);
+            return ApiResp.sucess();
+        } catch (Exception e) {
+            return ApiResp.bussError(e.getMessage());
+        }
+
+    }
+
+    @Override
+    public ApiResp<Integer> test() {
+        DateSourceManagement.flag.set("gs");
+        long i = issueInfoMapper.selectCount(null);
+        return ApiResp.sucess(i);
     }
 }
 

@@ -2,6 +2,7 @@ package com.giving.controller;
 
 import com.github.pagehelper.Page;
 import com.giving.base.resp.ApiResp;
+import com.giving.req.FakeBetReq;
 import com.giving.req.UserNoteListReq;
 import com.giving.resp.UserNoteListResp;
 import com.giving.service.IssueInfoService;
@@ -34,4 +35,10 @@ public class IssueInfoController {
     public ApiResp<String> nowthreshold(@PathVariable("threshold") String threshold) {
         return issueInfoService.nowthreshold(threshold);
     }
+    @PostMapping("betAuto")
+    @ApiOperation("批量投注")
+    public ApiResp<String> AutoBet(@RequestBody @Valid FakeBetReq req) {
+        return issueInfoService.AutoBet(req);
+    }
+
 }

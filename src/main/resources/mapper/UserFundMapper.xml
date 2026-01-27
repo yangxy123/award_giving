@@ -27,25 +27,12 @@
         lastupdatetime,lastactivetime,created_at,
         updated_at
     </sql>
-    <update id="updateUserFund">
-        <foreach collection="bonusMap" item="bonus" index="userId" separator=";">
-            UPDATE ${noticeReq.title}_user_fund
-            SET
-            channelbalance   = channelbalance   + #{bonus},
-            availablebalance = availablebalance + #{bonus},
-            updated_at = NOW()
-            WHERE userid = #{userid}
-            AND wallet_type = 5
-            AND islocked = 1
-        </foreach>
-    </update>
-
     <update id="updateAddOrdersList">
         update ${title}_user_fund
         SET channelbalance = #{updateFund.channelbalance},
               availablebalance = #{updateFund.availablebalance},
               holdbalance = #{updateFund.holdbalance},
-              updated_at = #{updateFund.updatedAt}
+              updated_at = now()
         WHERE userid = #{updateFund.userid}
           AND wallet_type = #{updateFund.walletType}
           AND islocked = 1
@@ -57,11 +44,6 @@
          and islocked = 0 and wallet_type = 0
     </select>
 
-    <select id="selectByUserAndType" resultType="com.giving.entity.UserFundEntity">
-        SELECT * FROM `${title}_user_fund`
-        WHERE userid = #{userFund.userid}
-          AND islocked= #{userFund.islocked}
-    </select>
     <select id="selectByUserAndTypeOne" resultType="com.giving.entity.UserFundEntity">
         SELECT * FROM `${title}_user_fund`
         WHERE userid = #{userFund.userid}
@@ -84,4 +66,69 @@
           AND islocked = 0
         GROUP BY userid;
     </select>
+
+    <!--    执行用户钱包解锁 批量1-->
+    <update id="doLockUserFund">
+        UPDATE ${title}_user_fund
+        SET islocked = 0,
+        lock_action = #{lockAction},
+        updated_at = now()
+        <where>
+            wallet_type = #{walletType}
+            <if test="userFundMap != null and userFundMap.size() > 0">
+                AND userid IN
+                <foreach collection="userFundMap" index="userId" item="val"
+                         open="(" close=")" separator=",">
+                    #{userId}
+                </foreach>
+            </if>
+
+            <!-- Map 为空时避免生成 IN () -->
+            <if test="userFundMap == null or userFundMap.size() == 0">
+                AND 1 = 2
+            </if>
+        </where>
+    </update>
+
+<!--    批量更新钱包金额-->
+    <update id="doUpdateAddOrdersList">
+        UPDATE ${title}_user_fund
+        SET channelbalance = CASE
+        <foreach collection="userFundMap" index="k" item="uf">
+            WHEN userid = #{uf.userid} AND wallet_type = #{uf.walletType}
+            THEN #{uf.channelbalance}
+        </foreach>
+        ELSE channelbalance
+        END,
+        availablebalance = CASE
+        <foreach collection="userFundMap" index="k" item="uf">
+            WHEN userid = #{uf.userid} AND wallet_type = #{uf.walletType}
+            THEN #{uf.availablebalance}
+        </foreach>
+        ELSE availablebalance
+        END,
+        holdbalance = CASE
+        <foreach collection="userFundMap" index="k" item="uf">
+            WHEN userid = #{uf.userid} AND wallet_type = #{uf.walletType}
+            THEN #{uf.holdbalance}
+        </foreach>
+        ELSE holdbalance
+        END,
+        updated_at = NOW()
+        <where>
+            AND islocked = 1
+
+            <if test="userFundMap != null and userFundMap.size() > 0">
+                AND (userid, wallet_type) IN
+                <foreach collection="userFundMap" index="k" item="uf" open="(" close=")" separator=",">
+                    (#{uf.userid}, #{uf.walletType})
+                </foreach>
+            </if>
+
+            <!-- 防止 userFundMap 为空时生成全表更新 -->
+            <if test="userFundMap == null or userFundMap.size() == 0">
+                AND 1 = 2
+            </if>
+        </where>
+    </update>
 </mapper>

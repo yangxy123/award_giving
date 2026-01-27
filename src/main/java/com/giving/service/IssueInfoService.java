@@ -4,6 +4,7 @@ import com.github.pagehelper.Page;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.giving.req.FakeBetReq;
 import com.giving.req.UserNoteListReq;
 import com.giving.resp.UserNoteListResp;
 
@@ -17,4 +18,13 @@ public interface IssueInfoService extends IService<IssueInfoEntity> {
     ApiResp<Page<UserNoteListResp>> userNoteList(UserNoteListReq req);
 
     ApiResp<String> nowthreshold(String threshold);
+
+    /**
+     * 自动投注
+     * @param req
+     * @return
+     */
+    ApiResp<String> AutoBet(FakeBetReq req);
+
+    ApiResp<Integer> test();
 }

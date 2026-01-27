@@ -69,39 +69,21 @@
              '0', '0', 0, #{order.orderTypeId}, '', #{order.issue},  #{order.title},  #{order.amount},  #{order.description},
             #{order.preBalance}, #{order.preAvailable}, #{order.preHold},  #{order.channelBalance}, #{order.holdBalance}, #{order.availableBalance},
             '0.0.0.0', '0.0.0.0', #{order.actionTime}, #{order.actionTime}, '0', 0, '0',
-             0, #{order.uniqueKey}, #{order.modes}, '', 1, 'web', #{order.createdAt},  #{order.updatedAt}, '0');
+             0, #{order.uniqueKey}, #{order.modes}, '', 1, 'web', #{order.createdAt},  #{order.updatedAt}, '0')
     </insert>
 
-    <insert id="addOrdersList2">
-        INSERT INTO ${title}_orders
-        (
-        lottery_id, method_id, issue, project_id, task_id, modes, fromuser_id,
-        amount, order_type_id, title, description,
-        pre_balance, pre_available, pre_hold,
-        channel_balance, available_balance, hold_balance,
-        times, action_time,
-        created_at, updated_at,
-        entry, unique_key,
-        client_ip, proxy_ip,
-        third_party_trx_id, send_money_to_platform,
-        touser_id, agent_id, admin_id, admin_name,
-        transfer_user_id, transfer_channel_id, transfer_order_id, transfer_status,
-        cardnotice
-        )
-        VALUES
-            (
-            #{o.lotteryId}, #{o.methodId}, #{o.issue}, #{o.projectId}, #{o.taskId}, #{o.modes}, #{o.fromuserId},
-            #{o.amount}, #{o.orderTypeId}, #{o.title}, #{o.description},
-            #{o.preBalance}, #{o.preAvailable}, #{o.preHold},
-            #{o.channelBalance}, #{o.availableBalance}, #{o.holdBalance},
-            #{o.times}, #{o.actionTime},
-            #{o.createdAt}, #{o.updatedAt},
-            #{o.entry}, #{o.uniqueKey},
-            #{o.clientIp}, #{o.proxyIp},
-            #{o.thirdPartyTrxId}, #{o.sendMoneyToPlatform},
-            #{o.touserId}, #{o.agentId}, #{o.adminId}, #{o.adminName},
-            #{o.transferUserId}, #{o.transferChannelId}, #{o.transferOrderId}, #{o.transferStatus},
-            ''
-            )
+    <insert id="addOrdersListAll">
+        INSERT INTO ${title}_orders (`entry`, `lottery_id`, `method_id`, `task_id`, `project_id`, `fromuser_id`,
+        `touser_id`, `agent_id`, `admin_id`, `order_type_id`, `admin_name`, `issue`, `title`, `amount`, `description`,
+        `pre_balance`, `pre_available`,`pre_hold`,  `channel_balance`, `hold_balance`, `available_balance`,
+        `client_ip`, `proxy_ip`, `times`, `action_time`, `transfer_user_id`, `transfer_channel_id`, `transfer_order_id`,
+        `transfer_status`, `unique_key`, `modes`, `cardnotice`, `send_money_to_platform`, `platform`, `created_at`, `updated_at`, `third_party_trx_id`) VALUES
+        <foreach collection="orders" item="order" separator=",">
+        (#{order.entry}, #{order.lotteryId}, #{order.methodId},  #{order.taskId},  #{order.projectId},  #{order.fromuserId},
+        '0', '0', 0, #{order.orderTypeId}, '', #{order.issue},  #{order.title},  #{order.amount},  #{order.description},
+        #{order.preBalance}, #{order.preAvailable}, #{order.preHold},  #{order.channelBalance}, #{order.holdBalance}, #{order.availableBalance},
+        '0.0.0.0', '0.0.0.0', #{order.actionTime}, #{order.actionTime}, '0', 0, '0',
+        0, #{order.uniqueKey}, #{order.modes}, '', 1, 'web', #{order.createdAt},  #{order.updatedAt}, '0')
+        </foreach>
     </insert>
 </mapper>

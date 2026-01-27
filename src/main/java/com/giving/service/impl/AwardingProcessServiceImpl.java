@@ -5,20 +5,18 @@ import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.LotteryEntity;
 import com.giving.entity.RoomMasterEntity;
-import com.giving.entity.TempIssueInfoEntity;
-import com.giving.mapper.IssueInfoMapper;
-import com.giving.mapper.LotteryMapper;
-import com.giving.mapper.RoomMasterMapper;
-import com.giving.mapper.TempIssueInfoMapper;
+import com.giving.management.DateSourceManagement;
+import com.giving.mapper.*;
 import com.giving.req.DrawSourceReq;
-import com.giving.req.ListIssueReq;
 import com.giving.req.NoticeReq;
 import com.giving.service.AwardGivingService;
 import com.giving.service.AwardingProcessService;
+import com.giving.service.OrdersToolService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -39,9 +37,6 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
     IssueInfoMapper issueInfoMapper;
 
     @Autowired
-    RoomMasterMapper roomMasterMapper;
-
-    @Autowired
     AwardGivingService awardGivingService;
 
     @Autowired
@@ -49,8 +44,12 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 
     @Autowired
     AwardGivingService awardService;
+
     @Autowired
-    private TempIssueInfoMapper tempIssueInfoMapper;
+    OrdersToolService ordersToolService;
+
+    @Autowired
+    private IssueHistoryMapper issueHistoryMapper;
 
     /**
      * 派奖流程
@@ -78,39 +77,32 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         issueInfo.setStatusFetch(2);
         issueInfo.setStatusCode(2);
         issueInfo.setWriteId(0);
+        DateSourceManagement.flag.set("gs");
         issueInfoMapper.updateById(issueInfo);
+        DateSourceManagement.flag.set("gc");
+
+        //奖期历史记录
+        if (req.getLotteryId() == 130 || req.getLotteryId() == 132 || req.getLotteryId() == 281) {
+            req.setWinCode(req.getWinCode().replace(",",""));
+        }
+        issueHistoryMapper.updateOrInsert(req,issueInfo);
 
         //测试时自动向数据库插入下一期数据
-        this.FakeIssue(issueInfo);
+//        this.FakeIssue(issueInfo);
 
-        updateRoomsIssueInfo(issueInfo);
+        ordersToolService.updateRoomsIssueInfo(issueInfo);
 
         return ApiResp.sucess();
     }
 
 
-    /**
-     * 写入各平台商的平台商奖期表
-     * @param issueInfo
-     */
-    @Override
-    public void updateRoomsIssueInfo(IssueInfoEntity issueInfo){
-        //2.取得平台商信息表中的平台商前缀
-        List<RoomMasterEntity> roomMasters = roomMasterMapper.selectTitle();
-
-        //3.把主奖期表的号码写入各平台商奖期表中
-        issueInfoMapper.insertIssueToRooms(roomMasters.stream().map(RoomMasterEntity::getTitle).collect(Collectors.toList()),issueInfo);
-        //todo:4.号码写入后查询该期订单（cn007_projects），通过对应订单的玩法(method)进行验派
-        for (RoomMasterEntity roomMaster : roomMasters) {
-            lotteryDraw(roomMaster,issueInfo);
-        }
-    }
 
     /**
      *根据采种方法执行对应的验证流程
      * @param roomMaster
      * @param issueInfo
      */
+    @Override
     public void lotteryDraw(RoomMasterEntity roomMaster,IssueInfoEntity issueInfo){
         LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
         new Thread(() -> {

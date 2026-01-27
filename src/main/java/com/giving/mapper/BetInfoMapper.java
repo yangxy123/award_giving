@@ -1,21 +1,16 @@
 package com.giving.mapper;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.*;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.giving.entity.OrdersEntity;
 import com.giving.entity.TempIssueInfoEntity;
 import com.giving.entity.UserFundEntity;
 import com.giving.req.NoticeReq;
-import org.apache.catalina.User;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.giving.entity.BetInfoEntity;
-import org.apache.ibatis.annotations.Update;
 
 /** 
 * @author yangxy
@@ -39,23 +34,35 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 */
 	public List<BetInfoEntity> test(@Param("table")String table,@Param("where1")String param,@Param("where2")String param1);
 
+	/**
+	 * 取得未派奖订单
+	 * @param noticeReq
+	 * @return
+	 */
 	List<BetInfoEntity> selectListByNoticeReq(@Param("noticeReq") NoticeReq noticeReq);
 
 	Integer countListByNoticeReq(@Param("noticeReq") NoticeReq noticeReq);
 
-	void updateWinbonus(@Param("noticeReq") NoticeReq noticeReq, @Param("sumList") List<BetInfoEntity> sumList,@Param("bonusTime") Date bonusTime);
+	/**
+	 * 批量修改派奖状态
+	 * @param title
+	 * @param projects
+	 */
+	int updatePrizeStatus(@Param("title") String title, @Param("projects") List<BetInfoEntity> projects);
 
+	/**
+	 * 批量修改结算状态
+	 * @param title
+	 * @param projects
+	 */
+	int updateIsDeduct(@Param("title") String title, @Param("projects") List<BetInfoEntity> projects);
+
+	/**
+	 * 批量更新注单中奖状态 未中奖
+	 * @param noticeReq
+	 * @param notWinList
+	 */
 	void updateByNotWinList(@Param("noticeReq") NoticeReq noticeReq,@Param("notWinList") List<BetInfoEntity> notWinList);
-
-	void doLockUserFund(@Param("title") String title,@Param("userIds") List<String> userIds,@Param("walletType") Integer walletType);
-
-	//void addOrdersReArray(@Param("noticeReq") NoticeReq noticeReq,@Param("sumList") List<BetInfoEntity> sumList);
-
-	void unLockUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("userIds") List<String> userIds);
-
-	List<UserFundEntity> selectUserFundBalancesForUpdate(@Param("noticeReq") NoticeReq noticeReq, @Param("userIds") List<String> userIds);
-
-	int batchInsertOrders(@Param("noticeReq") NoticeReq noticeReq, @Param("orders") List<OrdersEntity> orders);
 
 	/**
 	 * 获取所有尚未'真实扣款'的方案
@@ -68,5 +75,21 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 * @param updateProject
 	 * @return
 	 */
-    void updateDeduct(@Param("project") BetInfoEntity updateProject,@Param("title") String title);
+    int updateDeduct(@Param("project") BetInfoEntity updateProject,@Param("title") String title);
+
+	/**
+	 * 修改注单状态为已中奖&已经派奖
+	 * @param Project
+	 * @param title
+	 * @return
+	 */
+    int updateIsGetprize1(@Param("project") BetInfoEntity Project,@Param("title") String title);
+
+	/**
+	 * 修改注单状态为未中奖
+	 * @param notWinList
+	 * @param title
+	 * @return
+	 */
+    int updateIsGetprize2(@Param("notWinList") List<BetInfoEntity> notWinList,@Param("title") String title);
 }

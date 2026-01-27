@@ -17,8 +17,6 @@ import java.util.Map;
 */
 public interface UserFundMapper extends BaseMapper<UserFundEntity> {
 
-    void updateUserFund(@Param("noticeReq") NoticeReq noticeReq,@Param("bonusMap") Map<String, BigDecimal> bonusMap);
-
     /**
      * 修改已经锁定的钱包金额
      * @param updateFund
@@ -26,15 +24,6 @@ public interface UserFundMapper extends BaseMapper<UserFundEntity> {
      * @return
      */
     int updateAddOrdersList(@Param("updateFund") UserFundEntity updateFund, @Param("title") String title);
-
-
-    /**
-     *通过type 与锁定状态取得List
-     * @param title
-     * @param userFund
-     * @return
-     */
-    List<UserFundEntity> selectByUserAndType(@Param("title") String title, @Param("userFund")UserFundEntity userFund);
 
     /**
      *通过type 与锁定状态取得一条
@@ -59,6 +48,25 @@ public interface UserFundMapper extends BaseMapper<UserFundEntity> {
      * @return
      */
     UserFundEntity selectByUserSum(@Param("title") String title, @Param("userId")String userId);
+
+    /**
+     * 批量解锁--1
+     * @param title
+     * @param userFundMap
+     * @param walletType
+     * @param lockAction
+     */
+    void doLockUserFund(@Param("title") String title,@Param("userFundMap") Map<String,UserFundEntity> userFundMap,
+                        @Param("walletType") Integer walletType,@Param("lockAction") String lockAction);
+
+    /**
+     * 批量修改钱包
+     * @param title
+     * @param userFundMap
+     */
+    int doUpdateAddOrdersList(@Param("title") String title,@Param("userFundMap") Map<String,UserFundEntity> userFundMap);
+
+
 }
 
 

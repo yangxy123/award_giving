@@ -1,6 +1,7 @@
 package com.giving.service;
 
 import com.giving.entity.BetInfoEntity;
+import com.giving.entity.RoomMasterEntity;
 
 public interface UserFundLockTxService {
     /**
@@ -15,11 +16,10 @@ public interface UserFundLockTxService {
     Boolean doLockUserFund(String userId, Boolean bIsLocked, Integer sWalletType, String lockAction,String title);
 
     /**
-     * 添加账变记录-8
-     * @param userId
+     * 添加账变记录-8/5
      * @param project
      * @param title
      * @return
      */
-    Boolean addOrdersList(String userId, BetInfoEntity project, String title);
+    Boolean addOrdersList(BetInfoEntity project, String title, int OrderType, RoomMasterEntity roomMaster);
 }

@@ -1,5 +1,6 @@
 package com.giving.mapper;
 
+import com.giving.entity.OrdersEntity;
 import com.giving.entity.RoomMasterEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.giving.req.NoticeReq;
@@ -20,7 +21,14 @@ public interface RoomMasterMapper extends BaseMapper<RoomMasterEntity> {
     @Select({"select * from room_master where is_active = 1"})
     List<RoomMasterEntity> selectTitle();
 
-    void createSpeculation(@Param("roomMaster") RoomMasterEntity roomMaster,@Param("orderIds") List<String> orderIds);
+    void createSpeculation(@Param("roomMaster") RoomMasterEntity roomMaster,@Param("orderId") String orderId);
+
+    /**
+     * 批量插入抄表单
+     * @param roomMaster
+     * @param orders
+     */
+    void createSpeculationList(@Param("roomMaster") RoomMasterEntity roomMaster,@Param("orders") List<OrdersEntity> orders);
 
     String selectTitleById(@Param("masterId") String masterId);
 }

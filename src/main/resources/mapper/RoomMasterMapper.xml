@@ -59,10 +59,29 @@
         </if>
         (room_master_id, orders_id, status, created_at, updated_at)
         VALUES
-        <foreach collection="orderIds" item="orderId" separator=",">
-            (#{roomMaster.id}, #{orderId}, '0', now(), now())
+        (#{roomMaster.id}, #{orderId}, '0', now(), now())
+    </insert>
+    <insert id="createSpeculationList">
+        INSERT into
+        <if test="roomMaster.userWalletType == 0">
+            speculation_orders
+        </if>
+        <if test="roomMaster.userWalletType == 1">
+            speculation_gpi
+        </if>
+        <if test="roomMaster.userWalletType == 2">
+            speculation_orders_da
+        </if>
+        <if test="roomMaster.userWalletType == 3">
+            speculation_single
+        </if>
+        (room_master_id, orders_id, status, created_at, updated_at)
+        VALUES
+        <foreach collection="orders" item="o" separator=",">
+            (#{roomMaster.id}, #{o.entry}, '0', now(), now())
         </foreach>
     </insert>
+
     <select id="selectTitleById" resultType="java.lang.String">
         select title from room_master where master_id = #{masterId}
     </select>

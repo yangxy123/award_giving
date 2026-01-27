@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.IssueHistoryMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.IssueHistoryEntity">
+            <id property="lotteryId" column="lottery_id" jdbcType="BIGINT"/>
+            <id property="issue" column="issue" jdbcType="VARCHAR"/>
+            <result property="code" column="code" jdbcType="VARCHAR"/>
+            <result property="autoissueBelongDate" column="autoissue_belong_date" jdbcType="DATE"/>
+            <result property="saleStart" column="sale_start" jdbcType="TIMESTAMP"/>
+            <result property="saleEnd" column="sale_end" jdbcType="TIMESTAMP"/>
+            <result property="statusCode" column="status_code" jdbcType="INTEGER"/>
+            <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+            <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        lottery_id,issue,code,
+        autoissue_belong_date,sale_start,sale_end,
+        status_code,created_at,updated_at
+    </sql>
+    <insert id="updateOrInsert">
+        INSERT INTO `issue_history` (`lottery_id`, `code`, `issue`, `autoissue_belong_date`, `sale_start`, `sale_end`, `status_code`, `created_at`, `updated_at`)
+        VALUES (#{req.lotteryId}, #{req.winCode}, #{req.issue}, #{issueInfo.autoissueBelongDate},
+                #{issueInfo.saleStart}, #{issueInfo.saleEnd}, 2, now(), now())
+        ON DUPLICATE KEY
+        update code = #{req.winCode},issue = #{req.issue},autoissue_belong_date = #{issueInfo.autoissueBelongDate},
+            status_code = 2,updated_at = now()
+    </insert>
+</mapper>

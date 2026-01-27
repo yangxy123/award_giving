@@ -7,13 +7,15 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
  * @author yangxy
  * @version 创建时间：2025年11月25日 上午11:43:37
  */
 @Data
-@TableName("cn0003_projects")
+@TableName("TEMP_projects")
+@Accessors(chain = true)
 public class BetInfoEntity {
 	@TableId
 	private String projectId;// 方案ID
