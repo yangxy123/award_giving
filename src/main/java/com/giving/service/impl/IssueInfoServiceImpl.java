@@ -59,28 +59,6 @@ public class IssueInfoServiceImpl extends ServiceImpl<IssueInfoMapper, IssueInfo
         httpUtil.doJsonPost(url,"{\"threshold\": "+threshold+"}",null);
         return ApiResp.sucess();
     }
-    @Override
-    public ApiResp<String> AutoBet(FakeBetReq req){
-        try{
-            String url = "http://192.168.124.17:8991/merchant/nowthreshold";
-            Map<String,String> map = new HashMap<>();
-            map.put("","");
-            ObjectMapper objectMapper = new ObjectMapper();
-            String json = objectMapper.writeValueAsString(map);
-            httpUtil.doJsonPost(url, json,null);
-            return ApiResp.sucess();
-        } catch (Exception e) {
-            return ApiResp.bussError(e.getMessage());
-        }
-
-    }
-
-    @Override
-    public ApiResp<Integer> test() {
-        DateSourceManagement.flag.set("gs");
-        long i = issueInfoMapper.selectCount(null);
-        return ApiResp.sucess(i);
-    }
 }
 
 

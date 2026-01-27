@@ -14,17 +14,18 @@ import com.giving.resp.UserNoteListResp;
 * @createDate 2026-01-04 12:18:11
 */
 public interface IssueInfoService extends IService<IssueInfoEntity> {
-
-    ApiResp<Page<UserNoteListResp>> userNoteList(UserNoteListReq req);
-
-    ApiResp<String> nowthreshold(String threshold);
-
     /**
-     * 自动投注
+     * 获取奖期信息
      * @param req
      * @return
      */
-    ApiResp<String> AutoBet(FakeBetReq req);
+    ApiResp<Page<UserNoteListResp>> userNoteList(UserNoteListReq req);
 
-    ApiResp<Integer> test();
+    /**
+     * 设置盈利率
+     * @param threshold
+     * @return
+     */
+    ApiResp<String> nowthreshold(String threshold);
+
 }

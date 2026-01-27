@@ -47,6 +47,8 @@ public class OrdersToolServiceImpl implements OrdersToolService {
             List<BetInfoEntity> betInfos = new ArrayList<>();   //需要修改的project
             Map<String, UserFundEntity> userFundMap = new HashMap<>();
             Map<String, UserFundEntity> userFundSunMap = new HashMap<>(); //需要更新的钱包
+
+            List<BetInfoEntity> errorBetInfoList = new ArrayList<>();
             for (BetInfoEntity project : projects) {
                 UserFundEntity userFundSum;
                 UserFundEntity os;
@@ -68,7 +70,9 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                     userFundSunMap.putIfAbsent(project.getUserId(), userFundSum);
                     String lockAction = OrderType==5?"CP_001":"CR_001";
                     if (!userFundLockTxService.doLockUserFund(project.getUserId(), true, o.getWalletType(), lockAction, title)) {
-                        throw new RuntimeException("--锁定用户钱包失败");
+//                        throw new RuntimeException("--锁定用户钱包失败");
+                        errorBetInfoList.add(project);
+                        continue;
                     }
                 }
                 //开始执行时间
@@ -153,6 +157,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                 userFundSunMap.compute(project.getUserId(), (k, oldVal) -> userFundSum);
 
             }
+
             //收集全部ordersList 和userFundList再做修改
             if(userFundMapper.doUpdateAddOrdersList(title,userFundMap) != userFundMap.size()){
                 throw new RuntimeException("批量修改钱包失败");
@@ -179,7 +184,9 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                 roomMasterMapper.createSpeculationList(roomMaster,ordersList);
             }
 
-
+            if (!errorBetInfoList.isEmpty()) {
+                //如果有因异常钱包锁定导致无法派奖应当在5S后再次处理
+            }
             return true;
         } catch (Exception e) {
             //手动标记回滚
