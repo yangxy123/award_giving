@@ -26,7 +26,7 @@ public class BetInfoEntity {
 	private Integer methodId;// 玩法ID
 	private String issue;// 奖期期号
 	private Double bonus;// 实际派发的奖金
-	private Double winbonus;// 单注赢的钱
+	private String winbonus;// 单注赢的钱
 	private String code;// 号码
 	private String codeType;// 号码投注方式[input:输入型,digital:数字型,dxds:大小单双]
 	private Double singlePrice;// 单倍价格

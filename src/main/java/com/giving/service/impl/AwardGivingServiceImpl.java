@@ -109,7 +109,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                                 || vo.getCode().endsWith(key) && vo.getMethodCode().equals("2DBZ"))
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
-                                    vo.setBonus(vo.getWinbonus() * multiple);
+                                    vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
                                 });
                                 allWinList.addAll(winList);
                             } else if (key.length() == 3) {
@@ -124,7 +124,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                                 && vo.getMethodCode().equals("3DBZ")))
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
-                                    vo.setBonus(vo.getWinbonus() * multiple);
+                                    vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
                                 });
                                 allWinList.addAll(winList);
                             } else {
@@ -149,7 +149,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                                 || vo.getCode().endsWith(key.substring(key.length() - 4, key.length())))
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
-                                    vo.setBonus(vo.getWinbonus() * multiple);
+                                    vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
                                 });
                                 allWinList.addAll(winList);
                             }
@@ -180,7 +180,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                         .filter(vo -> vo.getCode().indexOf(key + ",") >= 0 || vo.getCode().endsWith(key))
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
-                                    vo.setBonus(vo.getWinbonus() * multiple);
+                                    vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
                                 });
                                 allWinList.addAll(winList);
                             } else {
@@ -189,7 +189,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                                         || vo.getCode().endsWith(key.substring(key.length() - 2, key.length())))
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
-                                    vo.setBonus(vo.getWinbonus() * multiple);
+                                    vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
                                 });
                                 allWinList.addAll(winList);
                             }
@@ -219,7 +219,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                         .filter(vo -> vo.getCode().indexOf(key + ",") >= 0 || vo.getCode().endsWith(key))
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
-                                    vo.setBonus(vo.getWinbonus() * multiple);
+                                    vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
                                 });
                                 allWinList.addAll(winList);
                             } else {
@@ -228,7 +228,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                                         || vo.getCode().endsWith(key.substring(key.length() - 3, key.length())))
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
-                                    vo.setBonus(vo.getWinbonus() * multiple);
+                                    vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
                                 });
                                 allWinList.addAll(winList);
                             }
@@ -821,9 +821,11 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         int pageSize = 3000;
         int pageNo = 1;
         List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
-        int totalNum = Integer.parseInt(codeList.get(0)) + Integer.parseInt(codeList.get(1)) + Integer.parseInt(codeList.get(2));
 
-        String sortCode = sortChars(noticeReq.getCode().replace(",", ""));  // 336
+        String sortCode = sortChars(noticeReq.getCode().replace(",", "")); //排序过后的code
+        Set<String> set = new HashSet<>(codeList);
+        List<String> codeListOnly = new ArrayList<>(set); //去重过后的号码list 用于判断猜一个号
+
         String removeFirst = sortCode.substring(1);
         String removeLast = sortCode.substring(0, sortCode.length() - 1);
         int sum = 0;  //和值
@@ -840,53 +842,34 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 break;
             }
             pageNo += 1;
+            int finalSum = sum;
             List<BetInfoEntity> allWinList = list.stream().filter(vo -> {
-                String result = "";
-                if ("STH".equals(vo.getMethodCode()) || "DX".equals(vo.getMethodCode())) {
-                    result = Arrays.stream(vo.getCode().split(","))
-                            .map(String::trim)                  // 去空格
-                            .filter(t -> !t.isEmpty())          // 防空
-                            .map(AwardGivingServiceImpl::sortChars)       // 每段内部排序
-                            .collect(Collectors.joining(","));
-                }
-
-                if("CYGH".equals(vo.getMethodCode())){
+                //猜一个号
+                if("CYGH".equals(vo.getMethodCode()) && (vo.getCode().contains(codeList.get(0))
+                        || vo.getCode().contains(codeList.get(1))
+                        || vo.getCode().contains(codeList.get(2)))){
                     int n = 0;
-                    if(vo.getCode().indexOf(codeList.get(0)) >= 0){
-                        n++;
+                    for (String code : codeListOnly) {
+                        if(vo.getCode().contains(code)){
+                            n++;
+                        }
                     }
-                    if(vo.getCode().indexOf(codeList.get(1)) >= 0){
-                        n++;
-                    }
-                    if(vo.getCode().indexOf(codeList.get(2)) >= 0){
-                        n++;
-                    }
-                    vo.setBonus(vo.getWinbonus() * n);
+                    vo.setBonus(Double.parseDouble(vo.getWinbonus()) * n);
+                    return true;
+                }
+                //和值
+                if("HZ".equals(vo.getMethodCode()) && vo.getCode().contains(sumStr)){
+                    List<String> winbonusList = Lists.newArrayList(vo.getWinbonus().split(","));
+                    vo.setBonus(Double.valueOf(winbonusList.get(finalSum -3)));
+                    return true;
                 }
 
-                return ("STH".equals(vo.getMethodCode()) && result.contains(sortCode)) //三同号
-                        || ("SBTH".equals(vo.getMethodCode()) && (vo.getCode().indexOf(codeList.get(0)) >= 0 && vo.getCode().indexOf(codeList.get(1)) >= 0 && vo.getCode().indexOf(codeList.get(2)) >= 0)) //三不同号
-                        || ("DX".equals(vo.getMethodCode()) && result.contains(sortCode)) //二同号-单选
+                return ("STH".equals(vo.getMethodCode()) && vo.getCode().contains(sortCode)) //三同号
+                        || ("SBTH".equals(vo.getMethodCode()) && (vo.getCode().contains(codeList.get(0)) && vo.getCode().contains(codeList.get(1)) && vo.getCode().contains(codeList.get(2)))) //三不同号
+                        || ("DX".equals(vo.getMethodCode()) && vo.getCode().contains(sortCode)) //二同号-单选
                         || ("FX".equals(vo.getMethodCode()) && (vo.getCode().contains(removeFirst) || vo.getCode().contains(removeLast))) //二同号-复选
-                        || ("EBTH".equals(vo.getMethodCode()) && (vo.getCode().contains(removeFirst) || vo.getCode().contains(removeLast))) //二不同号
-                        || ("HZ".equals(vo.getMethodCode()) && vo.getCode().contains(sumStr)) //和值
-                        || ("CYGH".equals(vo.getMethodCode()) && (vo.getCode().indexOf(codeList.get(0)) >= 0 || vo.getCode().indexOf(codeList.get(1)) >= 0 || vo.getCode().indexOf(codeList.get(2)) >= 0)); //猜一个号
+                        || ("EBTH".equals(vo.getMethodCode()) && (vo.getCode().contains(removeFirst) || vo.getCode().contains(removeLast)));  //二不同号
             }).collect(Collectors.toList());
-/*                    List<BetInfoEntity> allWinList = list.stream().filter(vo -> ((vo.getCode().indexOf(codeList.get(0) + codeList.get(1) + codeList.get(2)) >= 0
-                    || vo.getCode().indexOf(codeList.get(0) + codeList.get(2) + codeList.get(1)) >= 0
-                    || vo.getCode().indexOf(codeList.get(1) + codeList.get(0) + codeList.get(2)) >= 1
-                    || vo.getCode().indexOf(codeList.get(1) + codeList.get(2) + codeList.get(0)) >= 0
-                    || vo.getCode().indexOf(codeList.get(2) + codeList.get(0) + codeList.get(1)) >= 0
-                    || vo.getCode().indexOf(codeList.get(2) + codeList.get(1) + codeList.get(0)) >= 0)
-                    //三同号                                   三不号                                 二同号
-                    && ("STH".equals(vo.getMethodCode()) || "SBTH".equals(vo.getMethodCode()) || "DX".equals(vo.getMethodCode())|| "FX".equals(vo.getMethodCode())
-                    || "EBTH".equals(vo.getMethodCode())))  // 二不同号
-                    || ((vo.getCode().indexOf(codeList.get(0)) >= 0 || vo.getCode().indexOf(codeList.get(1)) >= 0 || vo.getCode().indexOf(codeList.get(2)) >= 0)
-                    //猜一个号
-                    && "CYGH".equals(vo.getMethodCode()))
-                    //和值 HZ
-                    || (totalNum < 10 && vo.getCode().indexOf("0" + totalNum) >= 0 && "HZ".equals(vo.getMethodCode()))
-                    || (totalNum >= 10 && vo.getCode().indexOf(String.valueOf(totalNum)) >= 0 && "HZ".equals(vo.getMethodCode()))).collect(Collectors.toList());*/
             List<BetInfoEntity> sumList = getSumList(allWinList);
             updateDataAll(sumList, noticeReq, list, bonusTime);
         }
@@ -913,7 +896,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
      * @version 创建时间：2025年12月30日 下午7:26:09
      */
     private List<BetInfoEntity> getSumList(List<BetInfoEntity> allWinList) {
-
         return allWinList.stream()
                 .collect(Collectors.collectingAndThen(
                         Collectors.groupingBy(
@@ -923,23 +905,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                         group -> {
                                             // 获取第一条记录
                                             BetInfoEntity first = group.get(0);
-                                            Double totalScore = 0.0;
-                                            if("HZ".equals(group.get(0).getMethodCode())){
-                                                List<Double> winbonusList = Arrays.stream(first.getWinbonus().toString().split(",")).
-                                                        map(Double::parseDouble).collect(Collectors.toList());
-                                                List<String> codeList = Arrays.asList(first.getCode().split("\\|"));
-                                                for(int i = 1;i < group.size();i++){
-                                                    int x = codeList.indexOf(group.get(i).getCode());
-                                                    if(x >= 0 && x < winbonusList.size()){
-                                                        totalScore += winbonusList.get(x);
-                                                    }
-                                                }
-                                            }else {
-                                                // 计算总分
-                                                 totalScore = group.stream()
-                                                        .mapToDouble(BetInfoEntity::getWinbonus)
-                                                        .sum();
-                                            }
+                                            Double totalScore = first.getBonus() !=0 ? first.getBonus() : group.stream()
+                                                    .mapToDouble(b -> Double.parseDouble(b.getWinbonus()))
+                                                    .sum();
                                             BetInfoEntity vo = new BetInfoEntity();
                                             BeanUtils.copyProperties(first, vo);
                                             vo.setBonus(totalScore);
@@ -979,7 +947,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             List<BetInfoEntity> tempList = new ArrayList<>();
             tempList.addAll(sumList);
             tempList.forEach(vo -> {
-                vo.setBonus(vo.getWinbonus());
+                vo.setBonus(Double.valueOf(vo.getWinbonus()));
                 vo.setIsGetprize(1);
                 vo.setBonusTime(new Date());
                 vo.setUpdateTime(new Date());
