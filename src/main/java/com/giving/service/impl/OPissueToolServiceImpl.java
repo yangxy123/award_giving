@@ -195,9 +195,11 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             List<String> errorMessageList = new ArrayList<>();
             for (RoomMasterEntity roomMaster : roomMasterList) {
                 new Thread(() -> {
-                    TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMaster.getTitle(),
-                            Math.toIntExact(req.getLotteryId()),
-                            req.getIssue());
+                    TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMaster.getTitle(), Math.toIntExact(req.getLotteryId()), req.getIssue());
+                    if (ObjectUtils.isEmpty(issueInfo)) {
+                        waitList.add(1);
+                        return;
+                    }
                     int pageNo = 1;
                     int pageSize = 3000;
                     // 获取所有尚未'真实扣款'的方案
@@ -206,14 +208,12 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                         List<BetInfoEntity> projects = betInfoMapper.checkProjects(roomMaster.getTitle(), issueInfo);
                         //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
                         if (ObjectUtils.isEmpty(projects) || projects == null) {
-                            issueInfo.setStatusDeduct(2);
                             break;
                         }
                         if (!ordersToolService.getOrdersListAll(projects, roomMaster.getTitle(), 8, roomMaster)) {
                             errorMessageList.add("新增账变-存在错误 MasterId:"+roomMaster.getMasterId());
                         }
                         pageNo++;
-
                     }
                     waitList.add(1);
                 }).start();

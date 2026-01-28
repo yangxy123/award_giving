@@ -609,8 +609,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 waitList.add(1);
             }
 
-            while (true){
-                if(waitList.size() == (pageNo - 1)){
+            while (true) {
+                if (waitList.size() == (pageNo - 1)) {
                     break;
                 }
                 Thread.sleep(100);
@@ -618,14 +618,14 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
             doCongealToReal(noticeReq);
             Long endTime = System.currentTimeMillis();
-            if(pageNo > 1){
+            if (pageNo > 1) {
                 log.info("\n============== noticeNorth - {} ================" +
                         "\nlotteryId = {}" +
                         "\nissue = {}" +
                         "\n注单数(3000):{}" +
                         "\n开始时间:{}" +
                         "\n结束时间:{}" +
-                        "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo-1, startTime, endTime, endTime - startTime);
+                        "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo - 1, startTime, endTime, endTime - startTime);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -659,8 +659,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             new Thread(() -> {
                 try {
                     List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("1DT") || vo.getMethodCode().equals("1DW")
-                                    || vo.getMethodCode().equals("2DT") || vo.getMethodCode().equals("2DW")
-                                    || vo.getMethodCode().equals("3DT")).collect(Collectors.toList());
+                            || vo.getMethodCode().equals("2DT") || vo.getMethodCode().equals("2DW")
+                            || vo.getMethodCode().equals("3DT")).collect(Collectors.toList());
                     String headCode = codeList.get(0).substring(3, 6);
                     String headCode1 = codeList.get(0).substring(4, 6);
                     String endCode = codeList.get(maxSize);
@@ -678,9 +678,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             }).start();
 
             //3D前三、3D后三
-             new Thread(() -> {
+            new Thread(() -> {
                 try {
-                    List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("3DHS")||vo.getMethodCode().equals("3DQS") ).collect(Collectors.toList());
+                    List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("3DHS") || vo.getMethodCode().equals("3DQS")).collect(Collectors.toList());
                     String frontThreeCode = codeList.get(1) + codeList.get(2);
                     String afterThreeCode = codeList.get(3) + codeList.get(4);
 
@@ -692,26 +692,26 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 }
                 endList.add(2);
             }).start();
-             //2D头奖组选  3D头奖组选
+            //2D头奖组选  3D头奖组选
             new Thread(() -> {
                 try {
-                    List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("2DTJZX")||vo.getMethodCode().equals("3DTJZX") ).collect(Collectors.toList());
+                    List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("2DTJZX") || vo.getMethodCode().equals("3DTJZX")).collect(Collectors.toList());
                     String headCode = codeList.get(0).substring(3, 6);
 
                     char[] a = headCode.toCharArray();
                     java.util.Arrays.sort(a);
                     String finalHeadCode = new String(a);
                     List<BetInfoEntity> collect = betList.stream().filter(vo -> {
-                        char[] codeArr=vo.getCode().toCharArray();
+                        char[] codeArr = vo.getCode().toCharArray();
                         java.util.Arrays.sort(codeArr);
                         String tjzxCode = new String(codeArr);
-                        return (vo.getMethodCode().equals("3DTJZX")&& finalHeadCode.equals(tjzxCode))
+                        return (vo.getMethodCode().equals("3DTJZX") && finalHeadCode.equals(tjzxCode))
                                 || vo.getMethodCode().equals("2DTJZX")
-                                && (    finalHeadCode.endsWith(tjzxCode)
-                                    || finalHeadCode.startsWith(tjzxCode)
-                                    || (finalHeadCode.substring(0,1).equals(tjzxCode.substring(0,1)) && finalHeadCode.substring(2,3).equals(tjzxCode.substring(1,2)))
-                                    );
-                    }).collect(Collectors.toList()); //"3D后三"
+                                && (finalHeadCode.endsWith(tjzxCode)
+                                || finalHeadCode.startsWith(tjzxCode)
+                                || (finalHeadCode.substring(0, 1).equals(tjzxCode.substring(0, 1)) && finalHeadCode.substring(2, 3).equals(tjzxCode.substring(1, 2)))
+                        );
+                    }).collect(Collectors.toList());
                     allWinList.addAll(collect);
                 } catch (Exception e) {
                     // TODO: handle exception
@@ -735,8 +735,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             updateDataAll(sumList, noticeReq, list, bonusTime);
             waitList.add(1);
         }
-        while (true){
-            if(waitList.size() == (pageNo - 1)){
+        while (true) {
+            if (waitList.size() == (pageNo - 1)) {
                 break;
             }
             try {
@@ -747,14 +747,14 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         }
         doCongealToReal(noticeReq);
         Long endTime = System.currentTimeMillis();
-        if(pageNo > 1){
+        if (pageNo > 1) {
             log.info("\n============== noticeTh - {} ================" +
                     "\nlotteryId = {}" +
                     "\nissue = {}" +
                     "\n注单数(3000):{}" +
                     "\n开始时间:{}" +
                     "\n结束时间:{}" +
-                    "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo-1, startTime, endTime, endTime - startTime);
+                    "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo - 1, startTime, endTime, endTime - startTime);
         }
     }
 
@@ -790,10 +790,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             String tjzx = new String(a);
             //3D组选
             List<BetInfoEntity> collect2 = list.stream().filter(vo -> {
-                char[] codeArr=vo.getCode().toCharArray();
+                char[] codeArr = vo.getCode().toCharArray();
                 java.util.Arrays.sort(codeArr);
                 String tjzxCode = new String(codeArr);
-                return  "3DTJZX".equals(vo.getMethodCode()) && tjzx.equals(tjzxCode);
+                return "3DTJZX".equals(vo.getMethodCode()) && tjzx.equals(tjzxCode);
             }).collect(Collectors.toList());
             allWinList.addAll(collect2);
             List<BetInfoEntity> sumList = getSumList(allWinList);
@@ -802,14 +802,14 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         doCongealToReal(noticeReq);
 
         Long endTime = System.currentTimeMillis();
-        if(pageNo > 1){
+        if (pageNo > 1) {
             log.info("\n============== noticeLw - {} ================" +
                     "\nlotteryId = {}" +
                     "\nissue = {}" +
                     "\n注单数(3000):{}" +
                     "\n开始时间:{}" +
                     "\n结束时间:{}" +
-                    "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo-1, startTime, endTime, endTime - startTime);
+                    "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo - 1, startTime, endTime, endTime - startTime);
         }
     }
 
@@ -822,6 +822,15 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         int pageNo = 1;
         List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
         int totalNum = Integer.parseInt(codeList.get(0)) + Integer.parseInt(codeList.get(1)) + Integer.parseInt(codeList.get(2));
+
+        String sortCode = sortChars(noticeReq.getCode().replace(",", ""));  // 336
+        String removeFirst = sortCode.substring(1);
+        String removeLast = sortCode.substring(0, sortCode.length() - 1);
+        int sum = 0;  //和值
+        for (char c : noticeReq.getCode().replace(",", "").toCharArray()) {
+            sum += (c - '0');   // '1'->1, '2'->2 ...
+        }
+        String sumStr = (sum < 10) ? ("0" + sum) : String.valueOf(sum);
         while (true) {
             PageHelper.startPage(pageNo, pageSize);
             // TODO Auto-generated method stub
@@ -831,35 +840,52 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 break;
             }
             pageNo += 1;
-
-            List<BetInfoEntity> allWinList = list.stream().filter(vo -> ((vo.getCode().indexOf(codeList.get(0) + codeList.get(1) + codeList.get(2)) >= 0
+            List<BetInfoEntity> allWinList = list.stream().filter(vo -> {
+                String result = "";
+                if ("STH".equals(vo.getMethodCode()) || "DX".equals(vo.getMethodCode())) {
+                    result = Arrays.stream(vo.getCode().split(","))
+                            .map(String::trim)                  // 去空格
+                            .filter(t -> !t.isEmpty())          // 防空
+                            .map(AwardGivingServiceImpl::sortChars)       // 每段内部排序
+                            .collect(Collectors.joining(","));
+                }
+                return ("STH".equals(vo.getMethodCode()) && result.contains(sortCode)) //三同号
+                        || ("SBTH".equals(vo.getMethodCode()) && (vo.getCode().indexOf(codeList.get(0)) >= 0 && vo.getCode().indexOf(codeList.get(1)) >= 0 && vo.getCode().indexOf(codeList.get(2)) >= 0)) //三不同号
+                        || ("DX".equals(vo.getMethodCode()) && result.contains(sortCode)) //二同号-单选
+                        || ("FX".equals(vo.getMethodCode()) && (vo.getCode().contains(removeFirst) || vo.getCode().contains(removeLast))) //二同号-复选
+                        || ("EBTH".equals(vo.getMethodCode()) && (vo.getCode().contains(removeFirst) || vo.getCode().contains(removeLast))) //二不同号
+                        || ("HZ".equals(vo.getMethodCode()) && vo.getCode().contains(sumStr)) //和值
+                        || ("CYGH".equals(vo.getMethodCode()) && (vo.getCode().indexOf(codeList.get(0)) >= 0 || vo.getCode().indexOf(codeList.get(1)) >= 0 || vo.getCode().indexOf(codeList.get(2)) >= 0)); //猜一个号
+            }).collect(Collectors.toList());
+/*                    List<BetInfoEntity> allWinList = list.stream().filter(vo -> ((vo.getCode().indexOf(codeList.get(0) + codeList.get(1) + codeList.get(2)) >= 0
                     || vo.getCode().indexOf(codeList.get(0) + codeList.get(2) + codeList.get(1)) >= 0
                     || vo.getCode().indexOf(codeList.get(1) + codeList.get(0) + codeList.get(2)) >= 1
                     || vo.getCode().indexOf(codeList.get(1) + codeList.get(2) + codeList.get(0)) >= 0
                     || vo.getCode().indexOf(codeList.get(2) + codeList.get(0) + codeList.get(1)) >= 0
                     || vo.getCode().indexOf(codeList.get(2) + codeList.get(1) + codeList.get(0)) >= 0)
-                    //三同号                                   三不号                                 二同号                                 二不同号
-                    && ("STH".equals(vo.getMethodCode()) || "SBTH".equals(vo.getMethodCode()) || "ETH".equals(vo.getMethodCode()) || "EBTH".equals(vo.getMethodCode())))
+                    //三同号                                   三不号                                 二同号
+                    && ("STH".equals(vo.getMethodCode()) || "SBTH".equals(vo.getMethodCode()) || "DX".equals(vo.getMethodCode())|| "FX".equals(vo.getMethodCode())
+                    || "EBTH".equals(vo.getMethodCode())))  // 二不同号
                     || ((vo.getCode().indexOf(codeList.get(0)) >= 0 || vo.getCode().indexOf(codeList.get(1)) >= 0 || vo.getCode().indexOf(codeList.get(2)) >= 0)
                     //猜一个号
                     && "CYGH".equals(vo.getMethodCode()))
                     //和值 HZ
                     || (totalNum < 10 && vo.getCode().indexOf("0" + totalNum) >= 0 && "HZ".equals(vo.getMethodCode()))
-                    || (totalNum >= 10 && vo.getCode().indexOf(String.valueOf(totalNum)) >= 0 && "HZ".equals(vo.getMethodCode()))).collect(Collectors.toList());
+                    || (totalNum >= 10 && vo.getCode().indexOf(String.valueOf(totalNum)) >= 0 && "HZ".equals(vo.getMethodCode()))).collect(Collectors.toList());*/
             List<BetInfoEntity> sumList = getSumList(allWinList);
             updateDataAll(sumList, noticeReq, list, bonusTime);
         }
         doCongealToReal(noticeReq);
 
         Long endTime = System.currentTimeMillis();
-        if(pageNo > 1){
+        if (pageNo > 1) {
             log.info("\n============== noticeKs - {} ================" +
                     "\nlotteryId = {}" +
                     "\nissue = {}" +
                     "\n注单数(3000):{}" +
                     "\n开始时间:{}" +
                     "\n结束时间:{}" +
-                    "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo-1, startTime, endTime, endTime - startTime);
+                    "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo - 1, startTime, endTime, endTime - startTime);
         }
     }
 
@@ -968,14 +994,14 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             projectsTmpMapper.deleteBatchIds(projectIds);
             String title = noticeReq.getTitle();
             //中奖订单-新增order 5 并加钱
-            ordersToolService.getOrdersListAll(sumList,noticeReq.getTitle(),5,noticeReq.getRoomMaster());
+            ordersToolService.getOrdersListAll(sumList, noticeReq.getTitle(), 5, noticeReq.getRoomMaster());
 
             List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
             //未中奖订单ID
             List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
                     .collect(Collectors.toList());
             //批量修改未中奖订单
-            if(!notWinList.isEmpty()){
+            if (!notWinList.isEmpty()) {
                 betInfoMapper.updateIsGetprize2(notWinList, title);
             }
 
@@ -1016,10 +1042,11 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
     /**
      * 结算
+     *
      * @param noticeReq
      */
-    public void doCongealToReal(NoticeReq noticeReq){
-        new Thread(()->{
+    public void doCongealToReal(NoticeReq noticeReq) {
+        new Thread(() -> {
             //结算
             ManualDistributionReq condition = new ManualDistributionReq();
             condition.setIssue(noticeReq.getIssue());
@@ -1033,6 +1060,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     static String uniqId() {
         // 类似 uniqid：时间 + 随机
         return Long.toHexString(System.nanoTime()) + Long.toHexString(ThreadLocalRandom.current().nextLong());
+    }
+
+    static String sortChars(String s) {
+        char[] arr = s.toCharArray();
+        Arrays.sort(arr);
+        return new String(arr);
     }
 
 }
