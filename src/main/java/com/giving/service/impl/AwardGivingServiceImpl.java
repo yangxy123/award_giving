@@ -658,8 +658,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             //1D头、2D头、3D头、1D尾，2D尾
             new Thread(() -> {
                 try {
-                    List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("1DT") || vo.getMethodCode().equals("2DT")
-                            || vo.getMethodCode().equals("3DT")).collect(Collectors.toList());
+                    List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("1DT") || vo.getMethodCode().equals("1DW")
+                                    || vo.getMethodCode().equals("2DT") || vo.getMethodCode().equals("2DW")
+                                    || vo.getMethodCode().equals("3DT")).collect(Collectors.toList());
                     String headCode = codeList.get(0).substring(3, 6);
                     String headCode1 = codeList.get(0).substring(4, 6);
                     String endCode = codeList.get(maxSize);
@@ -679,12 +680,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             //3D前三、3D后三
              new Thread(() -> {
                 try {
-                    List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("3DH3")||vo.getMethodCode().equals("3DQ3") ).collect(Collectors.toList());
+                    List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("3DHS")||vo.getMethodCode().equals("3DQS") ).collect(Collectors.toList());
                     String frontThreeCode = codeList.get(1) + codeList.get(2);
                     String afterThreeCode = codeList.get(3) + codeList.get(4);
 
-                    List<BetInfoEntity> collect = betList.stream().filter(vo -> ((frontThreeCode.startsWith(vo.getCode()) || frontThreeCode.endsWith(vo.getCode())) && vo.getMethodCode().equals("3DQ3")) //"3D前三"
-                            || ((afterThreeCode.startsWith(vo.getCode()) || afterThreeCode.endsWith(vo.getCode())) && vo.getMethodCode().equals("3DH3"))).collect(Collectors.toList()); //"3D后三"
+                    List<BetInfoEntity> collect = betList.stream().filter(vo -> ((frontThreeCode.startsWith(vo.getCode()) || frontThreeCode.endsWith(vo.getCode())) && vo.getMethodCode().equals("3DQS")) //"3D前三"
+                            || ((afterThreeCode.startsWith(vo.getCode()) || afterThreeCode.endsWith(vo.getCode())) && vo.getMethodCode().equals("3DHS"))).collect(Collectors.toList()); //"3D后三"
                     allWinList.addAll(collect);
                 } catch (Exception e) {
                     // TODO: handle exception
@@ -758,14 +759,16 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     || (headCode.substring(1, 3).indexOf(vo.getCode()) >= 0 && "2DT".equals(vo.getMethodCode()))).collect(Collectors.toList());
             allWinList.addAll(collect);
 
+            char[] a = headCode.toCharArray();
+            java.util.Arrays.sort(a);
+            String tjzx = new String(a);
             //3D组选
-            List<BetInfoEntity> collect2 = list.stream().filter(vo -> endCode.indexOf(vo.getCode().substring(0, 1) + vo.getCode().substring(1, 2) + vo.getCode().substring(2, 3)) >= 0
-                    || endCode.indexOf(vo.getCode().substring(0, 1) + vo.getCode().substring(2, 3) + vo.getCode().substring(1, 2)) >= 0
-                    || endCode.indexOf(vo.getCode().substring(1, 2) + vo.getCode().substring(0, 1) + vo.getCode().substring(2, 3)) >= 0
-                    || endCode.indexOf(vo.getCode().substring(1, 2) + vo.getCode().substring(2, 3) + vo.getCode().substring(0, 1)) >= 0
-                    || endCode.indexOf(vo.getCode().substring(2, 3) + vo.getCode().substring(0, 1) + vo.getCode().substring(1, 2)) >= 0
-                    || endCode.indexOf(vo.getCode().substring(2, 3) + vo.getCode().substring(1, 2) + vo.getCode().substring(0, 1)) >= 0
-            ).collect(Collectors.toList());
+            List<BetInfoEntity> collect2 = list.stream().filter(vo -> {
+                char[] codeArr=vo.getCode().toCharArray();
+                java.util.Arrays.sort(codeArr);
+                String tjzxCode = new String(codeArr);
+                return  "3DTJZX".equals(vo.getMethodCode()) && tjzx.equals(tjzxCode);
+            }).collect(Collectors.toList());
             allWinList.addAll(collect2);
             List<BetInfoEntity> sumList = getSumList(allWinList);
             updateDataAll(sumList, noticeReq, list, bonusTime);
