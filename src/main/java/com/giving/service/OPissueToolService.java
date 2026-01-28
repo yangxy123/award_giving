@@ -24,4 +24,11 @@ public interface OPissueToolService {
      * @return
      */
     ApiResp<String> doCongealToReal(ManualDistributionReq req);
+
+    /**
+     * 强制手动结算
+     * @param req
+     * @return
+     */
+    ApiResp<String> doForceCongealToReal(ManualDistributionReq req);
 }

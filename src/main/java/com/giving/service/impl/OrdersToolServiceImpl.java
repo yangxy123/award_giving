@@ -15,6 +15,8 @@ import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -23,6 +25,8 @@ import java.util.stream.Collectors;
 @Service
 public class OrdersToolServiceImpl implements OrdersToolService {
 
+    private static final AtomicLong LAST_MS = new AtomicLong(0);
+    private static final AtomicInteger SEQ = new AtomicInteger(0);
     @Autowired
     private UserFundMapper userFundMapper;
     @Autowired
@@ -127,7 +131,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                     }
 
                     OrdersEntity order = new OrdersEntity();
-                    String uuid = uniqId().substring(0, 16);
+                    String uuid =uniqId16();
                     order.setEntry(uuid);
                     order.setLotteryId(project.getLotteryId());
                     order.setMethodId(project.getMethodId());
@@ -227,9 +231,30 @@ public class OrdersToolServiceImpl implements OrdersToolService {
         }
     }
 
+    // 16位可排序ID（hex），后生成的按字符串排序一定更大（同JVM内）
+    public static synchronized String uniqId16() {
+        long now = System.currentTimeMillis();
+        long last = LAST_MS.get();
 
-    static String uniqId() {
-        // 类似 uniqid：时间 + 随机
-        return Long.toHexString(System.nanoTime()) + Long.toHexString(ThreadLocalRandom.current().nextLong());
+        // 时钟回拨保护：保证不倒退
+        if (now < last) now = last;
+
+        int seq;
+        if (now == last) {
+            seq = SEQ.incrementAndGet();
+            if (seq > 0xFFFF) { // 同一毫秒超过65535个，等下一毫秒
+                do { now = System.currentTimeMillis(); } while (now <= last);
+                LAST_MS.set(now);
+                SEQ.set(0);
+                seq = 0;
+            }
+        } else {
+            LAST_MS.set(now);
+            SEQ.set(0);
+            seq = 0;
+        }
+
+        long id = (now << 16) | (seq & 0xFFFFL);
+        return String.format("%016x", id); // 固定16位，字典序可排序
     }
 }

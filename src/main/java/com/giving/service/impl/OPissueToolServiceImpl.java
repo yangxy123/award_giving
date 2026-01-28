@@ -137,30 +137,25 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             int pageSize = 3000;
             List<Integer> waitList = new ArrayList<>();
             // 获取所有尚未'真实扣款'的方案
-            while (true){
-                PageHelper.startPage(pageNo,pageSize);
+            while (true) {
+                PageHelper.startPage(pageNo, pageSize);
                 List<BetInfoEntity> projects = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
                 //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
                 if (ObjectUtils.isEmpty(projects) || projects == null) {
                     issueInfo.setStatusDeduct(2);
                     break;
                 }
-                new Thread(()->{
-                    if(!ordersToolService.getOrdersListAll(projects,roomMasterEntity.getTitle(),8,roomMasterEntity)){
+                new Thread(() -> {
+                    if (!ordersToolService.getOrdersListAll(projects, roomMasterEntity.getTitle(), 8, roomMasterEntity)) {
                         throw new RuntimeException("新增账变失败");
                     }
-                    //真實扣款
-//                issueInfo.setStatusDeduct(2);
-//                if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
-//                    throw new RuntimeException("修改奖期为真实扣款完成失败");
-//                }
                     waitList.add(1);
                 }).start();
-                pageNo++ ;
+                pageNo++;
             }
 
-            while (true){
-                if(waitList.size() == (pageNo - 1)){
+            while (true) {
+                if (waitList.size() == (pageNo - 1)) {
                     break;
                 }
                 try {
@@ -176,7 +171,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             log.info("\n====结算进程 - {} - {} - {}" +
                     "\n开始时间:{}" +
                     "\n结束时间:{}" +
-                    "\n耗时:{}",req.getIssue(),req.getLotteryId(),req.getMasterId(),startTime, endTime, endTime - startTime);
+                    "\n耗时:{}", req.getIssue(), req.getLotteryId(), req.getMasterId(), startTime, endTime, endTime - startTime);
 
             return ApiResp.sucess();
         } catch (RuntimeException e) {
@@ -185,6 +180,62 @@ public class OPissueToolServiceImpl implements OPissueToolService {
         }
     }
 
+    @Override
+    public ApiResp<String> doForceCongealToReal(ManualDistributionReq req) {
+        try {
+            List<RoomMasterEntity> roomMasterList = new ArrayList<>();
+            if (req.getMasterId().equals("0")) {
+                roomMasterList.addAll(roomMasterMapper.selectTitle());
+            } else {
+                LambdaQueryWrapper<RoomMasterEntity> wrapper = new LambdaQueryWrapper<>();
+                wrapper.eq(RoomMasterEntity::getMasterId, req.getMasterId());
+                roomMasterList.add(roomMasterMapper.selectOne(wrapper));
+            }
+            List<Integer> waitList = new ArrayList<>();
+            List<String> errorMessageList = new ArrayList<>();
+            for (RoomMasterEntity roomMaster : roomMasterList) {
+                new Thread(() -> {
+                    TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMaster.getTitle(),
+                            Math.toIntExact(req.getLotteryId()),
+                            req.getIssue());
+                    int pageNo = 1;
+                    int pageSize = 3000;
+                    // 获取所有尚未'真实扣款'的方案
+                    while (true) {
+                        PageHelper.startPage(pageNo, pageSize);
+                        List<BetInfoEntity> projects = betInfoMapper.checkProjects(roomMaster.getTitle(), issueInfo);
+                        //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
+                        if (ObjectUtils.isEmpty(projects) || projects == null) {
+                            issueInfo.setStatusDeduct(2);
+                            break;
+                        }
+                        if (!ordersToolService.getOrdersListAll(projects, roomMaster.getTitle(), 8, roomMaster)) {
+                            errorMessageList.add("新增账变-存在错误 MasterId:"+roomMaster.getMasterId());
+                        }
+                        pageNo++;
+
+                    }
+                    waitList.add(1);
+                }).start();
+            }
+            while (true) {
+                if (waitList.size() == roomMasterList.size()) {
+                    break;
+                }
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            if (errorMessageList.size() > 0) {
+                return ApiResp.paramError(errorMessageList.toString());
+            }
+            return ApiResp.sucess();
+        } catch (Exception e) {
+            return ApiResp.paramError(e.getMessage());
+        }
+    }
 
 
 }
