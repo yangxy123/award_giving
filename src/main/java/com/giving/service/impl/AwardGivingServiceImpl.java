@@ -821,10 +821,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         int pageSize = 3000;
         int pageNo = 1;
         List<String> codeList = Lists.newArrayList(noticeReq.getCode().split(","));
-
         String sortCode = sortChars(noticeReq.getCode().replace(",", "")); //排序过后的code
+        String winCodeString = sortCode.substring(0,2)+","+sortCode.substring(0,1)+sortCode.substring(2,3)+","+sortCode.substring(1,3);
         Set<String> set = new HashSet<>(codeList);
-        List<String> codeListOnly = new ArrayList<>(set); //去重过后的号码list 用于判断猜一个号
+        List<String> codeListOnly = new ArrayList<>(set); //去重过后的号码list 用于判断猜一个号 和三不同号
 
         String removeFirst = sortCode.substring(1);
         String removeLast = sortCode.substring(0, sortCode.length() - 1);
@@ -845,14 +845,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             int finalSum = sum;
             List<BetInfoEntity> allWinList = list.stream().filter(vo -> {
                 //猜一个号
-                if("CYGH".equals(vo.getMethodCode()) && (vo.getCode().contains(codeList.get(0))
-                        || vo.getCode().contains(codeList.get(1))
-                        || vo.getCode().contains(codeList.get(2)))){
+                if("CYGH".equals(vo.getMethodCode()) && (vo.getCode().contains(codeList.get(0)) || vo.getCode().contains(codeList.get(1)) || vo.getCode().contains(codeList.get(2)))){
                     int n = 0;
                     for (String code : codeListOnly) {
-                        if(vo.getCode().contains(code)){
-                            n++;
-                        }
+                        if(vo.getCode().contains(code)){ n++;}
                     }
                     vo.setBonus(Double.parseDouble(vo.getWinbonus()) * n);
                     return true;
@@ -863,12 +859,24 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     vo.setBonus(Double.valueOf(winbonusList.get(finalSum -3)));
                     return true;
                 }
+                //二不同号
+                if("EBTH".equals(vo.getMethodCode()) && (vo.getCode().contains(removeFirst) || vo.getCode().contains(removeLast))){
+                    String[] uCodeList = vo.getCode().split("\\|");
+                    int ns = 0;
+                    for (String code : uCodeList) {
+                        if(winCodeString.indexOf(code)>=0){
+                            ns+=1;
+                        }
+//                        ns+=1;
+                    }
+                    vo.setBonus(Double.valueOf(vo.getWinbonus())*ns);
+                    return  true;
+                }
 
                 return ("STH".equals(vo.getMethodCode()) && vo.getCode().contains(sortCode)) //三同号
-                        || ("SBTH".equals(vo.getMethodCode()) && (vo.getCode().contains(codeList.get(0)) && vo.getCode().contains(codeList.get(1)) && vo.getCode().contains(codeList.get(2)))) //三不同号
+                        || ("SBTH".equals(vo.getMethodCode()) && codeListOnly.size() == 3 && (vo.getCode().contains(codeList.get(0)) && vo.getCode().contains(codeList.get(1)) && vo.getCode().contains(codeList.get(2)))) //三不同号
                         || ("DX".equals(vo.getMethodCode()) && vo.getCode().contains(sortCode)) //二同号-单选
-                        || ("FX".equals(vo.getMethodCode()) && (vo.getCode().contains(removeFirst) || vo.getCode().contains(removeLast))) //二同号-复选
-                        || ("EBTH".equals(vo.getMethodCode()) && (vo.getCode().contains(removeFirst) || vo.getCode().contains(removeLast)));  //二不同号
+                        || ("FX".equals(vo.getMethodCode()) && (vo.getCode().contains(removeFirst) || vo.getCode().contains(removeLast))); //二同号-复选
             }).collect(Collectors.toList());
             List<BetInfoEntity> sumList = getSumList(allWinList);
             updateDataAll(sumList, noticeReq, list, bonusTime);
