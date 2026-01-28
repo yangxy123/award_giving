@@ -692,10 +692,36 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 }
                 endList.add(2);
             }).start();
+             //2D头奖组选  3D头奖组选
+            new Thread(() -> {
+                try {
+                    List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("2DTJZX")||vo.getMethodCode().equals("3DTJZX") ).collect(Collectors.toList());
+                    String headCode = codeList.get(0).substring(3, 6);
+
+                    char[] a = headCode.toCharArray();
+                    java.util.Arrays.sort(a);
+                    String finalHeadCode = new String(a);
+                    List<BetInfoEntity> collect = betList.stream().filter(vo -> {
+                        char[] codeArr=vo.getCode().toCharArray();
+                        java.util.Arrays.sort(codeArr);
+                        String tjzxCode = new String(codeArr);
+                        return (vo.getMethodCode().equals("3DTJZX")&& finalHeadCode.equals(tjzxCode))
+                                || vo.getMethodCode().equals("2DTJZX")
+                                && (    finalHeadCode.endsWith(tjzxCode)
+                                    || finalHeadCode.startsWith(tjzxCode)
+                                    || (finalHeadCode.substring(0,1).equals(tjzxCode.substring(0,1)) && finalHeadCode.substring(2,3).equals(tjzxCode.substring(1,2)))
+                                    );
+                    }).collect(Collectors.toList()); //"3D后三"
+                    allWinList.addAll(collect);
+                } catch (Exception e) {
+                    // TODO: handle exception
+                }
+                endList.add(3);
+            }).start();
 
             //判断所有子线程是否执行完成
             while (true) {
-                if (endList.size() == 2) {
+                if (endList.size() == 3) {
                     break;
                 }
                 try {
