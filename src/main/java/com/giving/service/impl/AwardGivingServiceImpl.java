@@ -849,6 +849,21 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                             .map(AwardGivingServiceImpl::sortChars)       // 每段内部排序
                             .collect(Collectors.joining(","));
                 }
+
+                if("CYGH".equals(vo.getMethodCode())){
+                    int n = 0;
+                    if(vo.getCode().indexOf(codeList.get(0)) >= 0){
+                        n++;
+                    }
+                    if(vo.getCode().indexOf(codeList.get(1)) >= 0){
+                        n++;
+                    }
+                    if(vo.getCode().indexOf(codeList.get(2)) >= 0){
+                        n++;
+                    }
+                    vo.setBonus(vo.getWinbonus() * n);
+                }
+
                 return ("STH".equals(vo.getMethodCode()) && result.contains(sortCode)) //三同号
                         || ("SBTH".equals(vo.getMethodCode()) && (vo.getCode().indexOf(codeList.get(0)) >= 0 && vo.getCode().indexOf(codeList.get(1)) >= 0 && vo.getCode().indexOf(codeList.get(2)) >= 0)) //三不同号
                         || ("DX".equals(vo.getMethodCode()) && result.contains(sortCode)) //二同号-单选
@@ -906,14 +921,25 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 Collectors.collectingAndThen(
                                         Collectors.toList(),
                                         group -> {
-                                            // 计算总分
-                                            Double totalScore = group.stream()
-                                                    .mapToDouble(BetInfoEntity::getWinbonus)
-                                                    .sum();
-
                                             // 获取第一条记录
                                             BetInfoEntity first = group.get(0);
-
+                                            Double totalScore = 0.0;
+                                            if("HZ".equals(group.get(0).getMethodCode())){
+                                                List<Double> winbonusList = Arrays.stream(first.getWinbonus().toString().split(",")).
+                                                        map(Double::parseDouble).collect(Collectors.toList());
+                                                List<String> codeList = Arrays.asList(first.getCode().split("\\|"));
+                                                for(int i = 1;i < group.size();i++){
+                                                    int x = codeList.indexOf(group.get(i).getCode());
+                                                    if(x >= 0 && x < winbonusList.size()){
+                                                        totalScore += winbonusList.get(x);
+                                                    }
+                                                }
+                                            }else {
+                                                // 计算总分
+                                                 totalScore = group.stream()
+                                                        .mapToDouble(BetInfoEntity::getWinbonus)
+                                                        .sum();
+                                            }
                                             BetInfoEntity vo = new BetInfoEntity();
                                             BeanUtils.copyProperties(first, vo);
                                             vo.setBonus(totalScore);
