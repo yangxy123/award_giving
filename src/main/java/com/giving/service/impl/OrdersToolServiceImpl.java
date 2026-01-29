@@ -51,6 +51,8 @@ public class OrdersToolServiceImpl implements OrdersToolService {
     private AwardingProcessService awardingProcessService;
     @Autowired
     private RedisUtils redisUtils;
+    @Autowired
+    private UserDiffpointsMapper userDiffpointsMapper;
 
 
     @Override
@@ -234,7 +236,13 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                     if(betInfoMapper.updatePrizeStatus(title,betInfos) != betInfos.size()){
                         throw new RuntimeException("修改注单状态失败");
                     }
+                }else if(orderType == 4){
+                    userFundMapper.doLockUserFund(title,userFundMap,4,"CR_004 解锁");
+                    //成功後更改返點狀態
+                    betInfoMapper.updatePoint(title,betInfos);
+                    userDiffpointsMapper.updateThreshold(title,betInfos);
                 }
+
 
                 //批量插入orders
                 if(ordersMapper.addOrdersListAll(ordersList,title) != ordersList.size()){

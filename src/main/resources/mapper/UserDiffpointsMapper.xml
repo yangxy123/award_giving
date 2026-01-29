@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.UserDiffpointsMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.UserDiffpointsEntity">
+            <id property="entry" column="entry" jdbcType="INTEGER"/>
+            <result property="lotteryId" column="lottery_id" jdbcType="INTEGER"/>
+            <result property="issue" column="issue" jdbcType="VARCHAR"/>
+            <result property="userId" column="user_id" jdbcType="VARCHAR"/>
+            <result property="projectId" column="project_id" jdbcType="VARCHAR"/>
+            <result property="diffmoney" column="diffmoney" jdbcType="DECIMAL"/>
+            <result property="diffpoint" column="diffpoint" jdbcType="DECIMAL"/>
+            <result property="status" column="status" jdbcType="TINYINT"/>
+            <result property="cancelStatus" column="cancel_status" jdbcType="TINYINT"/>
+            <result property="sendtime" column="sendtime" jdbcType="TIMESTAMP"/>
+            <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+            <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        entry,lottery_id,issue,
+        user_id,project_id,diffmoney,
+        diffpoint,status,cancel_status,
+        sendtime,created_at,updated_at
+    </sql>
+    <update id="updateThreshold">
+        update ${title}_user_diffpoints set status = 1,sendtime = now(),updated_at = now()
+        where project_id in
+        <foreach collection="projects" item="project" open="(" close=")" separator=",">
+            #{project.projectId}
+        </foreach>
+    </update>
+</mapper>

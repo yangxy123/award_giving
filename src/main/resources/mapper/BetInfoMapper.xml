@@ -157,13 +157,23 @@
           AND is_deduct =0
           AND is_cancel =0
     </update>
-    <!--    修改注单状态为已派发返点-->
+    <!--    修改注单状态为已派发返点 ===========-->
     <update id="updatePoint">
-        UPDATE  ${title}_projects
-        SET point_status = #{project.pointStatus}, updated_at=now()
-        WHERE project_id = #{project.projectId}
-          AND point_status =0
-          AND is_cancel =0
+        UPDATE ${title}_projects
+        SET
+        point_status =
+        CASE
+        <foreach collection="projects" item="project" separator=" ">
+            WHEN project_id = #{project.projectId} THEN #{project.pointStatus}
+        </foreach>
+        END,
+        updated_at = now()
+        WHERE project_id IN
+        <foreach collection="projects" item="project" open="(" close=")" separator=",">
+            #{project.projectId}
+        </foreach>
+        AND point_status = 0
+        AND is_cancel = 0
     </update>
     <!--    修改注单状态为已中奖&已经派奖-->
     <update id="updateIsGetprize1">

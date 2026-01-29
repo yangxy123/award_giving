@@ -56,7 +56,13 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 * @param projects
 	 */
 	int updateIsDeduct(@Param("title") String title, @Param("projects") List<BetInfoEntity> projects);
-
+	/**
+	 * 批量修改为已派发返点
+	 * @param projects
+	 * @param title
+	 * @return
+	 */
+	int updatePoint(@Param("title") String title,@Param("project") List<BetInfoEntity> projects);
 	/**
 	 * 批量更新注单中奖状态 未中奖
 	 * @param noticeReq
@@ -85,7 +91,7 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 */
     int updateDeduct(@Param("project") BetInfoEntity updateProject,@Param("title") String title);
 
-	int updatePoint(@Param("project") BetInfoEntity updateProject,@Param("title") String title);
+
 	/**
 	 * 修改注单状态为已中奖&已经派奖
 	 * @param Project

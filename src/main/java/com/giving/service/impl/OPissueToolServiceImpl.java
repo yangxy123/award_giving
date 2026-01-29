@@ -53,6 +53,8 @@ public class OPissueToolServiceImpl implements OPissueToolService {
     private IssueInfoService issueInfoService;
     @Autowired
     private RedisUtils redisUtils;
+    @Autowired
+    private UserDiffpointsMapper userDiffpointsMapper;
 
     /**
      *
@@ -178,7 +180,10 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                     "\n耗时:{}", req.getIssue(), req.getLotteryId(), req.getMasterId(), startTime, endTime, endTime - startTime);
 
             //设置当前平台盈亏
-            setPlatformThreshold();
+
+            new Thread(()->{
+                setPlatformThreshold();
+            }).start();
             return ApiResp.sucess();
         } catch (RuntimeException e) {
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
@@ -191,16 +196,22 @@ public class OPissueToolServiceImpl implements OPissueToolService {
      *
      */
     public void setPlatformThreshold() {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
-        String nowString = sdf.format(new Date());
-        String str = redisUtils.get(RedisKeyEnums.C_PROFIT_DATA.key).toString();
-        Map<String, BigDecimal> map = new HashMap<>();
-        if(str == null || str.equals("")){
-            return;
-        }else{
-            BigDecimal t = (map.get(nowString+"_price").subtract(map.get(nowString+"_bonus"))).divide(map.get(nowString+"_price"));
-            //设置当前平台盈亏（总投注-总派奖+总反点）/总投注
-            issueInfoService.nowthreshold(t.toString());
+        try{
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+            String nowString = sdf.format(new Date());
+            String str = redisUtils.get(RedisKeyEnums.C_PROFIT_DATA.key).toString();
+            Map<String, BigDecimal> map = new HashMap<>();
+            if(str == null || str.equals("")){
+                return;
+            }else{
+                //（总投注-总派奖+总反点）/总投注
+                BigDecimal t = (map.get(nowString+"_price").subtract(map.get(nowString+"_bonus"))).divide(map.get(nowString+"_price"));
+                log.info("平台盈亏:{}",t);
+                //设置当前平台盈亏
+                issueInfoService.nowthreshold(t.toString());
+            }
+        }catch (Exception e){
+            e.printStackTrace();
         }
     }
 
@@ -233,6 +244,9 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             if (!ordersToolService.getOrdersListAll(projects, roomMasterEntity.getTitle(), 4, roomMasterEntity)) {
                 throw new RuntimeException("新增账变失败");
             }
+
+
+
             issueInfo.setStatusUserPoint(2);
             if (tempIssueInfoMapper.updateByTitleStatusPoint(roomMasterEntity.getTitle(), issueInfo) != 1) {
                 throw new RuntimeException("修改為派發返點進行中失败");
