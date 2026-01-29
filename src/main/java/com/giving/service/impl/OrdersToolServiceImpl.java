@@ -135,12 +135,14 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                             os.setHoldbalance(os.getHoldbalance().subtract(amount));
                             os.setUpdatedAt(date);
 
-                            BigDecimal p = (BigDecimal) map.get(nowString+"_price");
+                            BigDecimal p = map.get(nowString+"_price");
                             Double price = project.getTotalPrice() - Double.parseDouble(project.getUserPoint());
+                            //总投注
                             map.put(nowString+"_price",p.add(BigDecimal.valueOf(price)));
 
                             if(project.getBonus() != 0 ){
-                                BigDecimal b = (BigDecimal) map.get(nowString+"_bonus");
+                                BigDecimal b = map.get(nowString+"_bonus");
+                                //总派奖
                                 map.put(nowString+"_bonus",b.add(BigDecimal.valueOf(project.getBonus())));
                             }
 

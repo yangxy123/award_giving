@@ -1,16 +1,17 @@
 package com.giving.service.impl;
 
+import com.alibaba.druid.support.json.JSONUtils;
+import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.github.pagehelper.PageHelper;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.*;
+import com.giving.enums.RedisKeyEnums;
 import com.giving.mapper.*;
 import com.giving.req.ListIssueReq;
 import com.giving.req.ManualDistributionReq;
-import com.giving.service.AwardingProcessService;
-import com.giving.service.OPissueToolService;
-import com.giving.service.OrdersToolService;
-import com.giving.service.UserFundLockTxService;
+import com.giving.service.*;
+import com.giving.util.RedisUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,9 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 
@@ -49,6 +49,10 @@ public class OPissueToolServiceImpl implements OPissueToolService {
     private UserFundLockTxService userFundLockTxService;
     @Autowired
     private OrdersToolService ordersToolService;
+    @Autowired
+    private IssueInfoService issueInfoService;
+    @Autowired
+    private RedisUtils redisUtils;
 
     /**
      *
@@ -173,10 +177,30 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                     "\n结束时间:{}" +
                     "\n耗时:{}", req.getIssue(), req.getLotteryId(), req.getMasterId(), startTime, endTime, endTime - startTime);
 
+            //设置当前平台盈亏
+            setPlatformThreshold();
             return ApiResp.sucess();
         } catch (RuntimeException e) {
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return ApiResp.paramError(e.getMessage());
+        }
+    }
+
+    /**
+     * 设置平台盈亏
+     *
+     */
+    public void setPlatformThreshold() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+        String nowString = sdf.format(new Date());
+        String str = redisUtils.get(RedisKeyEnums.C_PROFIT_DATA.key).toString();
+        Map<String, BigDecimal> map = new HashMap<>();
+        if(str == null || str.equals("")){
+            return;
+        }else{
+            BigDecimal t = (map.get(nowString+"_price").subtract(map.get(nowString+"_bonus"))).divide(map.get(nowString+"_price"));
+            //设置当前平台盈亏（总投注-总派奖+总反点）/总投注
+            issueInfoService.nowthreshold(t.toString());
         }
     }
 
@@ -276,6 +300,4 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             return ApiResp.paramError(e.getMessage());
         }
     }
-
-
 }
