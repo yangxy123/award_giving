@@ -42,6 +42,29 @@ spring:
          maxActive: 100
          maxWait: 60000
          time-between-eviction-runs-millis: 60000
+   redis:
+      lettuce:
+         pool:
+            # 连接池最大连接数（使用负值表示没有限制）
+            max-active: 2000
+            # 连接池中的最大空闲连接
+            max-idle: 500
+            # 连接池中的最小空闲连接
+            min-idle: 50
+            # 连接池最大阻塞等待时间（使用负值表示没有限制）
+            max-wait: 50
+            #在关闭客户端连接之前等待任务处理完成的最长时间，在这之后，无论任务是否执行完成，都会被执行器关闭，默认100ms
+            shutdown-timeout: 100
+            #是否缓存空值
+            cache-null-values: false
+      # 连接超时时间（毫秒）默认是2000ms
+      timeout: 50000
+      #单机配置
+      host: 192.168.124.17
+      port: 6379
+      database: 0
+      password: pukswxpnq5NQ5CTZK8A6aCHaxyJdVtET
+
 mybatis-plus:
    configuration:
       log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

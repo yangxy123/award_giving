@@ -10,12 +10,14 @@ import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.OrdersEntity;
 import com.giving.entity.UserFundEntity;
+import com.giving.enums.RedisKeyEnums;
 import com.giving.mapper.*;
 import com.giving.req.ManualDistributionReq;
 import com.giving.service.OPissueToolService;
 import com.giving.service.OrdersToolService;
 import com.giving.service.UserFundLockTxService;
 import com.giving.util.JdbcCreateSqlUtil;
+import com.giving.util.RedisUtils;
 import io.swagger.models.auth.In;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +60,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private JdbcCreateSqlUtil jdbcCreateSqlUtil;
     @Autowired
     private OPissueToolService oPissueToolService;
+    @Autowired
+    private RedisUtils redisUtils;
 
     @Override
     public void notice(NoticeReq noticeReq) {
@@ -997,7 +1001,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             String title = noticeReq.getTitle();
             //中奖订单-新增order 5 并加钱
             ordersToolService.getOrdersListAll(sumList, noticeReq.getTitle(), 5, noticeReq.getRoomMaster());
-
             List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
             //未中奖订单ID
             List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))

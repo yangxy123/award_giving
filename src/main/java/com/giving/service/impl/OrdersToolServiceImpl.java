@@ -1,18 +1,26 @@
 package com.giving.service.impl;
 
+import com.alibaba.druid.support.json.JSONUtils;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.giving.entity.*;
+import com.giving.enums.RedisKeyEnums;
 import com.giving.mapper.*;
 import com.giving.service.AwardGivingService;
 import com.giving.service.AwardingProcessService;
 import com.giving.service.OrdersToolService;
 import com.giving.service.UserFundLockTxService;
+import com.giving.util.RedisUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.cache.CacheProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,12 +49,27 @@ public class OrdersToolServiceImpl implements OrdersToolService {
     private IssueInfoMapper issueInfoMapper;
     @Autowired
     private AwardingProcessService awardingProcessService;
+    @Autowired
+    private RedisUtils redisUtils;
 
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public Boolean getOrdersListAll(List<BetInfoEntity> projects, String title, int orderType, RoomMasterEntity roomMaster) {
         try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+            String nowString = sdf.format(new Date());
+            String str = redisUtils.get(RedisKeyEnums.C_PROFIT_DATA.key).toString();
+            Map<String, BigDecimal> map = new HashMap<>();
+            if(str == null || str.equals("")){
+                map.put(nowString+"_price",BigDecimal.ZERO);
+                map.put(nowString+"_bonus",BigDecimal.ZERO);
+                redisUtils.set(RedisKeyEnums.C_PROFIT_DATA.key, JSONUtils.toJSONString(map));
+            }else{
+                map = JSON.parseObject(str,Map.class);
+            }
+
+
             int i = 0;
             while(i < 5){
                 List<OrdersEntity> ordersList = new ArrayList<>();  //需要新增的orders
@@ -111,6 +134,16 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                             os.setChannelbalance(os.getChannelbalance().subtract(amount));//amount
                             os.setHoldbalance(os.getHoldbalance().subtract(amount));
                             os.setUpdatedAt(date);
+
+                            BigDecimal p = (BigDecimal) map.get(nowString+"_price");
+                            Double price = project.getTotalPrice() - Double.parseDouble(project.getUserPoint());
+                            map.put(nowString+"_price",p.add(BigDecimal.valueOf(price)));
+
+                            if(project.getBonus() != 0 ){
+                                BigDecimal b = (BigDecimal) map.get(nowString+"_bonus");
+                                map.put(nowString+"_bonus",b.add(BigDecimal.valueOf(project.getBonus())));
+                            }
+
                             break;
                         case 5: //奖金派送 -- 派奖时 wallet_type 5 + channelbalance  and availablebalance
                             amount = BigDecimal.valueOf(project.getBonus());
@@ -192,7 +225,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                 if (orderType == 5 && (roomMaster.getUserWalletType() == 0 || roomMaster.getUserWalletType() == 1 || roomMaster.getUserWalletType() == 2 || roomMaster.getUserWalletType() == 3)){
                     roomMasterMapper.createSpeculationList(roomMaster,ordersList);
                 }
-
+                redisUtils.set(RedisKeyEnums.C_PROFIT_DATA.key, JSONUtils.toJSONString(map));
                 if (!errorBetInfoList.isEmpty()) {
                     //如果有因异常钱包锁定导致无法派奖应当在5S后再次处理
                     Thread.sleep(5000);
