@@ -181,6 +181,46 @@ public class OPissueToolServiceImpl implements OPissueToolService {
     }
 
     @Override
+    public ApiResp<String> doRabate(ManualDistributionReq req) {
+        try{
+            LambdaQueryWrapper<RoomMasterEntity> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(RoomMasterEntity::getMasterId, req.getMasterId());
+            RoomMasterEntity roomMasterEntity = roomMasterMapper.selectOne(wrapper);
+            if (ObjectUtils.isEmpty(roomMasterEntity)) {
+                throw new RuntimeException("[厅主不存在] 厅主ID:" + req.getMasterId());
+            }
+            TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMasterEntity.getTitle(),
+                    Math.toIntExact(req.getLotteryId()),
+                    req.getIssue());
+            if (ObjectUtils.isEmpty(issueInfo)) {
+                throw new RuntimeException("[厅主奖期不存在] 厅主ID:" + req.getMasterId() + "奖期：" + req.getIssue());
+            }
+            if (issueInfo.getStatusUserPoint() == 2) {
+                throw new RuntimeException("派發返點已完成 status_user_point=2");
+            } else if (issueInfo.getStatusUserPoint() == 0) {
+                //修改為派發返點進行中
+                issueInfo.setStatusUserPoint(1);
+                if (tempIssueInfoMapper.updateByTitleStatusPoint(roomMasterEntity.getTitle(), issueInfo) != 1) {
+                    throw new RuntimeException("修改為派發返點進行中失败");
+                }
+            }
+            List<BetInfoEntity> projects = betInfoMapper.checkProjectsPoint(roomMasterEntity.getTitle(), issueInfo);
+
+            if (!ordersToolService.getOrdersListAll(projects, roomMasterEntity.getTitle(), 4, roomMasterEntity)) {
+                throw new RuntimeException("新增账变失败");
+            }
+            issueInfo.setStatusUserPoint(2);
+            if (tempIssueInfoMapper.updateByTitleStatusPoint(roomMasterEntity.getTitle(), issueInfo) != 1) {
+                throw new RuntimeException("修改為派發返點進行中失败");
+            }
+            return ApiResp.sucess();
+        } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            return ApiResp.paramError(e.getMessage());
+        }
+    }
+
+    @Override
     public ApiResp<String> doForceCongealToReal(ManualDistributionReq req) {
         try {
             List<RoomMasterEntity> roomMasterList = new ArrayList<>();

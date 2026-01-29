@@ -65,5 +65,10 @@ public class AwardingProcessController {
     public ApiResp<String> doForceCongealToReal(@RequestBody @Valid ManualDistributionReq req){
         return opissueToolService.doForceCongealToReal(req);
     }
+    @PostMapping("/manualdoRabate")
+    @ApiOperation("手动返点")
+    public ApiResp<String> doRabate(@RequestBody @Valid ManualDistributionReq req){
+        return opissueToolService.doRabate(req);
+    }
 
 }

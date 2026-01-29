@@ -1,6 +1,5 @@
 package com.giving.service.impl;
 
-import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -8,9 +7,6 @@ import java.util.stream.Collectors;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
-import com.giving.entity.OrdersEntity;
-import com.giving.entity.UserFundEntity;
-import com.giving.enums.RedisKeyEnums;
 import com.giving.mapper.*;
 import com.giving.req.ManualDistributionReq;
 import com.giving.service.OPissueToolService;
@@ -18,7 +14,6 @@ import com.giving.service.OrdersToolService;
 import com.giving.service.UserFundLockTxService;
 import com.giving.util.JdbcCreateSqlUtil;
 import com.giving.util.RedisUtils;
-import io.swagger.models.auth.In;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -43,25 +38,15 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     @Autowired
     private BetInfoMapper betInfoMapper;
     @Autowired
-    private UserFundMapper userFundMapper;
-    @Autowired
     private ProjectsTmpMapper projectsTmpMapper;
-    @Autowired
-    private RoomMasterMapper roomMasterMapper;
     @Autowired
     private IssueInfoMapper issueInfoMapper;
     @Autowired
-    private UserFundLockTxService userFundLockTxService;
-
-    @Autowired
     private OrdersToolService ordersToolService;
-
     @Autowired
     private JdbcCreateSqlUtil jdbcCreateSqlUtil;
     @Autowired
     private OPissueToolService oPissueToolService;
-    @Autowired
-    private RedisUtils redisUtils;
 
     @Override
     public void notice(NoticeReq noticeReq) {

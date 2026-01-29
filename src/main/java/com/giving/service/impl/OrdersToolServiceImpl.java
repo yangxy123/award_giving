@@ -90,14 +90,14 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                         userFundSum = userFundMapper.selectByUserSum(title, project.getUserId()); //钱包全
                         UserFundEntity o = new UserFundEntity();
                         o.setUserid(project.getUserId());
-                        o.setWalletType(orderType);
+                        o.setWalletType(orderType);  //orderType=4锁定用户钱包4
                         if (orderType == 8) {
                             o.setWalletType(4);
                         }
                         os = userFundMapper.selectByUserAndTypeOne(title, o); //频道钱包
                         userFundMap.putIfAbsent(project.getUserId(),os);
                         userFundSunMap.putIfAbsent(project.getUserId(), userFundSum);
-                        String lockAction = orderType==5?"CP_001":"CR_001";
+                        String lockAction = orderType==5?"CP_001":"CR_001";  // orderType=4,8 锁定用户钱包 CR_001
                         if (!userFundLockTxService.doLockUserFund(project.getUserId(), true, o.getWalletType(), lockAction, title)) {
 //                        throw new RuntimeException("--锁定用户钱包失败");
                             errorBetInfoList.add(project);
@@ -152,6 +152,22 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                             titleAndDescription = "奖金派送";
                             //已经派奖
                             project.setPrizeStatus(1);
+                            //修改计算-SUM
+                            userFundSum.setChannelbalance(userFundSum.getChannelbalance().add(amount));
+                            userFundSum.setAvailablebalance(userFundSum.getAvailablebalance().add(amount));
+
+                            //修改钱包
+                            os.setChannelbalance(os.getChannelbalance().add(amount));//amount
+                            os.setAvailablebalance(os.getAvailablebalance().add(amount));
+                            os.setUpdatedAt(date);
+                            break;
+                        case 4: //返点派送 -- 派奖时 wallet_type 5 + channelbalance  and availablebalance
+                            amount = BigDecimal.valueOf(project.getBonus());
+                            availableBalance = preAvailableBalance.add(amount);
+                            channelBalance = availableBalance.add(amount);
+                            titleAndDescription = "返点派送";
+                            //已经返点派送
+                            project.setPointStatus(1);
                             //修改计算-SUM
                             userFundSum.setChannelbalance(userFundSum.getChannelbalance().add(amount));
                             userFundSum.setAvailablebalance(userFundSum.getAvailablebalance().add(amount));

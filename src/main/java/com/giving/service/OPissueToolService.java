@@ -31,4 +31,11 @@ public interface OPissueToolService {
      * @return
      */
     ApiResp<String> doForceCongealToReal(ManualDistributionReq req);
+
+    /**
+     *返点
+     * @param req
+     * @return
+     */
+    ApiResp<String> doRabate(ManualDistributionReq req);
 }
