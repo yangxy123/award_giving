@@ -18,6 +18,7 @@ public interface TempIssueInfoMapper extends BaseMapper<TempIssueInfoEntity> {
                                       @Param("issue") String issue);
 
     int updateByTitleStatusDeduct(@Param("titles") String title,@Param("issueInfo") TempIssueInfoEntity issueInfo);
+
     int updateByTitleStatusPoint(@Param("titles") String title,@Param("issueInfo") TempIssueInfoEntity issueInfo);
 }
 

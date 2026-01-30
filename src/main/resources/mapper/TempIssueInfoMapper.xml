@@ -56,10 +56,12 @@
         success_time1,success_time2,error,
         created_at,updated_at
     </sql>
+
     <update id="updateByTitleStatusDeduct">
         update ${titles}_issue_info set status_deduct = #{issueInfo.statusDeduct}
         where lottery_id = #{issueInfo.lotteryId} and issue = #{issueInfo.issue}
     </update>
+
     <update id="updateByTitleStatusPoint">
         update ${titles}_issue_info set status_user_point = #{issueInfo.statusUserPoint}
         where lottery_id = #{issueInfo.lotteryId} and issue = #{issueInfo.issue}

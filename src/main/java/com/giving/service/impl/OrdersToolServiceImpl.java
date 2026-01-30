@@ -53,6 +53,8 @@ public class OrdersToolServiceImpl implements OrdersToolService {
     private RedisUtils redisUtils;
     @Autowired
     private UserDiffpointsMapper userDiffpointsMapper;
+    @Autowired
+    private TempIssueInfoMapper tempIssueInfoMapper;
 
 
     @Override
@@ -62,14 +64,14 @@ public class OrdersToolServiceImpl implements OrdersToolService {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
             String nowString = sdf.format(new Date());
             String str = redisUtils.get(RedisKeyEnums.C_PROFIT_DATA.key).toString();
-            Map<String, BigDecimal> map = new HashMap<>();
-            if(str == null || str.equals("")){
-                map.put(nowString+"_price",BigDecimal.ZERO);
-                map.put(nowString+"_bonus",BigDecimal.ZERO);
-                redisUtils.set(RedisKeyEnums.C_PROFIT_DATA.key, JSONUtils.toJSONString(map));
-            }else{
-                map = JSON.parseObject(str,Map.class);
-            }
+//            Map<String, BigDecimal> map = new HashMap<>();
+//            if(str == null || str.equals("")){
+//                map.put(nowString+"_price",BigDecimal.ZERO);
+//                map.put(nowString+"_bonus",BigDecimal.ZERO);
+//                redisUtils.set(RedisKeyEnums.C_PROFIT_DATA.key, JSONUtils.toJSONString(map));
+//            }else{
+//                map = JSON.parseObject(str,Map.class);
+//            }
 
 
             int i = 0;
@@ -137,16 +139,16 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                             os.setHoldbalance(os.getHoldbalance().subtract(amount));
                             os.setUpdatedAt(date);
 
-                            BigDecimal p = map.get(nowString+"_price");
+//                            BigDecimal p = map.get(nowString+"_price");
                             Double price = project.getTotalPrice() - Double.parseDouble(project.getUserPoint());
                             //总投注
-                            map.put(nowString+"_price",p.add(BigDecimal.valueOf(price)));
+//                            map.put(nowString+"_price",p.add(BigDecimal.valueOf(price)));
 
-                            if(project.getBonus() != 0 ){
-                                BigDecimal b = map.get(nowString+"_bonus");
-                                //总派奖
-                                map.put(nowString+"_bonus",b.add(BigDecimal.valueOf(project.getBonus())));
-                            }
+//                            if(project.getBonus() != 0 ){
+//                                BigDecimal b = map.get(nowString+"_bonus");
+//                                //总派奖
+//                                map.put(nowString+"_bonus",b.add(BigDecimal.valueOf(project.getBonus())));
+//                            }
 
                             break;
                         case 5: //奖金派送 -- 派奖时 wallet_type 5 + channelbalance  and availablebalance
@@ -251,7 +253,8 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                 if (orderType == 5 && (roomMaster.getUserWalletType() == 0 || roomMaster.getUserWalletType() == 1 || roomMaster.getUserWalletType() == 2 || roomMaster.getUserWalletType() == 3)){
                     roomMasterMapper.createSpeculationList(roomMaster,ordersList);
                 }
-                redisUtils.set(RedisKeyEnums.C_PROFIT_DATA.key, JSONUtils.toJSONString(map));
+//                redisUtils.set(RedisKeyEnums.C_PROFIT_DATA.key, JSONUtils.toJSONString(map));
+
                 if (!errorBetInfoList.isEmpty()) {
                     //如果有因异常钱包锁定导致无法派奖应当在5S后再次处理
                     Thread.sleep(5000);
@@ -288,6 +291,14 @@ public class OrdersToolServiceImpl implements OrdersToolService {
         for (RoomMasterEntity roomMaster : roomMasters) {
             awardingProcessService.lotteryDraw(roomMaster,issueInfo);
         }
+    }
+
+    @Override
+    public Boolean updateIssueDeduct(TempIssueInfoEntity Issue,String title){
+        if (tempIssueInfoMapper.updateByTitleStatusDeduct(title, Issue) != 1) {
+            throw new RuntimeException("修改奖期为真实扣款状态失败");
+        }
+        return true;
     }
 
     // 16位可排序ID（hex），后生成的按字符串排序一定更大（同JVM内）

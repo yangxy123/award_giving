@@ -29,7 +29,6 @@ import java.util.*;
  * @version 创建时间： 2026/1/18 下午3:11
  */
 @Service
-@Transactional
 public class OPissueToolServiceImpl implements OPissueToolService {
     private static final Logger log = LoggerFactory.getLogger(AwardingProcessServiceImpl.class);
     @Autowired
@@ -54,7 +53,6 @@ public class OPissueToolServiceImpl implements OPissueToolService {
     private UserDiffpointsMapper userDiffpointsMapper;
 
     /**
-     *
      * @param req
      */
     @Override
@@ -131,9 +129,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             } else if (issueInfo.getStatusDeduct() == 0) {
                 //修改為真實扣款進行中
                 issueInfo.setStatusDeduct(1);
-                if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
-                    throw new RuntimeException("修改奖期为真实扣款中失败");
-                }
+                ordersToolService.updateIssueDeduct(issueInfo, roomMasterEntity.getTitle());
             }
 
             int pageNo = 1;
@@ -150,6 +146,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 }
                 new Thread(() -> {
                     if (!ordersToolService.getOrdersListAll(projects, roomMasterEntity.getTitle(), 8, roomMasterEntity)) {
+                        waitList.add(1);
                         throw new RuntimeException("新增账变失败");
                     }
                     waitList.add(1);
@@ -167,9 +164,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                     throw new RuntimeException(e);
                 }
             }
-            if (tempIssueInfoMapper.updateByTitleStatusDeduct(roomMasterEntity.getTitle(), issueInfo) != 1) {
-                throw new RuntimeException("修改奖期为真实扣款完成失败");
-            }
+            ordersToolService.updateIssueDeduct(issueInfo, roomMasterEntity.getTitle());
             Long endTime = System.currentTimeMillis();
             log.info("\n====结算进程 - {} - {} - {}" +
                     "\n开始时间:{}" +
@@ -178,12 +173,9 @@ public class OPissueToolServiceImpl implements OPissueToolService {
 
             //设置当前平台盈亏
 
-            new Thread(()->{
-                setPlatformThreshold();
-            }).start();
+            new Thread(this::setPlatformThreshold).start();
             return ApiResp.sucess();
         } catch (RuntimeException e) {
-            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return ApiResp.paramError(e.getMessage());
         }
     }
