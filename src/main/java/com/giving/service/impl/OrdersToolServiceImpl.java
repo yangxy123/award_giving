@@ -166,7 +166,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                             os.setUpdatedAt(date);
                             break;
                         case 4: //返点派送 -- 派奖时 wallet_type 5 + channelbalance  and availablebalance
-                            amount = BigDecimal.valueOf(project.getBonus());
+                            amount = BigDecimal.valueOf(Long.parseLong(project.getUserPoint()));
                             availableBalance = preAvailableBalance.add(amount);
                             channelBalance = availableBalance.add(amount);
                             titleAndDescription = "返点派送";
