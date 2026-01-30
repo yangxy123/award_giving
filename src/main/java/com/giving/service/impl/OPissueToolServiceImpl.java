@@ -193,8 +193,8 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             //（总投注-总派奖+总反点）/总投注
             BigDecimal price = new BigDecimal(map.get(nowString+"_price").toString());
             BigDecimal bonus = new BigDecimal(map.get(nowString+"_bonus").toString());
-            BigDecimal t = (price.subtract(bonus)).divide(price);
-            log.info("平台盈亏:{}",t);
+            BigDecimal t = (price.subtract(bonus)).divide(price,2);
+            log.info("\n平台盈亏:( {} - {} ) / {} = {}",price,bonus,price,t);
             //设置当前平台盈亏
             billOtherService.nowThreshold(t.toString());
         }catch (Exception e){
