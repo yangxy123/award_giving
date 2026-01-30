@@ -4,7 +4,7 @@ import com.github.pagehelper.Page;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.giving.req.FakeBetReq;
+import com.giving.req.BillSetApiReq;
 import com.giving.req.UserNoteListReq;
 import com.giving.resp.UserNoteListResp;
 
@@ -26,6 +26,18 @@ public interface IssueInfoService extends IService<IssueInfoEntity> {
      * @param threshold
      * @return
      */
-    ApiResp<String> nowthreshold(String threshold);
+    ApiResp<String> nowThreshold(String threshold);
 
+    /**
+     * 设置开票机url
+     * @param req
+     * @return
+     */
+    ApiResp<String> setBillUrl(BillSetApiReq req);
+
+    /**
+     * 获取开票机url
+     * @return
+     */
+    ApiResp<String> getBillUrl();
 }

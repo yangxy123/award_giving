@@ -53,7 +53,11 @@ public enum RedisKeyEnums {
 	/**
 	 * 投注金派奖金每日统计
 	 */
-	C_PROFIT_DATA("c_profit_data",4);
+	C_PROFIT_DATA("c_profit_data",4),
+	/**
+	 * 开票机api
+	 */
+	BILL_API_URL("bill_api_url",0);
 	/**
 	 * redisKey
 	 */

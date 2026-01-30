@@ -5,13 +5,16 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
+import com.giving.enums.RedisKeyEnums;
 import com.giving.mapper.RoomMasterMapper;
+import com.giving.req.BillSetApiReq;
 import com.giving.req.FakeBetReq;
 import com.giving.req.UserNoteListReq;
 import com.giving.resp.UserNoteListResp;
 import com.giving.service.IssueInfoService;
 import com.giving.mapper.IssueInfoMapper;
 import com.giving.util.HttpUtil;
+import com.giving.util.RedisUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.giving.management.DateSourceManagement;
@@ -35,6 +38,8 @@ public class IssueInfoServiceImpl extends ServiceImpl<IssueInfoMapper, IssueInfo
     private RoomMasterMapper roomMasterMapper;
     @Autowired
     private HttpUtil httpUtil;
+    @Autowired
+    private RedisUtils redisUtils;
 
     /**
      * 获取奖期信息
@@ -54,10 +59,35 @@ public class IssueInfoServiceImpl extends ServiceImpl<IssueInfoMapper, IssueInfo
     }
 
     @Override
-    public ApiResp<String> nowthreshold(String threshold) {
-        String url = "http://192.168.124.17:8991/merchant/nowthreshold";
+    public ApiResp<String> nowThreshold(String threshold) {
+        String url = (String) redisUtils.get(RedisKeyEnums.BILL_API_URL.key);
+        //String url = "http://192.168.124.17:8991/merchant/nowthreshold";
+        if(url == null || url.equals("")){
+            return ApiResp.paramError("未设置开票机api地址");
+        }
         httpUtil.doJsonPost(url,"{\"threshold\": "+threshold+"}",null);
         return ApiResp.sucess();
+    }
+
+    /**
+     * 设置开票机url
+     * @param req
+     * @return
+     */
+    @Override
+    public ApiResp<String> setBillUrl(BillSetApiReq req) {
+        redisUtils.set(RedisKeyEnums.BILL_API_URL.key,req.getUrl());
+        return ApiResp.sucess();
+    }
+
+    /**
+     * 获取开票机url
+     * @return
+     */
+    @Override
+    public ApiResp<String> getBillUrl() {
+        String url = (String) redisUtils.get(RedisKeyEnums.BILL_API_URL.key);
+        return ApiResp.sucess(url);
     }
 }
 

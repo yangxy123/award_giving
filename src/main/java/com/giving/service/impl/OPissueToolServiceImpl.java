@@ -1,7 +1,5 @@
 package com.giving.service.impl;
 
-import com.alibaba.druid.support.json.JSONUtils;
-import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.github.pagehelper.PageHelper;
 import com.giving.base.resp.ApiResp;
@@ -23,7 +21,6 @@ import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 
 
 /**
@@ -208,7 +205,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 BigDecimal t = (map.get(nowString+"_price").subtract(map.get(nowString+"_bonus"))).divide(map.get(nowString+"_price"));
                 log.info("平台盈亏:{}",t);
                 //设置当前平台盈亏
-                issueInfoService.nowthreshold(t.toString());
+                issueInfoService.nowThreshold(t.toString());
             }
         }catch (Exception e){
             e.printStackTrace();
