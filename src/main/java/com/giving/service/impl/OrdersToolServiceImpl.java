@@ -63,15 +63,17 @@ public class OrdersToolServiceImpl implements OrdersToolService {
         try {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
             String nowString = sdf.format(new Date());
-            String str = redisUtils.get(RedisKeyEnums.C_PROFIT_DATA.key).toString();
-//            Map<String, BigDecimal> map = new HashMap<>();
-//            if(str == null || str.equals("")){
-//                map.put(nowString+"_price",BigDecimal.ZERO);
-//                map.put(nowString+"_bonus",BigDecimal.ZERO);
-//                redisUtils.set(RedisKeyEnums.C_PROFIT_DATA.key, JSONUtils.toJSONString(map));
-//            }else{
-//                map = JSON.parseObject(str,Map.class);
-//            }
+            Map<String, Object> map = new HashMap<>();
+            if(orderType == 8){
+                Object o = redisUtils.get(RedisKeyEnums.C_PROFIT_DATA.key);
+                if(o == null){
+                    map.put(nowString+"_price",BigDecimal.ZERO);
+                    map.put(nowString+"_bonus",BigDecimal.ZERO);
+                    redisUtils.set(RedisKeyEnums.C_PROFIT_DATA.key, JSONUtils.toJSONString(map));
+                }else{
+                    map = JSON.parseObject(o.toString(),Map.class);
+                }
+            }
 
 
             int i = 0;
@@ -139,16 +141,17 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                             os.setHoldbalance(os.getHoldbalance().subtract(amount));
                             os.setUpdatedAt(date);
 
-//                            BigDecimal p = map.get(nowString+"_price");
+                            String t = map.get(nowString+"_price").toString();
+                            BigDecimal p = new BigDecimal(t);
                             Double price = project.getTotalPrice() - Double.parseDouble(project.getUserPoint());
                             //总投注
-//                            map.put(nowString+"_price",p.add(BigDecimal.valueOf(price)));
+                            map.put(nowString+"_price",p.add(BigDecimal.valueOf(price)));
 
-//                            if(project.getBonus() != 0 ){
-//                                BigDecimal b = map.get(nowString+"_bonus");
-//                                //总派奖
-//                                map.put(nowString+"_bonus",b.add(BigDecimal.valueOf(project.getBonus())));
-//                            }
+                            if(project.getBonus() != 0 ){
+                                BigDecimal b = new BigDecimal(map.get(nowString+"_bonus").toString());
+                                //总派奖
+                                map.put(nowString+"_bonus",b.add(BigDecimal.valueOf(project.getBonus())));
+                            }
 
                             break;
                         case 5: //奖金派送 -- 派奖时 wallet_type 5 + channelbalance  and availablebalance
@@ -228,9 +231,9 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                 if (orderType == 8){
                     userFundMapper.doLockUserFund(title,userFundMap,4,"CR_004 解锁");
 //                    betInfoMapper.updateIsDeduct(title,betInfos);
-                if(betInfoMapper.updateIsDeduct(title,betInfos) != betInfos.size()){
-                    throw new RuntimeException("修改注单状态失败");
-                }
+                    if(betInfoMapper.updateIsDeduct(title,betInfos) != betInfos.size()){
+                        throw new RuntimeException("修改注单状态失败");
+                    }
 
                 }else if (orderType == 5){
                     userFundMapper.doLockUserFund(title,userFundMap,5,"CP_003 解锁");
@@ -238,7 +241,8 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                     if(betInfoMapper.updatePrizeStatus(title,betInfos) != betInfos.size()){
                         throw new RuntimeException("修改注单状态失败");
                     }
-                }else if(orderType == 4){
+                }
+                else if(orderType == 4){
                     userFundMapper.doLockUserFund(title,userFundMap,4,"CR_004 解锁");
                     //成功後更改返點狀態
                     betInfoMapper.updatePoint(title,betInfos);
@@ -253,7 +257,10 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                 if (orderType == 5 && (roomMaster.getUserWalletType() == 0 || roomMaster.getUserWalletType() == 1 || roomMaster.getUserWalletType() == 2 || roomMaster.getUserWalletType() == 3)){
                     roomMasterMapper.createSpeculationList(roomMaster,ordersList);
                 }
-//                redisUtils.set(RedisKeyEnums.C_PROFIT_DATA.key, JSONUtils.toJSONString(map));
+                if(orderType == 8){
+                    redisUtils.set(RedisKeyEnums.C_PROFIT_DATA.key, JSONUtils.toJSONString(map));
+                }
+
 
                 if (!errorBetInfoList.isEmpty()) {
                     //如果有因异常钱包锁定导致无法派奖应当在5S后再次处理
@@ -268,6 +275,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
             return true;
 
         } catch (Exception e) {
+            e.printStackTrace();
             //手动标记回滚
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return false;

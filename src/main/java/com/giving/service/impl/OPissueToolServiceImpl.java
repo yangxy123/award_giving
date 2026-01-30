@@ -1,5 +1,6 @@
 package com.giving.service.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.github.pagehelper.PageHelper;
 import com.giving.base.resp.ApiResp;
@@ -183,17 +184,19 @@ public class OPissueToolServiceImpl implements OPissueToolService {
         try{
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
             String nowString = sdf.format(new Date());
-            String str = redisUtils.get(RedisKeyEnums.C_PROFIT_DATA.key).toString();
-            Map<String, BigDecimal> map = new HashMap<>();
-            if(str == null || str.equals("")){
+            Map<String, Object> map = new HashMap<>();
+            Object o = redisUtils.get(RedisKeyEnums.C_PROFIT_DATA.key);
+            if(o == null){
                 return;
-            }else{
-                //（总投注-总派奖+总反点）/总投注
-                BigDecimal t = (map.get(nowString+"_price").subtract(map.get(nowString+"_bonus"))).divide(map.get(nowString+"_price"));
-                log.info("平台盈亏:{}",t);
-                //设置当前平台盈亏
-                billOtherService.nowThreshold(t.toString());
             }
+            map = JSON.parseObject(o.toString(),Map.class);
+            //（总投注-总派奖+总反点）/总投注
+            BigDecimal price = new BigDecimal(map.get(nowString+"_price").toString());
+            BigDecimal bonus = new BigDecimal(map.get(nowString+"_bonus").toString());
+            BigDecimal t = (price.subtract(bonus)).divide(price);
+            log.info("平台盈亏:{}",t);
+            //设置当前平台盈亏
+            billOtherService.nowThreshold(t.toString());
         }catch (Exception e){
             e.printStackTrace();
         }
