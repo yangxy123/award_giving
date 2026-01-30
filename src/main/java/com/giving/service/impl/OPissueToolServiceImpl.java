@@ -42,16 +42,11 @@ public class OPissueToolServiceImpl implements OPissueToolService {
     @Autowired
     private BetInfoMapper betInfoMapper;
     @Autowired
-    private UserFundLockTxService userFundLockTxService;
+    private BillOtherService billOtherService;
     @Autowired
     private OrdersToolService ordersToolService;
     @Autowired
-    private IssueInfoService issueInfoService;
-    @Autowired
     private RedisUtils redisUtils;
-    @Autowired
-    private UserDiffpointsMapper userDiffpointsMapper;
-
     /**
      * @param req
      */
@@ -197,7 +192,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 BigDecimal t = (map.get(nowString+"_price").subtract(map.get(nowString+"_bonus"))).divide(map.get(nowString+"_price"));
                 log.info("平台盈亏:{}",t);
                 //设置当前平台盈亏
-                issueInfoService.nowThreshold(t.toString());
+                billOtherService.nowThreshold(t.toString());
             }
         }catch (Exception e){
             e.printStackTrace();
