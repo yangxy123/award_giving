@@ -1,5 +1,6 @@
 package com.giving.req;
 
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import javax.validation.constraints.NotNull;
@@ -11,8 +12,10 @@ import javax.validation.constraints.NotNull;
 @Data
 public class ListIssueReq {
     @NotNull(message = "奖期期号")
+    @ApiModelProperty(value = "奖期期号",required = true)
     private String issue;
 
     @NotNull(message = "彩种ID不能为空")
+    @ApiModelProperty(value = "彩种ID不能为空",required = true)
     private Integer lotteryId;
 }

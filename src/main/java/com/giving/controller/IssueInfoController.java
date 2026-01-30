@@ -2,7 +2,6 @@ package com.giving.controller;
 
 import com.github.pagehelper.Page;
 import com.giving.base.resp.ApiResp;
-import com.giving.req.BillSetApiReq;
 import com.giving.req.UserNoteListReq;
 import com.giving.resp.UserNoteListResp;
 import com.giving.service.IssueInfoService;
@@ -28,23 +27,5 @@ public class IssueInfoController {
     @ApiOperation("用户注单查询")
     public ApiResp<Page<UserNoteListResp>> userNoteList(@RequestBody @Valid UserNoteListReq req) {
         return issueInfoService.userNoteList(req);
-    }
-
-    @PostMapping("/setBill")
-    @ApiOperation("设置开票机地址")
-    public ApiResp<String> setBillUrl(@RequestBody @Valid BillSetApiReq req) {
-        return issueInfoService.setBillUrl(req);
-    }
-
-    @PostMapping("/getBill")
-    @ApiOperation("获取开票机地址")
-    public ApiResp<String> getBillUrl() {
-        return issueInfoService.getBillUrl();
-    }
-
-    @PostMapping("/nowthreshold/{threshold}")
-    @ApiOperation("向开票机发送盈利率")
-    public ApiResp<String> nowThreshold(@PathVariable("threshold") String threshold) {
-        return issueInfoService.nowThreshold(threshold);
     }
 }

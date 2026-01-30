@@ -4,7 +4,6 @@ import com.github.pagehelper.Page;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.giving.req.BillSetApiReq;
 import com.giving.req.UserNoteListReq;
 import com.giving.resp.UserNoteListResp;
 
@@ -20,24 +19,4 @@ public interface IssueInfoService extends IService<IssueInfoEntity> {
      * @return
      */
     ApiResp<Page<UserNoteListResp>> userNoteList(UserNoteListReq req);
-
-    /**
-     * 设置盈利率
-     * @param threshold
-     * @return
-     */
-    ApiResp<String> nowThreshold(String threshold);
-
-    /**
-     * 设置开票机url
-     * @param req
-     * @return
-     */
-    ApiResp<String> setBillUrl(BillSetApiReq req);
-
-    /**
-     * 获取开票机url
-     * @return
-     */
-    ApiResp<String> getBillUrl();
 }
