@@ -357,10 +357,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             count++;
         }
         while (true) {
-//			System.out.println("\n============== " + countList.size() + " / " + allBetList.size());
-//			for (Integer i : countList) {
-//				System.out.print(i+" ");
-//			}
             if (countList.size() == allBetList.size()) {
                 break;
             }
@@ -903,14 +899,20 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 Collectors.collectingAndThen(
                                         Collectors.toList(),
                                         group -> {
-                                            // 计算总分
-                                            Double totalScore = group.stream()
-                                                    .mapToDouble(BetInfoEntity::getBonus)
-                                                    .sum();
-
                                             // 获取第一条记录
                                             BetInfoEntity first = group.get(0);
-
+                                            Double totalScore = 0.0;
+                                            if (first.getBonus() <= 0) {
+                                                // 计算总分
+                                                totalScore= group.stream()
+                                                        .map(BetInfoEntity::getWinbonus)
+                                                        .mapToDouble(Double::parseDouble)
+                                                        .sum();
+                                            }else {
+                                                totalScore= group.stream()
+                                                        .mapToDouble(BetInfoEntity::getBonus)
+                                                        .sum();
+                                            }
                                             BetInfoEntity vo = new BetInfoEntity();
                                             BeanUtils.copyProperties(first, vo);
                                             vo.setBonus(totalScore);
