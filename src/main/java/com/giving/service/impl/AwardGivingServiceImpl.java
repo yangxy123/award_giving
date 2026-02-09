@@ -270,22 +270,18 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     }
                     endList.add(5);
                 }).start();
-                new Thread(() -> {//2d头、尾、头尾
+                new Thread(() -> {//2d头、头尾
                     try {
                         //筛选出2d头、尾、头尾玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("2DT") ||
-                                        vo.getMethodCode().equals("2DW") ||
                                         vo.getMethodCode().equals("2DTW"))
                                 .collect(Collectors.toList());
                         String headCode = codeList.get(0);
-                        String endCode = codeList.get(17).substring(4, 6);
                         List<BetInfoEntity> winList = betList.stream().filter(
                                         vo -> ((vo.getCode().indexOf(headCode + ",") >= 0 || vo.getCode().endsWith(headCode))
                                                 //2d头玩法                  2d头尾玩法
                                                 && (vo.getMethodCode().equals("2DT") || vo.getMethodCode().equals("2DTW")))
-                                                || ((vo.getCode().indexOf(endCode + ",") >= 0 || vo.getCode().endsWith(endCode))
-                                                //2d尾玩法 					2d头尾玩法
-                                                && (vo.getMethodCode().equals("2DW") || vo.getMethodCode().equals("2DTW"))))
+                                                )
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -295,20 +291,57 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     }
                     endList.add(6);
                 }).start();
-                new Thread(() -> {//3d头、尾、头尾
+                new Thread(() -> {//2d尾、头尾
+                    try {
+                        //筛选出2d头、尾、头尾玩法的订单
+                        List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("2DW") ||
+                                        vo.getMethodCode().equals("2DTW"))
+                                .collect(Collectors.toList());
+                        String endCode = codeList.get(17).substring(4, 6);
+                        List<BetInfoEntity> winList = betList.stream().filter(
+                                        vo -> ((vo.getCode().indexOf(endCode + ",") >= 0 || vo.getCode().endsWith(endCode))
+                                                //2d尾玩法 					2d头尾玩法
+                                                && (vo.getMethodCode().equals("2DW") || vo.getMethodCode().equals("2DTW"))))
+                                .collect(Collectors.toList());
+                        allWinList.addAll(winList);
+                    } catch (Exception e) {
+                        // TODO: handle exception
+                        e.printStackTrace();
+                        log.error("");
+                    }
+                    endList.add(7);
+                }).start();
+                new Thread(() -> {//3d头、头尾
                     try {
                         //筛选出3d头、尾、头尾玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("3DT") ||
-                                        vo.getMethodCode().equals("3DW") ||
                                         vo.getMethodCode().equals("3DTW"))
                                 .collect(Collectors.toList());
                         String headCode = codeList.get(1);
-                        String endCode = codeList.get(17).substring(3, 6);
                         List<BetInfoEntity> winList = betList.stream().filter(
                                         vo -> ((vo.getCode().indexOf(headCode + ",") >= 0 || vo.getCode().endsWith(headCode))
                                                 //3d头玩法							3d头尾玩法
                                                 && (vo.getMethodCode().equals("3DT") || vo.getMethodCode().equals("3DTW")))
-                                                || ((vo.getCode().indexOf(endCode + ",") >= 0 || vo.getCode().endsWith(endCode))
+                                               )
+                                .collect(Collectors.toList());
+                        allWinList.addAll(winList);
+                    } catch (Exception e) {
+                        // TODO: handle exception
+                        e.printStackTrace();
+                        log.error("");
+                    }
+                    endList.add(8);
+                }).start();
+                
+                new Thread(() -> {//3d尾、头尾
+                    try {
+                        //筛选出3d头、尾、头尾玩法的订单
+                        List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("3DW") ||
+                                        vo.getMethodCode().equals("3DTW"))
+                                .collect(Collectors.toList());
+                        String endCode = codeList.get(17).substring(3, 6);
+                        List<BetInfoEntity> winList = betList.stream().filter(
+                                        vo -> ((vo.getCode().indexOf(endCode + ",") >= 0 || vo.getCode().endsWith(endCode))
                                                 //3d尾玩法							3d头尾玩法
                                                 && (vo.getMethodCode().equals("3DW") || vo.getMethodCode().equals("3DTW"))))
                                 .collect(Collectors.toList());
@@ -318,7 +351,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         e.printStackTrace();
                         log.error("");
                     }
-                    endList.add(7);
+                    endList.add(9);
                 }).start();
                 new Thread(() -> {//4D尾玩法
                     try {
@@ -335,11 +368,11 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         e.printStackTrace();
                         log.error("");
                     }
-                    endList.add(8);
+                    endList.add(10);
                 }).start();
                 //判断所有子线程是否执行完成
                 while (true) {
-                    if (endList.size() == 8) {
+                    if (endList.size() == 10) {
                         break;
                     }
                     try {
