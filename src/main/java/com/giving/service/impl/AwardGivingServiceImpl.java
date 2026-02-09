@@ -862,13 +862,16 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     return  true;
                 }
 
-                return ("STH".equals(vo.getMethodCode()) && vo.getCode().contains(sortCode)) //三同号
+                if(("STH".equals(vo.getMethodCode()) && vo.getCode().contains(sortCode)) //三同号
                         || ("SBTH".equals(vo.getMethodCode()) && codeListOnly.size() == 3 && (vo.getCode().contains(codeList.get(0)) && vo.getCode().contains(codeList.get(1)) && vo.getCode().contains(codeList.get(2)))) //三不同号
                         || ("DX".equals(vo.getMethodCode()) && vo.getCode().contains(sortCode)) //二同号-单选
-                        || ("FX".equals(vo.getMethodCode()) && (vo.getCode().contains(removeFirst) || vo.getCode().contains(removeLast))); //二同号-复选
+                        || ("FX".equals(vo.getMethodCode()) && (vo.getCode().contains(removeFirst) || vo.getCode().contains(removeLast)))) {
+                    vo.setBonus(Double.valueOf(vo.getWinbonus()));
+                    return true;
+                } //二同号-复选
+                return false;
             }).collect(Collectors.toList());
-            List<BetInfoEntity> sumList = getSumList(allWinList);
-            updateDataAll(sumList, noticeReq, list, bonusTime);
+            updateDataAll(allWinList, noticeReq, list, bonusTime);
         }
         doCongealToReal(noticeReq);
 
