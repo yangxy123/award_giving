@@ -900,11 +900,14 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 Collectors.collectingAndThen(
                                         Collectors.toList(),
                                         group -> {
+                                            // 计算总分
+                                            Double totalScore = group.stream()
+                                                    .mapToDouble(BetInfoEntity::getBonus)
+                                                    .sum();
+
                                             // 获取第一条记录
                                             BetInfoEntity first = group.get(0);
-                                            Double totalScore = first.getBonus() !=0 ? first.getBonus() : group.stream()
-                                                    .mapToDouble(b -> Double.parseDouble(b.getWinbonus()))
-                                                    .sum();
+
                                             BetInfoEntity vo = new BetInfoEntity();
                                             BeanUtils.copyProperties(first, vo);
                                             vo.setBonus(totalScore);
