@@ -61,9 +61,10 @@ public class OrdersToolServiceImpl implements OrdersToolService {
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public Boolean getOrdersListAll(List<BetInfoEntity> projects, String title, int orderType, RoomMasterEntity roomMaster) {
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+/*            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
             String nowString = sdf.format(new Date());
             Map<String, Object> map = new HashMap<>();
+            //统计盈利率数据
             if(orderType == 8){
                 Object o = redisUtils.get(RedisKeyEnums.C_PROFIT_DATA.key);
                 if(o == null){
@@ -73,7 +74,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                 }else{
                     map = JSON.parseObject(o.toString(),Map.class);
                 }
-            }
+            }*/
 
 
             int i = 0;
@@ -141,7 +142,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                             os.setHoldbalance(os.getHoldbalance().subtract(amount));
                             os.setUpdatedAt(date);
 
-                            String t = map.get(nowString+"_price").toString();
+                            /*String t = map.get(nowString+"_price").toString();
                             BigDecimal p = new BigDecimal(t);
                             Double price = project.getTotalPrice() - Double.parseDouble(project.getUserPoint());
                             //总投注
@@ -151,7 +152,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                                 BigDecimal b = new BigDecimal(map.get(nowString+"_bonus").toString());
                                 //总派奖
                                 map.put(nowString+"_bonus",b.add(BigDecimal.valueOf(project.getBonus())));
-                            }
+                            }*/
 
                             break;
                         case 5: //奖金派送 -- 派奖时 wallet_type 5 + channelbalance  and availablebalance
@@ -257,9 +258,9 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                 if (orderType == 5 && (roomMaster.getUserWalletType() == 0 || roomMaster.getUserWalletType() == 1 || roomMaster.getUserWalletType() == 2 || roomMaster.getUserWalletType() == 3)){
                     roomMasterMapper.createSpeculationList(roomMaster,ordersList);
                 }
-                if(orderType == 8){
+                /*if(orderType == 8){
                     redisUtils.set(RedisKeyEnums.C_PROFIT_DATA.key, JSONUtils.toJSONString(map));
-                }
+                }*/
 
 
                 if (!errorBetInfoList.isEmpty()) {

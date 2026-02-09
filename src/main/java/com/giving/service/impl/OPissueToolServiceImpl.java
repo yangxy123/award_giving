@@ -115,7 +115,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 throw new RuntimeException("[厅主不存在] 厅主ID:" + req.getMasterId());
             }
             TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMasterEntity.getTitle(),
-                    Math.toIntExact(req.getLotteryId()),
+                    req.getLotteryId(),
                     req.getIssue());
             if (ObjectUtils.isEmpty(issueInfo)) {
                 throw new RuntimeException("[厅主奖期不存在] 厅主ID:" + req.getMasterId() + "奖期：" + req.getIssue());
@@ -169,7 +169,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
 
             //设置当前平台盈亏
 
-            new Thread(this::setPlatformThreshold).start();
+//            new Thread(this::setPlatformThreshold).start();
             return ApiResp.sucess();
         } catch (RuntimeException e) {
             return ApiResp.paramError(e.getMessage());
@@ -212,7 +212,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 throw new RuntimeException("[厅主不存在] 厅主ID:" + req.getMasterId());
             }
             TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMasterEntity.getTitle(),
-                    Math.toIntExact(req.getLotteryId()),
+                   req.getLotteryId(),
                     req.getIssue());
             if (ObjectUtils.isEmpty(issueInfo)) {
                 throw new RuntimeException("[厅主奖期不存在] 厅主ID:" + req.getMasterId() + "奖期：" + req.getIssue());
@@ -260,7 +260,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             List<String> errorMessageList = new ArrayList<>();
             for (RoomMasterEntity roomMaster : roomMasterList) {
                 new Thread(() -> {
-                    TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMaster.getTitle(), Math.toIntExact(req.getLotteryId()), req.getIssue());
+                    TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMaster.getTitle(), req.getLotteryId(), req.getIssue());
                     if (ObjectUtils.isEmpty(issueInfo)) {
                         waitList.add(1);
                         return;
