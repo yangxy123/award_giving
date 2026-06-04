@@ -5,6 +5,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.ObjectUtils;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
 import com.giving.mapper.*;
@@ -24,6 +25,7 @@ import com.giving.entity.BetInfoEntity;
 import com.giving.req.NoticeReq;
 import com.giving.service.AwardGivingService;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -229,22 +231,61 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     }
                     endList.add(3);
                 }).start();
+                
+                Map<Integer, List<String>> map = Maps.newConcurrentMap();
+        		map.put(8, Lists.newArrayList(codeList.get(0)));
+        		map.put(7, Lists.newArrayList(getLast(codeList.get(1), 2)));
+        		map.put(6, Lists.newArrayList(getLast(codeList.get(2), 2), getLast(codeList.get(3), 2),
+        				getLast(codeList.get(4), 2)));
+        		map.put(5, Lists.newArrayList(getLast(codeList.get(5), 2)));
+        		map.put(4,
+        				Lists.newArrayList(getLast(codeList.get(6), 2), getLast(codeList.get(7), 2),
+        						getLast(codeList.get(8), 2), getLast(codeList.get(9), 2), getLast(codeList.get(10), 2),
+        						getLast(codeList.get(11), 2), getLast(codeList.get(12), 2)));
+        		map.put(3, Lists.newArrayList(getLast(codeList.get(13), 2), getLast(codeList.get(14), 2)));
+        		map.put(2, Lists.newArrayList(getLast(codeList.get(15), 2)));
+        		map.put(1, Lists.newArrayList(getLast(codeList.get(16), 2)));
+        		map.put(0, Lists.newArrayList(getLast(codeList.get(17), 2)));
                 new Thread(() -> {// pl2
                     try {
-                        // 开奖号码的后二码集合
-                        Set<String> noticeLastTwoCodeSet = getNoticeLastTwoCodeSet(noticeReq.getCode());
-                        // 筛选出pl2玩法的订单
+                    	 // 筛选出pl2玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("PL2"))
                                 .collect(Collectors.toList());
-                        List<BetInfoEntity> winList = betList.stream()
-                                .filter(vo -> {
-                                    boolean match = matchNoticeLastTwoCodes(vo.getCode(), noticeLastTwoCodeSet, 2);
-                                    log.info("notice PL2 check projectId={}, betCode={}, noticeLastTwoCodeSet={}, match={}",
-                                            vo.getProjectId(), vo.getCode(), noticeLastTwoCodeSet, match);
-                                    return match;
-                                })
-                                .collect(Collectors.toList());
-                        allWinList.addAll(winList);
+                        List<BetInfoEntity> winList = betList.stream().filter(vo -> {
+                			String[] betCodes = vo.getCode().split(",");
+                			Integer firstNum = null;
+                			Integer twoNum = null;
+                			for (int n = 0; n < betCodes.length; n++) {
+                				String checkCode = betCodes[n].trim();
+                				for (int k = 8; k >= 0; k--) {
+                					if (firstNum != null && n == 1 && firstNum < k) {
+                						continue;
+                					}
+                					List<String> list2 = map.get(k);
+                					if (list2.contains(checkCode)) {
+                						if (n == 0) {
+                							firstNum = k;
+                							break;
+                						} else {
+                							twoNum = k;
+                							break;
+                						}
+                					}
+                				}
+                				if (firstNum == null) {
+                					return false;
+                				}
+                			}
+                			if (ObjectUtils.isEmpty(firstNum) || ObjectUtils.isEmpty(twoNum)) {
+                				return false;
+                			}
+
+                			if (firstNum > twoNum) {
+                				return true;
+                			}
+
+                			return false;
+                		}).collect(Collectors.toList());
                     } catch (Exception e) {
                         // TODO: handle exception
                         e.printStackTrace();
@@ -258,14 +299,51 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         // 筛选出pl3玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("PL3"))
                                 .collect(Collectors.toList());
-                        List<BetInfoEntity> winList = betList.stream()
-                                .filter(vo -> {
-                                    boolean match = matchNoticeLastTwoCodes(vo.getCode(), noticeLastTwoCodeSet, 3);
-                                    log.info("notice PL3 check projectId={}, betCode={}, noticeLastTwoCodeSet={}, match={}",
-                                            vo.getProjectId(), vo.getCode(), noticeLastTwoCodeSet, match);
-                                    return match;
-                                })
-                                .collect(Collectors.toList());
+                        List<BetInfoEntity> winList = betList.stream().filter(vo -> {
+                			String[] betCodes = vo.getCode().split(",");
+                			Integer firstNum = null;
+                			Integer twoNum = null;
+                			Integer threeNum = null;
+                			for (int n = 0; n < betCodes.length; n++) {
+                				String checkCode = betCodes[n].trim();
+                				for (int k = 8; k >= 0; k--) {
+                					if (firstNum != null && n == 1 && firstNum < k) {
+                						continue;
+                					}
+                					
+                					if(threeNum != null && n == 2 && threeNum < k) {
+                						continue;
+                					}
+                					List<String> list2 = map.get(k);
+                					if (list2.contains(checkCode)) {
+                						if (n == 0) {
+                							firstNum = k;
+                							break;
+                						} else if (n == 1){
+                							twoNum = k;
+                							break;
+                						} else {
+                							threeNum = k;
+                							break;
+                						}
+                					}
+                				}
+                				if (firstNum == null) {
+                					return false;
+                				}else if(twoNum == null && n == 1) {
+                					return false;
+                				}
+                			}
+                			if (ObjectUtils.isEmpty(firstNum) || ObjectUtils.isEmpty(twoNum) || ObjectUtils.isEmpty(threeNum)) {
+                				return false;
+                			}
+
+                			if (firstNum > twoNum && twoNum > threeNum) {
+                				return true;
+                			}
+
+                			return false;
+                		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
                         // TODO: handle exception
@@ -573,21 +651,64 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     endList.add(4);
                 }).start();
 
+                Map<Integer, List<String>> map = Maps.newConcurrentMap();
+        		map.put(7, Lists.newArrayList(getLast(codeList.get(0), 2), getLast(codeList.get(1), 2),
+        				getLast(codeList.get(2), 2), getLast(codeList.get(3), 2)));
+        		map.put(6, Lists.newArrayList(getLast(codeList.get(4), 2), getLast(codeList.get(5), 2),
+        				getLast(codeList.get(6), 2)));
+        		map.put(5, Lists.newArrayList(getLast(codeList.get(7), 2), getLast(codeList.get(8), 2),
+        				getLast(codeList.get(9), 2), getLast(codeList.get(10), 2), getLast(codeList.get(11), 2), getLast(codeList.get(12), 2)));
+        		map.put(4, Lists.newArrayList(getLast(codeList.get(13), 2), getLast(codeList.get(14), 2),
+        				getLast(codeList.get(15), 2), getLast(codeList.get(16), 2)));
+        		map.put(3,
+        				Lists.newArrayList(getLast(codeList.get(17), 2), getLast(codeList.get(18), 2),
+        						getLast(codeList.get(19), 2), getLast(codeList.get(20), 2), getLast(codeList.get(21), 2),
+        						getLast(codeList.get(22), 2)));
+        		map.put(2, Lists.newArrayList(getLast(codeList.get(23), 2), getLast(codeList.get(24), 2)));
+        		map.put(1, Lists.newArrayList(getLast(codeList.get(25), 2)));
+        		map.put(0, Lists.newArrayList(getLast(codeList.get(26), 2)));
                 new Thread(() -> {//pl2玩法
                     try {
                         // 筛选出pl2玩法的订单
-                        Set<String> noticeLastTwoCodeSet = getNoticeLastTwoCodeSet(noticeReq.getCode());
                         List<BetInfoEntity> betList = list.stream()
                                 .filter(vo -> "PL2".equals(vo.getMethodCode()) || Integer.valueOf(7).equals(vo.getMethodId()))
                                 .collect(Collectors.toList());
-                        List<BetInfoEntity> winList = betList.stream()
-                                .filter(vo -> {
-                                    boolean match = matchNoticeLastTwoCodes(vo.getCode(), noticeLastTwoCodeSet, 2);
-                                    log.info("noticeNorth PL2 check projectId={}, betCode={}, noticeLastTwoCodeSet={}, match={}",
-                                            vo.getProjectId(), vo.getCode(), noticeLastTwoCodeSet, match);
-                                    return match;
-                                })
-                                .collect(Collectors.toList());
+                        List<BetInfoEntity> winList = betList.stream().filter(vo -> {
+                			String[] betCodes = vo.getCode().split(",");
+                			Integer firstNum = null;
+                			Integer twoNum = null;
+                			for (int n = 0; n < betCodes.length; n++) {
+                				String checkCode = betCodes[n].trim();
+                				for (int k = 7; k >= 0; k--) {
+                					if (firstNum != null && n == 1 && firstNum < k) {
+                						continue;
+                					}
+                					
+                					List<String> list2 = map.get(k);
+                					if (list2.contains(checkCode)) {
+                						if (n == 0) {
+                							firstNum = k;
+                							break;
+                						} else if (n == 1) {
+                							twoNum = k;
+                							break;
+                						}
+                					}
+                				}
+                				if (firstNum == null) {
+                					return false;
+                				} 
+                			}
+                			if (ObjectUtils.isEmpty(firstNum) || ObjectUtils.isEmpty(twoNum)) {
+                				return false;
+                			}
+
+                			if (firstNum > twoNum) {
+                				return true;
+                			}
+
+                			return false;
+                		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
                         // TODO: handle exception
@@ -599,18 +720,54 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 new Thread(() -> {//pl3玩法
                     try {
                         // 筛选出pl3玩法的订单
-                        Set<String> noticeLastTwoCodeSet = getNoticeLastTwoCodeSet(noticeReq.getCode());
                         List<BetInfoEntity> betList = list.stream()
                                 .filter(vo -> "PL3".equals(vo.getMethodCode()) || Integer.valueOf(8).equals(vo.getMethodId()))
                                 .collect(Collectors.toList());
-                        List<BetInfoEntity> winList = betList.stream()
-                                .filter(vo -> {
-                                    boolean match = matchNoticeLastTwoCodes(vo.getCode(), noticeLastTwoCodeSet, 3);
-                                    log.info("noticeNorth PL3 check projectId={}, betCode={}, noticeLastTwoCodeSet={}, match={}",
-                                            vo.getProjectId(), vo.getCode(), noticeLastTwoCodeSet, match);
-                                    return match;
-                                })
-                                .collect(Collectors.toList());
+                        List<BetInfoEntity> winList = betList.stream().filter(vo -> {
+                			String[] betCodes = vo.getCode().split(",");
+                			Integer firstNum = null;
+                			Integer twoNum = null;
+                			Integer threeNum = null;
+                			for (int n = 0; n < betCodes.length; n++) {
+                				String checkCode = betCodes[n].trim();
+                				for (int k = 7; k >= 0; k--) {
+                					if (firstNum != null && n == 1 && firstNum < k) {
+                						continue;
+                					}
+
+                					if (threeNum != null && n == 2 && threeNum < k) {
+                						continue;
+                					}
+                					List<String> list2 = map.get(k);
+                					if (list2.contains(checkCode)) {
+                						if (n == 0) {
+                							firstNum = k;
+                							break;
+                						} else if (n == 1) {
+                							twoNum = k;
+                							break;
+                						} else {
+                							threeNum = k;
+                							break;
+                						}
+                					}
+                				}
+                				if (firstNum == null) {
+                					return false;
+                				} else if (twoNum == null && n == 1) {
+                					return false;
+                				}
+                			}
+                			if (ObjectUtils.isEmpty(firstNum) || ObjectUtils.isEmpty(twoNum) || ObjectUtils.isEmpty(threeNum)) {
+                				return false;
+                			}
+
+                			if (firstNum > twoNum && twoNum > threeNum) {
+                				return true;
+                			}
+
+                			return false;
+                		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
                         // TODO: handle exception
@@ -1136,5 +1293,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         Arrays.sort(arr);
         return new String(arr);
     }
+    
+    private String getLast(String str,int len) {
+		String trim = str.trim();
+		return trim.substring(trim.length()-len);
+	}
 
 }
