@@ -86,7 +86,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .collect(Collectors.groupingBy(s -> s, Collectors.counting()));
                         // 筛选出包组玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("2DBZ") ||
-                                        vo.getMethodCode().equals("3DBZ") ||
                                         vo.getMethodCode().equals("4DBZ"))
                                 .collect(Collectors.toList());
 
@@ -146,6 +145,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                             }
 
                         }
+                        add3DBZWinList(list, codeList, allWinList);
                     } catch (Exception e) {
                         // TODO: handle exception
                         e.printStackTrace();
@@ -595,7 +595,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .collect(Collectors.groupingBy(s -> s, Collectors.counting()));
                         //										"4D包组"
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("4DBZ")
-                                        || vo.getMethodCode().equals("3DBZ")
                                         || vo.getMethodCode().equals("2DBZ"))
                                 .collect(Collectors.toList());
                         for (String key : countMap.keySet()) {
@@ -646,6 +645,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 allWinList.addAll(winList);
                             }
                         }
+                        add3DBZWinList(list, codeList, allWinList);
                     } catch (Exception e) {
                         // TODO: handle exception
                         e.printStackTrace();
@@ -1143,6 +1143,62 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         return Arrays.stream(betCode.split("\\D+"))
                 .map(String::trim)
                 .anyMatch(code -> targetCode.equals(code));
+    }
+
+    private void add3DBZWinList(List<BetInfoEntity> list, List<String> codeList, List<BetInfoEntity> allWinList) {
+        Map<String, Long> lastThreeCountMap = get3DBZNoticeLastThreeCountMap(codeList);
+        if (lastThreeCountMap.isEmpty()) {
+            return;
+        }
+
+        List<BetInfoEntity> betList = list.stream()
+                .filter(vo -> "3DBZ".equals(vo.getMethodCode()))
+                .collect(Collectors.toList());
+
+        for (BetInfoEntity bet : betList) {
+            long matchCount = parseBetCodes(bet.getCode()).stream()
+                    .map(lastThreeCountMap::get)
+                    .filter(Objects::nonNull)
+                    .mapToLong(Long::longValue)
+                    .sum();
+            if (matchCount <= 0) {
+                continue;
+            }
+            bet.setBonus(Double.valueOf(bet.getWinbonus()) * matchCount);
+            allWinList.add(bet);
+        }
+    }
+
+    private Map<String, Long> get3DBZNoticeLastThreeCountMap(List<String> codeList) {
+        if (codeList == null || codeList.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        int skipCount;
+        if (codeList.size() == 18) {
+            skipCount = 1;
+        } else if (codeList.size() == 27) {
+            skipCount = 4;
+        } else {
+            return Collections.emptyMap();
+        }
+
+        return codeList.stream()
+                .skip(skipCount)
+                .map(String::trim)
+                .filter(code -> code.length() >= 3)
+                .map(code -> code.substring(code.length() - 3))
+                .collect(Collectors.groupingBy(code -> code, Collectors.counting()));
+    }
+
+    private List<String> parseBetCodes(String betCode) {
+        if (betCode == null || betCode.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(betCode.split("\\D+"))
+                .map(String::trim)
+                .filter(code -> !code.isEmpty())
+                .collect(Collectors.toList());
     }
 
     private List<BetInfoEntity> getSumList(List<BetInfoEntity> allWinList) {
