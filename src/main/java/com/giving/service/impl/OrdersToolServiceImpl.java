@@ -61,6 +61,9 @@ public class OrdersToolServiceImpl implements OrdersToolService {
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public Boolean getOrdersListAll(List<BetInfoEntity> projects, String title, int orderType, RoomMasterEntity roomMaster) {
         try {
+            if (projects == null || projects.isEmpty()) {
+                return true;
+            }
 /*            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
             String nowString = sdf.format(new Date());
             Map<String, Object> map = new HashMap<>();

@@ -231,14 +231,18 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 }).start();
                 new Thread(() -> {// pl2
                     try {
+                        // 开奖号码的后二码集合
+                        Set<String> noticeLastTwoCodeSet = getNoticeLastTwoCodeSet(noticeReq.getCode());
                         // 筛选出pl2玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("PL2"))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream()
-                                .filter(vo -> noticeReq.getCode().indexOf(vo.getCode().split(",")[0] + ",") >= 0
-                                        && (noticeReq.getCode().indexOf(vo.getCode().split(",")[0] + ",") < noticeReq
-                                        .getCode().indexOf(vo.getCode().split(",")[1] + ",")
-                                        || noticeReq.getCode().endsWith(vo.getCode().split(",")[1])))
+                                .filter(vo -> {
+                                    boolean match = matchNoticeLastTwoCodes(vo.getCode(), noticeLastTwoCodeSet, 2);
+                                    log.info("notice PL2 check projectId={}, betCode={}, noticeLastTwoCodeSet={}, match={}",
+                                            vo.getProjectId(), vo.getCode(), noticeLastTwoCodeSet, match);
+                                    return match;
+                                })
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -250,17 +254,17 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 }).start();
                 new Thread(() -> {// pl3
                     try {
-                        // 筛选出pl2玩法的订单
+                        Set<String> noticeLastTwoCodeSet = getNoticeLastTwoCodeSet(noticeReq.getCode());
+                        // 筛选出pl3玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("PL3"))
                                 .collect(Collectors.toList());
-                        List<BetInfoEntity> winList = betList.stream().filter(vo -> noticeReq.getCode()
-                                        .indexOf(vo.getCode().split(",")[0] + ",") >= 0
-                                        && noticeReq.getCode().indexOf(vo.getCode().split(",")[1] + ",") >= 0
-                                        && (noticeReq.getCode().indexOf(vo.getCode().split(",")[0] + ",") < noticeReq.getCode()
-                                        .indexOf(vo.getCode().split(",")[1] + ",")
-                                        && (noticeReq.getCode().indexOf(vo.getCode().split(",")[1] + ",") < noticeReq
-                                        .getCode().indexOf(vo.getCode().split(",")[2] + ",")
-                                        || noticeReq.getCode().endsWith(vo.getCode().split(",")[2]))))
+                        List<BetInfoEntity> winList = betList.stream()
+                                .filter(vo -> {
+                                    boolean match = matchNoticeLastTwoCodes(vo.getCode(), noticeLastTwoCodeSet, 3);
+                                    log.info("notice PL3 check projectId={}, betCode={}, noticeLastTwoCodeSet={}, match={}",
+                                            vo.getProjectId(), vo.getCode(), noticeLastTwoCodeSet, match);
+                                    return match;
+                                })
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -572,13 +576,17 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 new Thread(() -> {//pl2玩法
                     try {
                         // 筛选出pl2玩法的订单
-                        List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodId() == 7)
+                        Set<String> noticeLastTwoCodeSet = getNoticeLastTwoCodeSet(noticeReq.getCode());
+                        List<BetInfoEntity> betList = list.stream()
+                                .filter(vo -> "PL2".equals(vo.getMethodCode()) || Integer.valueOf(7).equals(vo.getMethodId()))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream()
-                                .filter(vo -> noticeReq.getCode().indexOf(vo.getCode().split(",")[0] + ",") >= 0
-                                        && (noticeReq.getCode().indexOf(vo.getCode().split(",")[0] + ",") < noticeReq
-                                        .getCode().indexOf(vo.getCode().split(",")[1] + ",")
-                                        || noticeReq.getCode().endsWith(vo.getCode().split(",")[1])))
+                                .filter(vo -> {
+                                    boolean match = matchNoticeLastTwoCodes(vo.getCode(), noticeLastTwoCodeSet, 2);
+                                    log.info("noticeNorth PL2 check projectId={}, betCode={}, noticeLastTwoCodeSet={}, match={}",
+                                            vo.getProjectId(), vo.getCode(), noticeLastTwoCodeSet, match);
+                                    return match;
+                                })
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -590,29 +598,30 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
                 new Thread(() -> {//pl3玩法
                     try {
-                        // 筛选出pl2玩法的订单
-                        List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodId() == 7)
+                        // 筛选出pl3玩法的订单
+                        Set<String> noticeLastTwoCodeSet = getNoticeLastTwoCodeSet(noticeReq.getCode());
+                        List<BetInfoEntity> betList = list.stream()
+                                .filter(vo -> "PL3".equals(vo.getMethodCode()) || Integer.valueOf(8).equals(vo.getMethodId()))
                                 .collect(Collectors.toList());
-                        List<BetInfoEntity> winList = betList.stream().filter(vo -> noticeReq.getCode()
-                                        .indexOf(vo.getCode().split(",")[0] + ",") >= 0
-                                        && noticeReq.getCode().indexOf(vo.getCode().split(",")[1] + ",") >= 0
-                                        && (noticeReq.getCode().indexOf(vo.getCode().split(",")[0] + ",") < noticeReq.getCode()
-                                        .indexOf(vo.getCode().split(",")[1] + ",")
-                                        && (noticeReq.getCode().indexOf(vo.getCode().split(",")[1] + ",") < noticeReq
-                                        .getCode().indexOf(vo.getCode().split(",")[2] + ",")
-                                        || noticeReq.getCode().endsWith(vo.getCode().split(",")[2]))))
+                        List<BetInfoEntity> winList = betList.stream()
+                                .filter(vo -> {
+                                    boolean match = matchNoticeLastTwoCodes(vo.getCode(), noticeLastTwoCodeSet, 3);
+                                    log.info("noticeNorth PL3 check projectId={}, betCode={}, noticeLastTwoCodeSet={}, match={}",
+                                            vo.getProjectId(), vo.getCode(), noticeLastTwoCodeSet, match);
+                                    return match;
+                                })
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
                         // TODO: handle exception
                         e.printStackTrace();
                     }
-                    endList.add(5);
+                    endList.add(6);
                 }).start();
 
                 //判断所有子线程是否执行完成
                 while (true) {
-                    if (endList.size() == 5) {
+                    if (endList.size() == 6) {
                         break;
                     }
                     try {
@@ -924,6 +933,35 @@ public class AwardGivingServiceImpl implements AwardGivingService {
      * @author yangxy
      * @version 创建时间：2025年12月30日 下午7:26:09
      */
+    private Set<String> getNoticeLastTwoCodeSet(String noticeCode) {
+        if (noticeCode == null || noticeCode.trim().isEmpty()) {
+            return Collections.emptySet();
+        }
+        return Arrays.stream(noticeCode.split("\\D+"))
+                .map(String::trim)
+                .filter(code -> code.length() >= 2)
+                .map(code -> code.substring(code.length() - 2))
+                .collect(Collectors.toSet());
+    }
+
+    private boolean matchNoticeLastTwoCodes(String betCode, Set<String> noticeLastTwoCodeSet, int requiredCount) {
+        if (betCode == null || noticeLastTwoCodeSet == null || noticeLastTwoCodeSet.isEmpty()) {
+            return false;
+        }
+
+        List<String> betCodeList = Arrays.stream(betCode.split("\\D+"))
+                .map(String::trim)
+                .filter(code -> !code.isEmpty())
+                .collect(Collectors.toList());
+
+        if (betCodeList.size() != requiredCount) {
+            return false;
+        }
+
+        return betCodeList.stream()
+                .allMatch(code -> code.length() == 2 && noticeLastTwoCodeSet.contains(code));
+    }
+
     private List<BetInfoEntity> getSumList(List<BetInfoEntity> allWinList) {
         return allWinList.stream()
                 .collect(Collectors.collectingAndThen(
