@@ -86,6 +86,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .collect(Collectors.groupingBy(s -> s, Collectors.counting()));
                         // 筛选出包组玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("2DBZ") ||
+                                        vo.getMethodCode().equals("3DBZ") ||
                                         vo.getMethodCode().equals("4DBZ"))
                                 .collect(Collectors.toList());
 
@@ -94,9 +95,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
                             if (key.length() == 2) {
                                 List<BetInfoEntity> winList = betList.stream()
-                                        .filter(vo -> vo.getCode().indexOf(key + ",") >= 0
-                                                //											"2d包组玩法"
-                                                || vo.getCode().endsWith(key) && vo.getMethodCode().equals("2DBZ"))
+                                        .filter(vo -> {
+                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("2DBZ")) {
+                                        		return true;
+                                        	}
+                                        	
+                                        	return false;
+                                        })
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
                                     vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
@@ -104,14 +109,15 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 allWinList.addAll(winList);
                             } else if (key.length() == 3) {
                                 List<BetInfoEntity> winList = betList.stream()
-                                        .filter(vo -> vo.getCode().indexOf(key + ",") >= 0 || vo.getCode().endsWith(key)
-                                                || (vo.getCode()
-                                                .indexOf(key.substring(key.length() - 2, key.length()) + ",") >= 0
-                                                //											"2d包组玩法"
-                                                && vo.getMethodCode().equals("2DBZ"))
-                                                || (vo.getCode().endsWith(key.substring(key.length() - 2, key.length()))
-                                                //											"3d包组玩法"
-                                                && vo.getMethodCode().equals("3DBZ")))
+                                        .filter(vo -> {
+                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("2DBZ")) {
+                                        		return true;
+                                        	}
+                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("3DBZ")) {
+                                        		return true;
+                                        	}
+                                        	return false;
+                                        })
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
                                     vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
@@ -119,25 +125,18 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 allWinList.addAll(winList);
                             } else {
                                 List<BetInfoEntity> winList = betList.stream()
-                                        .filter(vo -> (vo.getCode()
-                                                .indexOf(key.substring(key.length() - 2, key.length()) + ",") >= 0
-                                                //											"2d包组玩法"
-                                                && vo.getMethodCode().equals("2DBZ"))
-                                                || (vo.getCode()
-                                                .endsWith(key.substring(key.length() - 2, key.length()))
-                                                //											"2d包组玩法"
-                                                && vo.getMethodCode().equals("2DBZ"))
-                                                || (vo.getCode()
-                                                .indexOf(key.substring(key.length() - 3, key.length()) + ",") >= 0
-                                                //											"3d包组玩法"
-                                                && vo.getMethodCode().equals("3DBZ"))
-                                                || (vo.getCode().endsWith(key.substring(key.length() - 3, key.length()))
-                                                //											"3d包组玩法"
-                                                && vo.getMethodCode().equals("3DBZ"))
-                                                || vo.getCode()
-                                                .indexOf(key.substring(key.length() - 4, key.length()) + ",") >= 0
-                                                || vo.getCode().endsWith(key.substring(key.length() - 4, key.length())))
-                                        .collect(Collectors.toList());
+                                        .filter(vo -> {
+                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("2DBZ")) {
+                                        		return true;
+                                        	}
+                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("3DBZ")) {
+                                        		return true;
+                                        	}
+                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("4DBZ")) {
+                                        		return true;
+                                        	}
+                                        	return false;
+                                        }).collect(Collectors.toList());
                                 winList.forEach(vo -> {
                                     vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
                                 });
@@ -145,7 +144,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                             }
 
                         }
-                        add3DBZWinList(list, codeList, allWinList);
                     } catch (Exception e) {
                         // TODO: handle exception
                         e.printStackTrace();
@@ -168,7 +166,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
                             if (key.length() == 2) {
                                 List<BetInfoEntity> winList = betList.stream()
-                                        .filter(vo -> vo.getCode().indexOf(key + ",") >= 0 || vo.getCode().endsWith(key))
+                                        .filter(vo -> vo.getCode().indexOf(key) >= 0)
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
                                     vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
@@ -176,8 +174,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 allWinList.addAll(winList);
                             } else {
                                 List<BetInfoEntity> winList = betList.stream().filter(
-                                                vo -> vo.getCode().indexOf(key.substring(key.length() - 2, key.length()) + ",") >= 0
-                                                        || vo.getCode().endsWith(key.substring(key.length() - 2, key.length())))
+                                                vo -> {
+                                                	if(vo.getCode().indexOf(key.substring(key.length() - 2, key.length())) >= 0) {
+                                                		return true;
+                                                	}
+                                                	return false;
+                                                })
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
                                     vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
@@ -215,8 +217,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 allWinList.addAll(winList);
                             } else {
                                 List<BetInfoEntity> winList = betList.stream().filter(
-                                                vo -> vo.getCode().indexOf(key.substring(key.length() - 3, key.length()) + ",") >= 0
-                                                        || vo.getCode().endsWith(key.substring(key.length() - 3, key.length())))
+                                                vo -> {
+                                                	if(vo.getCode().indexOf(key.substring(key.length() - 3)) >= 0){
+                                                		return true;
+                                                	}
+                                                	return false;
+                                                })
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
                                     vo.setBonus(Double.valueOf(vo.getWinbonus()) * multiple);
@@ -354,16 +360,18 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 }).start();
                 new Thread(() -> {//2d头、头尾
                     try {
-                        //筛选出2d头、尾、头尾玩法的订单
+                        //筛选出2d头、头尾玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("2DT") ||
                                         vo.getMethodCode().equals("2DTW"))
                                 .collect(Collectors.toList());
                         String headCode = codeList.get(0);
                         List<BetInfoEntity> winList = betList.stream().filter(
-                                        vo -> ((vo.getCode().indexOf(headCode + ",") >= 0 || vo.getCode().endsWith(headCode))
-                                                //2d头玩法                  2d头尾玩法
-                                                && (vo.getMethodCode().equals("2DT") || vo.getMethodCode().equals("2DTW")))
-                                                )
+                                        vo -> {
+                                        	if(vo.getCode().indexOf(headCode) >= 0 && (vo.getMethodCode().equals("2DT") || vo.getMethodCode().equals("2DTW"))) {
+                                        		return true;
+                                        	}
+                                        	return false;
+                                        })
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -375,15 +383,18 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 }).start();
                 new Thread(() -> {//2d尾、头尾
                     try {
-                        //筛选出2d头、尾、头尾玩法的订单
+                        //筛选出2d尾、头尾玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("2DW") ||
                                         vo.getMethodCode().equals("2DTW"))
                                 .collect(Collectors.toList());
                         String endCode = codeList.get(17).substring(4, 6);
                         List<BetInfoEntity> winList = betList.stream().filter(
-                                        vo -> ((vo.getCode().indexOf(endCode + ",") >= 0 || vo.getCode().endsWith(endCode))
-                                                //2d尾玩法 					2d头尾玩法
-                                                && (vo.getMethodCode().equals("2DW") || vo.getMethodCode().equals("2DTW"))))
+                                        vo -> {
+                                        	if(vo.getCode().indexOf(endCode) >= 0 && (vo.getMethodCode().equals("2DW") || vo.getMethodCode().equals("2DTW"))) {
+                                        		return true;
+                                        	}
+                                        	return false;
+                                        })
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -401,10 +412,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .collect(Collectors.toList());
                         String headCode = codeList.get(1);
                         List<BetInfoEntity> winList = betList.stream().filter(
-                                        vo -> ((vo.getCode().indexOf(headCode + ",") >= 0 || vo.getCode().endsWith(headCode))
-                                                //3d头玩法							3d头尾玩法
-                                                && (vo.getMethodCode().equals("3DT") || vo.getMethodCode().equals("3DTW")))
-                                               )
+                                        vo -> {
+                                        	if(vo.getCode().indexOf(headCode) >= 0&& (vo.getMethodCode().equals("3DT") || vo.getMethodCode().equals("3DTW"))) {
+                                        		return true;
+                                        	}
+                                        	return false;
+                                        })
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -423,9 +436,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .collect(Collectors.toList());
                         String endCode = codeList.get(17).substring(3, 6);
                         List<BetInfoEntity> winList = betList.stream().filter(
-                                        vo -> ((vo.getCode().indexOf(endCode + ",") >= 0 || vo.getCode().endsWith(endCode))
-                                                //3d尾玩法							3d头尾玩法
-                                                && (vo.getMethodCode().equals("3DW") || vo.getMethodCode().equals("3DTW"))))
+                                        vo -> {
+                                        	if(vo.getCode().indexOf(endCode) >= 0&& (vo.getMethodCode().equals("3DW") || vo.getMethodCode().equals("3DTW"))) {
+                                        		return true;
+                                        	}
+                                        	return false;
+                                        })
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -440,9 +456,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         //筛选出4d尾玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("4DW"))
                                 .collect(Collectors.toList());
-                        String endCode = getLastCodeSuffix(codeList, 4);
+                        String endCode = codeList.get(17).substring(2, 6);
                         List<BetInfoEntity> winList = betList.stream()
-                                .filter(vo -> matchExactBetCode(vo.getCode(), endCode))
+                                .filter(vo -> vo.getCode().indexOf(endCode + ",") >= 0 || vo.getCode().endsWith(endCode))
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -531,14 +547,20 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         String endCode = codeList.get(maxSize).substring(3, 5);
                         for (String code : headCodeList) {
                             List<BetInfoEntity> collect = betList.stream().filter(
-                                    vo -> vo.getCode().indexOf(code) >= 0
-//										"2D头尾"				"2D头"
-                                            && (vo.getMethodCode().equals("2DTW") || vo.getMethodCode().equals("2DT"))).collect(Collectors.toList());
+                                    vo -> {
+                                    	if(vo.getCode().indexOf(code) >= 0 && (vo.getMethodCode().equals("2DTW") || vo.getMethodCode().equals("2DT"))) {
+                                    		return true;
+                                    	}
+                                    	return false;
+                                    }).collect(Collectors.toList());
                             allWinList.addAll(collect);
                         }
-                        List<BetInfoEntity> collect = betList.stream().filter(vo -> vo.getCode().indexOf(endCode) >= 0
-//							"2D头尾"				"2D尾"
-                                && (vo.getMethodCode().equals("2DTW") || vo.getMethodCode().equals("2DW"))).collect(Collectors.toList());
+                        List<BetInfoEntity> collect = betList.stream().filter(vo -> {
+                        	if(vo.getCode().indexOf(endCode) >= 0 && (vo.getMethodCode().equals("2DTW") || vo.getMethodCode().equals("2DW"))) {
+                        		return true;
+                        	}
+                        	return false;
+                        }).collect(Collectors.toList());
                         allWinList.addAll(collect);
                     } catch (Exception e) {
                         // TODO: handle exception
@@ -556,14 +578,20 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         List<String> headCodeList = codeList.stream().skip(4).limit(3).collect(Collectors.toList());
                         String endCode = codeList.get(maxSize).substring(2, 5);
                         for (String code : headCodeList) {
-                            List<BetInfoEntity> collect = betList.stream().filter(vo -> vo.getCode().indexOf(code) >= 0
-                                    //	"3D头尾"			"3D头"
-                                    && (vo.getMethodCode().equals("3DTW") || vo.getMethodCode().equals("3DT"))).collect(Collectors.toList());
+                            List<BetInfoEntity> collect = betList.stream().filter(vo -> {
+                            	if(vo.getCode().indexOf(code) >= 0 && (vo.getMethodCode().equals("3DTW") || vo.getMethodCode().equals("3DT"))) {
+                            		return true;
+                            	}
+                            	return false;
+                            }).collect(Collectors.toList());
                             allWinList.addAll(collect);
                         }
-                        List<BetInfoEntity> collect = betList.stream().filter(vo -> vo.getCode().indexOf(endCode) >= 0
-                                //"3D头尾" 			"3D尾"
-                                && (vo.getMethodCode().equals("3DTW") || vo.getMethodCode().equals("3DW"))).collect(Collectors.toList());
+                        List<BetInfoEntity> collect = betList.stream().filter(vo -> {
+                        	if(vo.getCode().indexOf(endCode) >= 0 && (vo.getMethodCode().equals("3DTW") || vo.getMethodCode().equals("3DW"))) {
+                        		return true;
+                        	}
+                        	return false;
+                        }).collect(Collectors.toList());
                         allWinList.addAll(collect);
                     } catch (Exception e) {
                         // TODO: handle exception
@@ -577,10 +605,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         //"4D尾"
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("4DW"))
                                 .collect(Collectors.toList());
-                        String endCode = getLastCodeSuffix(codeList, 4);
-                        List<BetInfoEntity> collect = betList.stream()
-                                .filter(vo -> matchExactBetCode(vo.getCode(), endCode))
-                                .collect(Collectors.toList());
+                        String endCode = codeList.get(maxSize).substring(1, 5);
+                        List<BetInfoEntity> collect = betList.stream().filter(vo -> vo.getCode().indexOf(endCode) >= 0).collect(Collectors.toList());
                         allWinList.addAll(collect);
                     } catch (Exception e) {
                         // TODO: handle exception
@@ -595,6 +621,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .collect(Collectors.groupingBy(s -> s, Collectors.counting()));
                         //										"4D包组"
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("4DBZ")
+                                        || vo.getMethodCode().equals("3DBZ")
                                         || vo.getMethodCode().equals("2DBZ"))
                                 .collect(Collectors.toList());
                         for (String key : countMap.keySet()) {
@@ -602,8 +629,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
                             if (key.length() == 2) {
                                 List<BetInfoEntity> winList = betList.stream()
-                                        .filter(vo -> vo.getCode().indexOf(key + ",") >= 0
-                                                || vo.getCode().endsWith(key) && vo.getMethodCode().equals("2DBZ")) //"2d包组玩法"
+                                        .filter(vo -> {
+                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("2DBZ")) {
+                                        		return true;
+                                        	}
+                                        	return false;
+                                        }) //"2d包组玩法"
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
                                     vo.setBonus(vo.getBonus() * multiple);
@@ -611,12 +642,15 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 allWinList.addAll(winList);
                             } else if (key.length() == 3) {
                                 List<BetInfoEntity> winList = betList.stream()
-                                        .filter(vo -> vo.getCode().indexOf(key + ",") >= 0 || vo.getCode().endsWith(key)
-                                                || (vo.getCode()
-                                                .indexOf(key.substring(key.length() - 2, key.length()) + ",") >= 0
-                                                && vo.getMethodCode().equals("2DBZ"))    //"2d包组玩法"
-                                                || (vo.getCode().endsWith(key.substring(key.length() - 2, key.length()))
-                                                && vo.getMethodCode().equals("3DBZ")))    //"3d包组玩法"
+                                        .filter(vo ->{
+                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("2DBZ")) {
+                                        		return true;
+                                        	}
+                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("3DBZ")) {
+                                        		return true;
+                                        	}
+                                        	return false;
+                                        })    //"3d包组玩法"
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
                                     vo.setBonus(vo.getBonus() * multiple);
@@ -624,20 +658,18 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 allWinList.addAll(winList);
                             } else {
                                 List<BetInfoEntity> winList = betList.stream()
-                                        .filter(vo -> (vo.getCode()
-                                                .indexOf(key.substring(key.length() - 2, key.length()) + ",") >= 0
-                                                && vo.getMethodCode().equals("2DBZ"))    //"2d包组玩法"
-                                                || (vo.getCode()
-                                                .endsWith(key.substring(key.length() - 2, key.length()))
-                                                && vo.getMethodCode().equals("2DBZ"))//"2d包组玩法"
-                                                || (vo.getCode()
-                                                .indexOf(key.substring(key.length() - 3, key.length()) + ",") >= 0
-                                                && vo.getMethodCode().equals("3DBZ"))//"3d包组玩法"
-                                                || (vo.getCode().endsWith(key.substring(key.length() - 3, key.length()))
-                                                && vo.getMethodCode().equals("3DBZ"))//"3d包组玩法"
-                                                || vo.getCode()
-                                                .indexOf(key.substring(key.length() - 4, key.length()) + ",") >= 0
-                                                || vo.getCode().endsWith(key.substring(key.length() - 4, key.length())))
+                                        .filter(vo -> {
+                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("2DBZ")) {
+                                        		return true;
+                                        	}
+                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("3DBZ")) {
+                                        		return true;
+                                        	}
+                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("4DBZ")) {
+                                        		return true;
+                                        	}
+                                        	return false;
+                                        })    //"3d包组玩法"
                                         .collect(Collectors.toList());
                                 winList.forEach(vo -> {
                                     vo.setBonus(vo.getBonus() * multiple);
@@ -645,7 +677,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 allWinList.addAll(winList);
                             }
                         }
-                        add3DBZWinList(list, codeList, allWinList);
                     } catch (Exception e) {
                         // TODO: handle exception
                         e.printStackTrace();
@@ -1119,86 +1150,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
         return betCodeList.stream()
                 .allMatch(code -> code.length() == 2 && noticeLastTwoCodeSet.contains(code));
-    }
-
-    private String getLastCodeSuffix(List<String> codeList, int length) {
-        if (codeList == null || codeList.isEmpty()) {
-            return "";
-        }
-        String lastCode = codeList.get(codeList.size() - 1);
-        if (lastCode == null) {
-            return "";
-        }
-        lastCode = lastCode.trim();
-        if (lastCode.length() < length) {
-            return "";
-        }
-        return lastCode.substring(lastCode.length() - length);
-    }
-
-    private boolean matchExactBetCode(String betCode, String targetCode) {
-        if (betCode == null || targetCode == null || targetCode.isEmpty()) {
-            return false;
-        }
-        return Arrays.stream(betCode.split("\\D+"))
-                .map(String::trim)
-                .anyMatch(code -> targetCode.equals(code));
-    }
-
-    private void add3DBZWinList(List<BetInfoEntity> list, List<String> codeList, List<BetInfoEntity> allWinList) {
-        Map<String, Long> lastThreeCountMap = get3DBZNoticeLastThreeCountMap(codeList);
-        if (lastThreeCountMap.isEmpty()) {
-            return;
-        }
-
-        List<BetInfoEntity> betList = list.stream()
-                .filter(vo -> "3DBZ".equals(vo.getMethodCode()))
-                .collect(Collectors.toList());
-
-        for (BetInfoEntity bet : betList) {
-            long matchCount = parseBetCodes(bet.getCode()).stream()
-                    .map(lastThreeCountMap::get)
-                    .filter(Objects::nonNull)
-                    .mapToLong(Long::longValue)
-                    .sum();
-            if (matchCount <= 0) {
-                continue;
-            }
-            bet.setBonus(Double.valueOf(bet.getWinbonus()) * matchCount);
-            allWinList.add(bet);
-        }
-    }
-
-    private Map<String, Long> get3DBZNoticeLastThreeCountMap(List<String> codeList) {
-        if (codeList == null || codeList.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        int skipCount;
-        if (codeList.size() == 18) {
-            skipCount = 1;
-        } else if (codeList.size() == 27) {
-            skipCount = 4;
-        } else {
-            return Collections.emptyMap();
-        }
-
-        return codeList.stream()
-                .skip(skipCount)
-                .map(String::trim)
-                .filter(code -> code.length() >= 3)
-                .map(code -> code.substring(code.length() - 3))
-                .collect(Collectors.groupingBy(code -> code, Collectors.counting()));
-    }
-
-    private List<String> parseBetCodes(String betCode) {
-        if (betCode == null || betCode.trim().isEmpty()) {
-            return Collections.emptyList();
-        }
-        return Arrays.stream(betCode.split("\\D+"))
-                .map(String::trim)
-                .filter(code -> !code.isEmpty())
-                .collect(Collectors.toList());
     }
 
     private List<BetInfoEntity> getSumList(List<BetInfoEntity> allWinList) {
