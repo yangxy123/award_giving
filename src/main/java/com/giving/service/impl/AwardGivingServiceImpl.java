@@ -440,9 +440,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         //筛选出4d尾玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("4DW"))
                                 .collect(Collectors.toList());
-                        String endCode = codeList.get(17).substring(3, 6);
+                        String endCode = getLastCodeSuffix(codeList, 4);
                         List<BetInfoEntity> winList = betList.stream()
-                                .filter(vo -> vo.getCode().indexOf(endCode + ",") >= 0 || vo.getCode().endsWith(endCode))
+                                .filter(vo -> matchExactBetCode(vo.getCode(), endCode))
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -577,8 +577,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         //"4D尾"
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("4DW"))
                                 .collect(Collectors.toList());
-                        String endCode = codeList.get(maxSize).substring(1, 5);
-                        List<BetInfoEntity> collect = betList.stream().filter(vo -> vo.getCode().indexOf(endCode) >= 0).collect(Collectors.toList());
+                        String endCode = getLastCodeSuffix(codeList, 4);
+                        List<BetInfoEntity> collect = betList.stream()
+                                .filter(vo -> matchExactBetCode(vo.getCode(), endCode))
+                                .collect(Collectors.toList());
                         allWinList.addAll(collect);
                     } catch (Exception e) {
                         // TODO: handle exception
@@ -1117,6 +1119,30 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
         return betCodeList.stream()
                 .allMatch(code -> code.length() == 2 && noticeLastTwoCodeSet.contains(code));
+    }
+
+    private String getLastCodeSuffix(List<String> codeList, int length) {
+        if (codeList == null || codeList.isEmpty()) {
+            return "";
+        }
+        String lastCode = codeList.get(codeList.size() - 1);
+        if (lastCode == null) {
+            return "";
+        }
+        lastCode = lastCode.trim();
+        if (lastCode.length() < length) {
+            return "";
+        }
+        return lastCode.substring(lastCode.length() - length);
+    }
+
+    private boolean matchExactBetCode(String betCode, String targetCode) {
+        if (betCode == null || targetCode == null || targetCode.isEmpty()) {
+            return false;
+        }
+        return Arrays.stream(betCode.split("\\D+"))
+                .map(String::trim)
+                .anyMatch(code -> targetCode.equals(code));
     }
 
     private List<BetInfoEntity> getSumList(List<BetInfoEntity> allWinList) {
