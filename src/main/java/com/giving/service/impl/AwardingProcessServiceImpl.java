@@ -68,8 +68,9 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
             return ApiResp.paramError("奖期不存在"+req.getIssue());
         }
         if(!StringUtils.isEmpty(issueInfo.getCode())) {
-            log.info("========Code存在,已经录号，不再重复录号==========={}",req.getIssue());
-            return ApiResp.paramError("Code存在,已经录号，不再重复录号"+req.getIssue());
+            log.info("========Code存在,已经录号，继续执行未验派订单==========={}",req.getIssue());
+            ordersToolService.updateRoomsIssueInfo(issueInfo);
+            return ApiResp.sucess();
         }
         //修改奖期
         issueInfo.setCode(req.getWinCode());
