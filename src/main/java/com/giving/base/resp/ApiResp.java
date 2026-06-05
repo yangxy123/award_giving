@@ -20,6 +20,9 @@ public class ApiResp<T> {
     @ApiModelProperty(value = "响应编码")
     private String resCode;
 
+    @ApiModelProperty(value = "响应编码2")
+    private String result;
+
     @ApiModelProperty(value = "描述信息")
     private String resDesc;
 
@@ -29,6 +32,7 @@ public class ApiResp<T> {
     private ApiResp(String resCode, String resDesc, T resultSet) {
         super();
         this.resCode = resCode;
+        this.result = ResCodeContants.SUCESS.equals(resCode) ? "0" : "1";
         this.resDesc = resDesc;
         this.resultSet = resultSet;
     }
