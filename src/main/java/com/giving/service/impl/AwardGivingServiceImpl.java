@@ -110,7 +110,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                             } else if (key.length() == 3) {
                                 List<BetInfoEntity> winList = betList.stream()
                                         .filter(vo -> {
-                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("2DBZ")) {
+                                        	if(vo.getCode().indexOf(key.substring(key.length() - 2, key.length())) >= 0 && vo.getMethodCode().equals("2DBZ")) {
                                         		return true;
                                         	}
                                         	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("3DBZ")) {
@@ -126,13 +126,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                             } else {
                                 List<BetInfoEntity> winList = betList.stream()
                                         .filter(vo -> {
-                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("2DBZ")) {
+                                        	if(vo.getCode().indexOf(key.substring(key.length() - 2, key.length())) >= 0 && vo.getMethodCode().equals("2DBZ")) {
                                         		return true;
                                         	}
-                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("3DBZ")) {
+                                        	if(vo.getCode().indexOf(key.substring(key.length() - 3, key.length())) >= 0 && vo.getMethodCode().equals("3DBZ")) {
                                         		return true;
                                         	}
-                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("4DBZ")) {
+                                        	if(vo.getCode().indexOf(key.substring(key.length() - 4, key.length())) >= 0 && vo.getMethodCode().equals("4DBZ")) {
                                         		return true;
                                         	}
                                         	return false;
@@ -643,7 +643,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                             } else if (key.length() == 3) {
                                 List<BetInfoEntity> winList = betList.stream()
                                         .filter(vo ->{
-                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("2DBZ")) {
+                                        	if(vo.getCode().indexOf(key.substring(key.length() - 2, key.length())) >= 0 && vo.getMethodCode().equals("2DBZ")) {
                                         		return true;
                                         	}
                                         	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("3DBZ")) {
@@ -659,13 +659,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                             } else {
                                 List<BetInfoEntity> winList = betList.stream()
                                         .filter(vo -> {
-                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("2DBZ")) {
+                                        	if(vo.getCode().indexOf(key.substring(key.length() - 2, key.length())) >= 0 && vo.getMethodCode().equals("2DBZ")) {
                                         		return true;
                                         	}
-                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("3DBZ")) {
+                                        	if(vo.getCode().indexOf(key.substring(key.length() - 3, key.length())) >= 0 && vo.getMethodCode().equals("3DBZ")) {
                                         		return true;
                                         	}
-                                        	if(vo.getCode().indexOf(key) >= 0 && vo.getMethodCode().equals("4DBZ")) {
+                                        	if(vo.getCode().indexOf(key.substring(key.length() - 4, key.length())) >= 0 && vo.getMethodCode().equals("4DBZ")) {
                                         		return true;
                                         	}
                                         	return false;
