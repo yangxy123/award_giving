@@ -853,7 +853,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     List<BetInfoEntity> collect = betList.stream().filter(vo -> {
                     	char[] codeArr = vo.getCode().toCharArray();
                         Arrays.sort(codeArr);
-                        String newCode = new String(arr);
+                        String newCode = new String(codeArr);
                         
                         if(result.indexOf(newCode) >= 0) {
                         	return true;
