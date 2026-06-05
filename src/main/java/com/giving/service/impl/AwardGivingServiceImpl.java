@@ -238,58 +238,37 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     endList.add(3);
                 }).start();
                 
-                Map<Integer, List<String>> map = Maps.newConcurrentMap();
-        		map.put(8, Lists.newArrayList(codeList.get(0)));
-        		map.put(7, Lists.newArrayList(getLast(codeList.get(1), 2)));
-        		map.put(6, Lists.newArrayList(getLast(codeList.get(2), 2), getLast(codeList.get(3), 2),
-        				getLast(codeList.get(4), 2)));
-        		map.put(5, Lists.newArrayList(getLast(codeList.get(5), 2)));
-        		map.put(4,
-        				Lists.newArrayList(getLast(codeList.get(6), 2), getLast(codeList.get(7), 2),
-        						getLast(codeList.get(8), 2), getLast(codeList.get(9), 2), getLast(codeList.get(10), 2),
-        						getLast(codeList.get(11), 2), getLast(codeList.get(12), 2)));
-        		map.put(3, Lists.newArrayList(getLast(codeList.get(13), 2), getLast(codeList.get(14), 2)));
-        		map.put(2, Lists.newArrayList(getLast(codeList.get(15), 2)));
-        		map.put(1, Lists.newArrayList(getLast(codeList.get(16), 2)));
-        		map.put(0, Lists.newArrayList(getLast(codeList.get(17), 2)));
+                String plCode = noticeReq.getCode() + ",";
                 new Thread(() -> {// pl2
                     try {
                     	 // 筛选出pl2玩法的订单
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("PL2"))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream().filter(vo -> {
-                			String[] betCodes = vo.getCode().split(",");
-                			Integer firstNum = null;
-                			Integer twoNum = null;
-                			for (int n = 0; n < betCodes.length; n++) {
-                				String checkCode = betCodes[n].trim();
-                				for (int k = 8; k >= 0; k--) {
-                					if (firstNum != null && n == 1 && firstNum < k) {
-                						continue;
-                					}
-                					List<String> list2 = map.get(k);
-                					if (list2.contains(checkCode)) {
-                						if (n == 0) {
-                							firstNum = k;
-                							break;
-                						} else {
-                							twoNum = k;
-                							break;
-                						}
+                        	String[] groups = vo.getCode().split(",");
+                			int num = 0;
+                			for(String group : groups) {
+                				String[] checkCodes = group.split("&");
+                				List<Integer> indexList = Lists.newArrayList();
+                				for(String checkCode : checkCodes) {
+                					int index = plCode.indexOf(checkCode);
+                					if(index >= 0) {
+                						indexList.add(index);
+                					}else {
+                						break;
                 					}
                 				}
-                				if (firstNum == null) {
-                					return false;
+                				
+                				List<Integer> collect = indexList.stream().distinct().collect(Collectors.toList());
+                				if(collect.size() == checkCodes.length) {
+                					num += 1;
                 				}
                 			}
-                			if (ObjectUtils.isEmpty(firstNum) || ObjectUtils.isEmpty(twoNum)) {
-                				return false;
-                			}
-
-                			if (firstNum > twoNum) {
+                			
+                			if(num > 0) {
+                				vo.setBonus(Double.valueOf(vo.getWinbonus()) * num);
                 				return true;
                 			}
-
                 			return false;
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
@@ -306,48 +285,30 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("PL3"))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream().filter(vo -> {
-                			String[] betCodes = vo.getCode().split(",");
-                			Integer firstNum = null;
-                			Integer twoNum = null;
-                			Integer threeNum = null;
-                			for (int n = 0; n < betCodes.length; n++) {
-                				String checkCode = betCodes[n].trim();
-                				for (int k = 8; k >= 0; k--) {
-                					if (firstNum != null && n == 1 && firstNum < k) {
-                						continue;
-                					}
-                					
-                					if(threeNum != null && n == 2 && threeNum < k) {
-                						continue;
-                					}
-                					List<String> list2 = map.get(k);
-                					if (list2.contains(checkCode)) {
-                						if (n == 0) {
-                							firstNum = k;
-                							break;
-                						} else if (n == 1){
-                							twoNum = k;
-                							break;
-                						} else {
-                							threeNum = k;
-                							break;
-                						}
+                        	String[] groups = vo.getCode().split(",");
+                			int num = 0;
+                			for(String group : groups) {
+                				String[] checkCodes = group.split("&");
+                				List<Integer> indexList = Lists.newArrayList();
+                				for(String checkCode : checkCodes) {
+                					int index = plCode.indexOf(checkCode);
+                					if(index >= 0) {
+                						indexList.add(index);
+                					}else {
+                						break;
                 					}
                 				}
-                				if (firstNum == null) {
-                					return false;
-                				}else if(twoNum == null && n == 1) {
-                					return false;
+                				
+                				List<Integer> collect = indexList.stream().distinct().collect(Collectors.toList());
+                				if(collect.size() == checkCodes.length) {
+                					num += 1;
                 				}
                 			}
-                			if (ObjectUtils.isEmpty(firstNum) || ObjectUtils.isEmpty(twoNum) || ObjectUtils.isEmpty(threeNum)) {
-                				return false;
-                			}
-
-                			if (firstNum > twoNum && twoNum > threeNum) {
+                			
+                			if(num > 0) {
+                				vo.setBonus(Double.valueOf(vo.getWinbonus()) * num);
                 				return true;
                 			}
-
                 			return false;
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
@@ -684,22 +645,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     endList.add(4);
                 }).start();
 
-                Map<Integer, List<String>> map = Maps.newConcurrentMap();
-        		map.put(7, Lists.newArrayList(getLast(codeList.get(0), 2), getLast(codeList.get(1), 2),
-        				getLast(codeList.get(2), 2), getLast(codeList.get(3), 2)));
-        		map.put(6, Lists.newArrayList(getLast(codeList.get(4), 2), getLast(codeList.get(5), 2),
-        				getLast(codeList.get(6), 2)));
-        		map.put(5, Lists.newArrayList(getLast(codeList.get(7), 2), getLast(codeList.get(8), 2),
-        				getLast(codeList.get(9), 2), getLast(codeList.get(10), 2), getLast(codeList.get(11), 2), getLast(codeList.get(12), 2)));
-        		map.put(4, Lists.newArrayList(getLast(codeList.get(13), 2), getLast(codeList.get(14), 2),
-        				getLast(codeList.get(15), 2), getLast(codeList.get(16), 2)));
-        		map.put(3,
-        				Lists.newArrayList(getLast(codeList.get(17), 2), getLast(codeList.get(18), 2),
-        						getLast(codeList.get(19), 2), getLast(codeList.get(20), 2), getLast(codeList.get(21), 2),
-        						getLast(codeList.get(22), 2)));
-        		map.put(2, Lists.newArrayList(getLast(codeList.get(23), 2), getLast(codeList.get(24), 2)));
-        		map.put(1, Lists.newArrayList(getLast(codeList.get(25), 2)));
-        		map.put(0, Lists.newArrayList(getLast(codeList.get(26), 2)));
+                String plCode = noticeReq.getCode() + ",";
                 new Thread(() -> {//pl2玩法
                     try {
                         // 筛选出pl2玩法的订单
@@ -707,39 +653,30 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .filter(vo -> "PL2".equals(vo.getMethodCode()) || Integer.valueOf(7).equals(vo.getMethodId()))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream().filter(vo -> {
-                			String[] betCodes = vo.getCode().split(",");
-                			Integer firstNum = null;
-                			Integer twoNum = null;
-                			for (int n = 0; n < betCodes.length; n++) {
-                				String checkCode = betCodes[n].trim();
-                				for (int k = 7; k >= 0; k--) {
-                					if (firstNum != null && n == 1 && firstNum < k) {
-                						continue;
-                					}
-                					
-                					List<String> list2 = map.get(k);
-                					if (list2.contains(checkCode)) {
-                						if (n == 0) {
-                							firstNum = k;
-                							break;
-                						} else if (n == 1) {
-                							twoNum = k;
-                							break;
-                						}
+                        	String[] groups = vo.getCode().split(",");
+                			int num = 0;
+                			for(String group : groups) {
+                				String[] checkCodes = group.split("&");
+                				List<Integer> indexList = Lists.newArrayList();
+                				for(String checkCode : checkCodes) {
+                					int index = plCode.indexOf(checkCode);
+                					if(index >= 0) {
+                						indexList.add(index);
+                					}else {
+                						break;
                 					}
                 				}
-                				if (firstNum == null) {
-                					return false;
-                				} 
+                				
+                				List<Integer> collect = indexList.stream().distinct().collect(Collectors.toList());
+                				if(collect.size() == checkCodes.length) {
+                					num += 1;
+                				}
                 			}
-                			if (ObjectUtils.isEmpty(firstNum) || ObjectUtils.isEmpty(twoNum)) {
-                				return false;
-                			}
-
-                			if (firstNum > twoNum) {
+                			
+                			if(num > 0) {
+                				vo.setBonus(Double.valueOf(vo.getWinbonus()) * num);
                 				return true;
                 			}
-
                 			return false;
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
@@ -757,48 +694,30 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .filter(vo -> "PL3".equals(vo.getMethodCode()) || Integer.valueOf(8).equals(vo.getMethodId()))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream().filter(vo -> {
-                			String[] betCodes = vo.getCode().split(",");
-                			Integer firstNum = null;
-                			Integer twoNum = null;
-                			Integer threeNum = null;
-                			for (int n = 0; n < betCodes.length; n++) {
-                				String checkCode = betCodes[n].trim();
-                				for (int k = 7; k >= 0; k--) {
-                					if (firstNum != null && n == 1 && firstNum < k) {
-                						continue;
-                					}
-
-                					if (threeNum != null && n == 2 && threeNum < k) {
-                						continue;
-                					}
-                					List<String> list2 = map.get(k);
-                					if (list2.contains(checkCode)) {
-                						if (n == 0) {
-                							firstNum = k;
-                							break;
-                						} else if (n == 1) {
-                							twoNum = k;
-                							break;
-                						} else {
-                							threeNum = k;
-                							break;
-                						}
+                        	String[] groups = vo.getCode().split(",");
+                			int num = 0;
+                			for(String group : groups) {
+                				String[] checkCodes = group.split("&");
+                				List<Integer> indexList = Lists.newArrayList();
+                				for(String checkCode : checkCodes) {
+                					int index = plCode.indexOf(checkCode);
+                					if(index >= 0) {
+                						indexList.add(index);
+                					}else {
+                						break;
                 					}
                 				}
-                				if (firstNum == null) {
-                					return false;
-                				} else if (twoNum == null && n == 1) {
-                					return false;
+                				
+                				List<Integer> collect = indexList.stream().distinct().collect(Collectors.toList());
+                				if(collect.size() == checkCodes.length) {
+                					num += 1;
                 				}
                 			}
-                			if (ObjectUtils.isEmpty(firstNum) || ObjectUtils.isEmpty(twoNum) || ObjectUtils.isEmpty(threeNum)) {
-                				return false;
-                			}
-
-                			if (firstNum > twoNum && twoNum > threeNum) {
+                			
+                			if(num > 0) {
+                				vo.setBonus(Double.valueOf(vo.getWinbonus()) * num);
                 				return true;
                 			}
-
                 			return false;
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
