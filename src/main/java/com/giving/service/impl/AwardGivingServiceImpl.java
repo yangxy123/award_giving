@@ -238,7 +238,16 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     endList.add(3);
                 }).start();
                 
-                String plCode = noticeReq.getCode() + ",";
+        		Map<String,Integer> map = Maps.newHashMap();
+        		map.put(codeList.get(0)+",",8);
+        		map.put(codeList.get(1)+",",7);
+        		map.put(codeList.get(2)+","+codeList.get(3)+","+codeList.get(4)+",",6);
+        		map.put(codeList.get(5)+",",5);
+        		map.put(codeList.get(6)+","+codeList.get(7)+","+codeList.get(8)+","+codeList.get(9)+","+codeList.get(10)+","+codeList.get(11)+","+codeList.get(12)+",",4);
+        		map.put(codeList.get(13)+","+codeList.get(14)+",",3);
+        		map.put(codeList.get(15)+",",2);
+        		map.put(codeList.get(16)+",",1);
+        		map.put(codeList.get(17)+",",0);
                 new Thread(() -> {// pl2
                     try {
                     	 // 筛选出pl2玩法的订单
@@ -251,11 +260,14 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 				String[] checkCodes = group.split("&");
                 				List<Integer> indexList = Lists.newArrayList();
                 				for(String checkCode : checkCodes) {
-                					int index = plCode.indexOf(checkCode);
-                					if(index >= 0) {
-                						indexList.add(index);
-                					}else {
-                						break;
+                					for(String key : map.keySet()) {
+                						if(key.indexOf(checkCode+",") >= 0) {
+                							Integer index = map.get(key);
+                							if(!indexList.contains(index)) {
+                								indexList.add(index);
+                								break;
+                							}
+                						}
                 					}
                 				}
                 				
@@ -291,11 +303,14 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 				String[] checkCodes = group.split("&");
                 				List<Integer> indexList = Lists.newArrayList();
                 				for(String checkCode : checkCodes) {
-                					int index = plCode.indexOf(checkCode);
-                					if(index >= 0) {
-                						indexList.add(index);
-                					}else {
-                						break;
+                					for(String key : map.keySet()) {
+                						if(key.indexOf(checkCode) >= 0) {
+                							Integer index = map.get(key);
+                							if(!indexList.contains(index)) {
+                								indexList.add(index);
+                								break;
+                							}
+                						}
                 					}
                 				}
                 				
@@ -645,7 +660,15 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     endList.add(4);
                 }).start();
 
-                String plCode = noticeReq.getCode() + ",";
+                Map<String,Integer> map = Maps.newHashMap();
+        		map.put(codeList.get(0)+","+codeList.get(1)+","+codeList.get(2)+","+codeList.get(3)+",",7);
+        		map.put(codeList.get(4)+","+codeList.get(5)+","+codeList.get(6)+",",6);
+        		map.put(codeList.get(7)+","+codeList.get(8)+","+codeList.get(9)+","+codeList.get(10)+","+codeList.get(11)+","+codeList.get(12)+",",5);
+        		map.put(codeList.get(13)+","+codeList.get(14)+","+codeList.get(15)+","+codeList.get(16)+",",4);
+        		map.put(codeList.get(17)+","+codeList.get(18)+","+codeList.get(19)+","+codeList.get(20)+","+codeList.get(21)+","+codeList.get(22)+",",3);
+        		map.put(codeList.get(23)+","+codeList.get(24),2);
+        		map.put(codeList.get(25)+",",1);
+        		map.put(codeList.get(26)+",",0);
                 new Thread(() -> {//pl2玩法
                     try {
                         // 筛选出pl2玩法的订单
@@ -659,11 +682,14 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 				String[] checkCodes = group.split("&");
                 				List<Integer> indexList = Lists.newArrayList();
                 				for(String checkCode : checkCodes) {
-                					int index = plCode.indexOf(checkCode);
-                					if(index >= 0) {
-                						indexList.add(index);
-                					}else {
-                						break;
+                					for(String key : map.keySet()) {
+                						if(key.indexOf(checkCode+",") >= 0) {
+                							Integer index = map.get(key);
+                							if(!indexList.contains(index)) {
+                								indexList.add(index);
+                								break;
+                							}
+                						}
                 					}
                 				}
                 				
@@ -700,11 +726,14 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 				String[] checkCodes = group.split("&");
                 				List<Integer> indexList = Lists.newArrayList();
                 				for(String checkCode : checkCodes) {
-                					int index = plCode.indexOf(checkCode);
-                					if(index >= 0) {
-                						indexList.add(index);
-                					}else {
-                						break;
+                					for(String key : map.keySet()) {
+                						if(key.indexOf(checkCode+",") >= 0) {
+                							Integer index = map.get(key);
+                							if(!indexList.contains(index)) {
+                								indexList.add(index);
+                								break;
+                							}
+                						}
                 					}
                 				}
                 				
