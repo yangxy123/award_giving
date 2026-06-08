@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
+import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.ObjectUtils;
 import com.giving.base.resp.ApiResp;
@@ -52,6 +53,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
     @Override
     public void notice(NoticeReq noticeReq) {
+    	log.info("=============>{}",JSON.toJSONString(noticeReq));
         Long startTime = System.currentTimeMillis();
         int pageSize = 3000;
         int pageNo = 1;
@@ -67,6 +69,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
             if (list.isEmpty() || list == null) {
                 //log.info("===========订单查询完毕 page:{}",pageNo);
+            	log.info("BREAK;=============>{}",JSON.toJSONString(noticeReq));
                 break;
             }
             allBetList.add(list);
