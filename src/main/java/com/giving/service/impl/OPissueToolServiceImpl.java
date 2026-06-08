@@ -1,27 +1,41 @@
 package com.giving.service.impl;
 
-import com.alibaba.fastjson.JSON;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.github.pagehelper.PageHelper;
-import com.giving.base.resp.ApiResp;
-import com.giving.entity.*;
-import com.giving.enums.RedisKeyEnums;
-import com.giving.mapper.*;
-import com.giving.req.ListIssueReq;
-import com.giving.req.ManualDistributionReq;
-import com.giving.service.*;
-import com.giving.util.RedisUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.interceptor.TransactionAspectSupport;
-import org.springframework.util.ObjectUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.util.ObjectUtils;
+
+import com.alibaba.fastjson.JSON;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.StringUtils;
+import com.github.pagehelper.PageHelper;
+import com.giving.base.resp.ApiResp;
+import com.giving.entity.BetInfoEntity;
+import com.giving.entity.IssueInfoEntity;
+import com.giving.entity.RoomMasterEntity;
+import com.giving.entity.TempIssueInfoEntity;
+import com.giving.enums.RedisKeyEnums;
+import com.giving.mapper.BetInfoMapper;
+import com.giving.mapper.IssueInfoMapper;
+import com.giving.mapper.RoomMasterMapper;
+import com.giving.mapper.TempIssueInfoMapper;
+import com.giving.req.ListIssueReq;
+import com.giving.req.ManualDistributionReq;
+import com.giving.service.AwardingProcessService;
+import com.giving.service.BillOtherService;
+import com.giving.service.OPissueToolService;
+import com.giving.service.OrdersToolService;
+import com.giving.util.RedisUtils;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -29,9 +43,9 @@ import java.util.*;
  * @author zzby
  * @version 创建时间： 2026/1/18 下午3:11
  */
+@Slf4j
 @Service
 public class OPissueToolServiceImpl implements OPissueToolService {
-    private static final Logger log = LoggerFactory.getLogger(AwardingProcessServiceImpl.class);
     @Autowired
     private RoomMasterMapper roomMasterMapper;
     @Autowired
@@ -67,11 +81,13 @@ public class OPissueToolServiceImpl implements OPissueToolService {
 
     @Override
     public ApiResp<String> manualDistribution(ManualDistributionReq req) {
+    	log.info("manualDistribution===>>");
         LambdaQueryWrapper<IssueInfoEntity> wrapper = new LambdaQueryWrapper<IssueInfoEntity>();
         wrapper.eq(IssueInfoEntity::getLotteryId, req.getLotteryId());
         wrapper.eq(IssueInfoEntity::getIssue, req.getIssue());
         IssueInfoEntity issueInfoEntity = issueInfoMapper.selectOne(wrapper);
-        if (issueInfoEntity.getCode() == null || issueInfoEntity.getCode().equals("")) {
+        
+        if (StringUtils.isEmpty(issueInfoEntity.getCode())) {
             log.info("========未录号===========");
             return ApiResp.paramError("未录号");
         }
