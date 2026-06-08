@@ -1,38 +1,37 @@
 package com.giving.service.impl;
 
+import java.util.Date;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.LotteryEntity;
 import com.giving.entity.RoomMasterEntity;
 import com.giving.management.DateSourceManagement;
-import com.giving.mapper.*;
+import com.giving.mapper.IssueHistoryMapper;
+import com.giving.mapper.IssueInfoMapper;
+import com.giving.mapper.LotteryMapper;
 import com.giving.req.DrawSourceReq;
 import com.giving.req.NoticeReq;
 import com.giving.service.AwardGivingService;
 import com.giving.service.AwardingProcessService;
 import com.giving.service.OrdersToolService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.ObjectUtils;
-import org.springframework.util.StringUtils;
 
-import java.util.Date;
-import java.util.List;
-import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * @author zzby
  * @version 创建时间： 2026/1/4 上午11:47
  */
+@Slf4j
 @Service
 public class AwardingProcessServiceImpl implements AwardingProcessService {
-
-    private static final Logger log = LoggerFactory.getLogger(AwardingProcessServiceImpl.class);
     @Autowired
     IssueInfoMapper issueInfoMapper;
 
@@ -105,6 +104,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      */
     @Override
     public void lotteryDraw(RoomMasterEntity roomMaster,IssueInfoEntity issueInfo){
+    	log.info("lotteryDraw===>>");
         LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
         new Thread(() -> {
             NoticeReq n = new NoticeReq();

@@ -6,8 +6,12 @@ import com.giving.req.ListIssueReq;
 import com.giving.req.ManualDistributionReq;
 import com.giving.service.AwardingProcessService;
 import com.giving.service.OPissueToolService;
+import com.mysql.cj.log.Log;
+
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,6 +24,7 @@ import javax.validation.Valid;
  * @author zzby
  * @version 创建时间： 2026/1/4 上午11:22
  */
+@Slf4j
 @RestController
 @RequestMapping("/awardingProcess")
 @Api(tags = "派奖流程")
@@ -52,6 +57,7 @@ public class AwardingProcessController {
     @PostMapping("/manualDistribution")
     @ApiOperation("手动厅组录号派奖")
     public ApiResp<String> manualDistribution(@RequestBody @Valid ManualDistributionReq req){
+    	log.info("手动厅组录号派奖======>");
         return opissueToolService.manualDistribution(req);
     }
 
