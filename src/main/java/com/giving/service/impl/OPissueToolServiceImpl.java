@@ -102,6 +102,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             }
 
             IssueInfoEntity issueInfo = issueInfoMapper.selectByTitle(roomMasterEntity.getTitle(), req);
+            log.info("issueInfo====>{}",issueInfo);
             if (StringUtils.isEmpty(issueInfo.getCode())) {
                 log.info("厅组id错误，厅组未录号");
                 List<String> titles = new ArrayList<>();
