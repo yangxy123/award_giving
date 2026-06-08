@@ -1,5 +1,6 @@
 package com.giving.controller;
 
+import com.alibaba.fastjson.JSON;
 import com.giving.base.resp.ApiResp;
 import com.giving.req.DrawSourceReq;
 import com.giving.req.ListIssueReq;
@@ -57,7 +58,7 @@ public class AwardingProcessController {
     @PostMapping("/manualDistribution")
     @ApiOperation("手动厅组录号派奖")
     public ApiResp<String> manualDistribution(@RequestBody @Valid ManualDistributionReq req){
-    	log.info("手动厅组录号派奖======>");
+    	log.info("手动厅组录号派奖======>{}",JSON.toJSONString(req));
         return opissueToolService.manualDistribution(req);
     }
 
