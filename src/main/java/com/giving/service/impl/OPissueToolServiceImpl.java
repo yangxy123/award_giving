@@ -81,7 +81,6 @@ public class OPissueToolServiceImpl implements OPissueToolService {
 
     @Override
     public ApiResp<String> manualDistribution(ManualDistributionReq req) {
-    	log.info("manualDistribution===>>");
         LambdaQueryWrapper<IssueInfoEntity> wrapper = new LambdaQueryWrapper<IssueInfoEntity>();
         wrapper.eq(IssueInfoEntity::getLotteryId, req.getLotteryId());
         wrapper.eq(IssueInfoEntity::getIssue, req.getIssue());
