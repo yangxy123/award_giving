@@ -77,9 +77,12 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         issueInfo.setStatusFetch(2);
         issueInfo.setStatusCode(2);
         issueInfo.setWriteId(0);
-        DateSourceManagement.flag.set("gs");
-        issueInfoMapper.updateById(issueInfo);
-        DateSourceManagement.flag.set("gc");
+        try {
+            DateSourceManagement.use("gs");
+            issueInfoMapper.updateById(issueInfo);
+        } finally {
+            DateSourceManagement.clear();
+        }
 
         //奖期历史记录
         if (req.getLotteryId() == 130 || req.getLotteryId() == 132 || req.getLotteryId() == 281) {

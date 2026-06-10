@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.sql.DataSource;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,10 +31,18 @@ public class DateSourceManagement extends AbstractRoutingDataSource {
 
     public static ThreadLocal<String> flag = new ThreadLocal<>();
 
+    public static void use(String dataSourceKey) {
+        flag.set(dataSourceKey);
+    }
+
+    public static void clear() {
+        flag.remove();
+    }
+
     @PostConstruct
     public void init() {
-        try {
-            System.out.println("===============" + gc.getConnection().toString());
+        try (Connection connection = gc.getConnection()) {
+            System.out.println("===============" + connection.toString());
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
