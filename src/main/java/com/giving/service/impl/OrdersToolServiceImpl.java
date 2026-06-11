@@ -105,14 +105,14 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                             o.setWalletType(4);
                         }
                         os = userFundMapper.selectByUserAndTypeOne(title, o); //频道钱包
-                        userFundMap.putIfAbsent(project.getUserId(),os);
-                        userFundSunMap.putIfAbsent(project.getUserId(), userFundSum);
                         String lockAction = orderType==5?"CP_001":"CR_001";  // orderType=4,8 锁定用户钱包 CR_001
                         if (!userFundLockTxService.doLockUserFund(project.getUserId(), true, o.getWalletType(), lockAction, title)) {
 //                        throw new RuntimeException("--锁定用户钱包失败");
                             errorBetInfoList.add(project);
                             continue;
                         }
+                        userFundMap.putIfAbsent(project.getUserId(),os);
+                        userFundSunMap.putIfAbsent(project.getUserId(), userFundSum);
                     }
                     //开始执行时间
                     Date date = new Date();
@@ -226,6 +226,17 @@ public class OrdersToolServiceImpl implements OrdersToolService {
 
                 }
 
+                if (betInfos.isEmpty() && !errorBetInfoList.isEmpty()) {
+                    i++;
+                    if (i >= 5) {
+                        throw new RuntimeException("Failed to lock user funds after retries, remaining orders: "
+                                + errorBetInfoList.size());
+                    }
+                    Thread.sleep(5000);
+                    projects = new ArrayList<>(errorBetInfoList);
+                    continue;
+                }
+
                 //收集全部ordersList 和userFundList再做修改
                 if(userFundMapper.doUpdateAddOrdersList(title,userFundMap) != userFundMap.size()){
                     throw new RuntimeException("批量修改钱包失败");
@@ -268,13 +279,17 @@ public class OrdersToolServiceImpl implements OrdersToolService {
 
                 if (!errorBetInfoList.isEmpty()) {
                     //如果有因异常钱包锁定导致无法派奖应当在5S后再次处理
+                    i++;
+                    if (i >= 5) {
+                        throw new RuntimeException("Failed to lock user funds after retries, remaining orders: "
+                                + errorBetInfoList.size());
+                    }
                     Thread.sleep(5000);
                     projects = new ArrayList<>();
                     projects.addAll(errorBetInfoList);
                 }else{
                     break;
                 }
-                i++;
             }
             return true;
 

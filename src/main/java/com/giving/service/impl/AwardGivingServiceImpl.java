@@ -20,6 +20,8 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.github.pagehelper.PageHelper;
 import com.giving.entity.BetInfoEntity;
@@ -66,20 +68,17 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             // TODO Auto-generated method stub
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
-            if (list.isEmpty() || list == null) {
+            if (list == null || list.isEmpty()) {
                 //log.info("===========订单查询完毕 page:{}",pageNo);
                 break;
             }
             allBetList.add(list);
             pageNo += 1;
         }
-        int count = 0;
-        List<Integer> countList = Lists.newArrayList();
+        int processedBatchCount = 0;
         for (List<BetInfoEntity> list : allBetList) {
-            int i = count;
-            new Thread(() -> {
-                List<BetInfoEntity> allWinList = Lists.newArrayList();
-                List<Integer> endList = Lists.newArrayList();
+                List<BetInfoEntity> allWinList = Collections.synchronizedList(Lists.newArrayList());
+                List<Integer> endList = Collections.synchronizedList(Lists.newArrayList());
 
                 new Thread(() -> {// 包组
                     try {
@@ -460,19 +459,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 List<BetInfoEntity> sumList = getSumList(allWinList);
                 //更新注单数据
                 updateDataAll(sumList, noticeReq, list, bonusTime);
-                countList.add(i);
-            }).start();
-            count++;
+                processedBatchCount++;
         }
-        while (true) {
-            if (countList.size() == allBetList.size()) {
-                break;
-            }
-            try {
-                Thread.sleep(200);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+
+        Integer unprocessedCount = betInfoMapper.countListByNoticeReq(noticeReq);
+        if (unprocessedCount != null && unprocessedCount > 0) {
+            throw new IllegalStateException("Lottery judging incomplete, unprocessed orders: " + unprocessedCount);
         }
 
         doCongealToReal(noticeReq);
@@ -484,7 +476,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 "\n注单数(3000):{}" +
                 "\n开始时间:{}" +
                 "\n结束时间:{}" +
-                "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), allBetList.size(), startTime, endTime, endTime - startTime);
+                "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), processedBatchCount, startTime, endTime, endTime - startTime);
 }
 
     @Override
@@ -1193,12 +1185,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
      */
     public void updateDataAll(List<BetInfoEntity> sumList, NoticeReq noticeReq, List<BetInfoEntity> list, Date bonusTime) {
         try {
-            //删除临时注单记录 1
-            List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-            projectsTmpMapper.deleteBatchIds(projectIds);
             String title = noticeReq.getTitle();
             //中奖订单-新增order 5 并加钱
-            ordersToolService.getOrdersListAll(sumList, noticeReq.getTitle(), 5, noticeReq.getRoomMaster());
+            Boolean awardSuccess = ordersToolService.getOrdersListAll(
+                    sumList, noticeReq.getTitle(), 5, noticeReq.getRoomMaster());
+            if (!Boolean.TRUE.equals(awardSuccess)) {
+                throw new IllegalStateException("Award distribution failed for issue " + noticeReq.getIssue());
+            }
             List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
             //未中奖订单ID
             List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
@@ -1208,6 +1201,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 betInfoMapper.updateIsGetprize2(notWinList, title);
             }
 
+            //删除临时注单记录 1
+            List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
+            projectsTmpMapper.deleteBatchIds(projectIds);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -1249,7 +1245,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
      * @param noticeReq
      */
     public void doCongealToReal(NoticeReq noticeReq) {
-        new Thread(() -> {
+        Runnable congealTask = () -> new Thread(() -> {
             //结算
             ManualDistributionReq condition = new ManualDistributionReq();
             condition.setIssue(noticeReq.getIssue());
@@ -1257,6 +1253,16 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             condition.setMasterId(String.valueOf(noticeReq.getRoomMaster().getMasterId()));
             oPissueToolService.doCongealToReal(condition);
         }).start();
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    congealTask.run();
+                }
+            });
+            return;
+        }
+        congealTask.run();
     }
 
     // ---------- 小工具 ----------

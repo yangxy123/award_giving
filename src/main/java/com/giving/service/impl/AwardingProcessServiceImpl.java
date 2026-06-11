@@ -67,9 +67,9 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
             return ApiResp.paramError("奖期不存在"+req.getIssue());
         }
         if(!StringUtils.isEmpty(issueInfo.getCode())) {
-            log.info("========Code存在,已经录号，继续执行未验派订单==========={}",req.getIssue());
-            ordersToolService.updateRoomsIssueInfo(issueInfo);
-            return ApiResp.sucess();
+            log.info("========Code存在,已经录号直接退出==========={}",req.getIssue());
+//            ordersToolService.updateRoomsIssueInfo(issueInfo);
+            return ApiResp.paramError("Code存在,已经录号"+req.getIssue());
         }
         //修改奖期
         issueInfo.setCode(req.getWinCode());
@@ -88,6 +88,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         if (req.getLotteryId() == 130 || req.getLotteryId() == 132 || req.getLotteryId() == 281) {
             req.setWinCode(req.getWinCode().replace(",",""));
         }
+        //存入历史奖期
         issueHistoryMapper.updateOrInsert(req,issueInfo);
 
         //测试时自动向数据库插入下一期数据
