@@ -9,11 +9,14 @@ import com.giving.mapper.OrdersMapper;
 import com.giving.mapper.RoomMasterMapper;
 import com.giving.mapper.UserFundMapper;
 import com.giving.service.UserFundLockTxService;
+import com.giving.util.RedisUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.ObjectUtils;
 
 import lombok.extern.slf4j.Slf4j;
@@ -21,11 +24,17 @@ import lombok.extern.slf4j.Slf4j;
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @Slf4j
 public class UserFundLockTxServiceImpl implements UserFundLockTxService {
+    private static final String WALLET_REDIS_LOCK_PREFIX = "wallet:";
+    private static final int WALLET_REDIS_LOCK_RETRY_TIMES = 10;
+    private static final long WALLET_REDIS_LOCK_RETRY_INTERVAL_MS = 10L;
+    private static final long WALLET_REDIS_LOCK_EXPIRE_SECONDS = 60L;
+
     @Resource
     private UserFundMapper userFundMapper;
     @Autowired
@@ -34,6 +43,8 @@ public class UserFundLockTxServiceImpl implements UserFundLockTxService {
     private BetInfoMapper betInfoMapper;
     @Autowired
     private RoomMasterMapper roomMasterMapper;
+    @Autowired
+    private RedisUtils redisUtils;
 
 
     @Override
@@ -113,6 +124,22 @@ public class UserFundLockTxServiceImpl implements UserFundLockTxService {
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public Boolean addOrdersList(BetInfoEntity project, String title, int OrderType , RoomMasterEntity roomMaster) {
+        String walletRedisLockKey = getWalletRedisLockKey(title, project.getUserId());
+        String walletRedisLockToken = tryLockUserWallet(walletRedisLockKey);
+        if (walletRedisLockToken == null) {
+            log.warn("用户钱包Redis锁连续尝试{}次仍未获取，本次不操作钱包和订单状态，厅主表名={}，用户ID={}，账变类型={}",
+                    WALLET_REDIS_LOCK_RETRY_TIMES, title, project.getUserId(), OrderType);
+            return false;
+        }
+        boolean synchronizationActive = TransactionSynchronizationManager.isSynchronizationActive();
+        if (synchronizationActive) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    releaseWalletRedisLock(walletRedisLockKey, walletRedisLockToken);
+                }
+            });
+        }
         try {
             UserFundEntity userFundSum = userFundMapper.selectByUserSum(title, project.getUserId()); //钱包全
             UserFundEntity o = new UserFundEntity();
@@ -219,9 +246,41 @@ public class UserFundLockTxServiceImpl implements UserFundLockTxService {
             //手动标记回滚
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return false;
+        } finally {
+            if (!synchronizationActive) {
+                releaseWalletRedisLock(walletRedisLockKey, walletRedisLockToken);
+            }
         }
 
 
+    }
+
+    private String tryLockUserWallet(String lockKey) {
+        String lockToken = UUID.randomUUID().toString();
+        for (int attempt = 1; attempt <= WALLET_REDIS_LOCK_RETRY_TIMES; attempt++) {
+            if (redisUtils.setLock(lockKey, lockToken, WALLET_REDIS_LOCK_EXPIRE_SECONDS)) {
+                return lockToken;
+            }
+            if (attempt < WALLET_REDIS_LOCK_RETRY_TIMES) {
+                try {
+                    Thread.sleep(WALLET_REDIS_LOCK_RETRY_INTERVAL_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+
+    private void releaseWalletRedisLock(String lockKey, String lockToken) {
+        if (!redisUtils.unlock(lockKey, lockToken)) {
+            log.warn("用户钱包Redis锁未释放或已过期，锁键={}", lockKey);
+        }
+    }
+
+    private String getWalletRedisLockKey(String title, String userId) {
+        return WALLET_REDIS_LOCK_PREFIX + title + ":" + userId;
     }
 
     static String uniqId() {

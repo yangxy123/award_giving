@@ -19,9 +19,6 @@ import com.giving.util.RedisUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.github.pagehelper.PageHelper;
@@ -39,7 +36,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-@Transactional
 public class AwardGivingServiceImpl implements AwardGivingService {
     @Autowired
     private BetInfoMapper betInfoMapper;
@@ -55,7 +51,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private OPissueToolService oPissueToolService;
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void notice(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         int pageSize = 3000;
@@ -473,8 +468,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         if (unprocessedCount != null && unprocessedCount > 0) {
             throw new IllegalStateException("验奖未完成，剩余未验订单数：" + unprocessedCount);
         }
-
+        //奖金派发
         distributePendingAwards(noticeReq, pageSize);
+        //执行结算
         doCongealToReal(noticeReq);
 
         Long endTime = System.currentTimeMillis();
@@ -488,7 +484,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeNorth(NoticeReq noticeReq) {
         try {
             Long startTime = System.currentTimeMillis();
@@ -809,7 +804,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeTh(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         // TODO Auto-generated method stub
@@ -972,7 +966,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeLw(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         Date bonusTime = new Date();
@@ -1037,7 +1030,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeKs(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         Date bonusTime = new Date();
@@ -1268,21 +1260,43 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     private void distributePendingAwards(NoticeReq noticeReq, int pageSize) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                || TransactionSynchronizationManager.isSynchronizationActive()) {
+            throw new IllegalStateException("奖金派发主流程检测到外层事务或事务同步上下文，为避免读取旧订单状态已停止处理，奖期："
+                    + noticeReq.getIssue());
+        }
         int batchCount = 0;
+        String previousBatchKey = null;
         while (true) {
             PageHelper.startPage(1, pageSize);
+            //取得中奖--未派奖 订单
             List<BetInfoEntity> pendingAwardList = betInfoMapper.selectPendingAwardList(noticeReq);
             if (pendingAwardList == null || pendingAwardList.isEmpty()) {
                 log.info("奖金派发完成，厅主表名={}，彩种ID={}，奖期={}，处理批次={}",
                         noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), batchCount);
                 return;
             }
+            String currentBatchKey = pendingAwardList.stream()
+                    .map(BetInfoEntity::getProjectId)
+                    .collect(Collectors.joining(","));
+            if (currentBatchKey.equals(previousBatchKey)) {
+                BetInfoEntity firstOrder = pendingAwardList.get(0);
+                throw new IllegalStateException("奖金派发未取得进展，停止重复处理，奖期："
+                        + noticeReq.getIssue()
+                        + "，待处理订单数：" + pendingAwardList.size()
+                        + "，首笔订单ID：" + firstOrder.getProjectId()
+                        + "，中奖状态：" + firstOrder.getIsGetprize()
+                        + "，派奖状态：" + firstOrder.getPrizeStatus()
+                        + "，撤单状态：" + firstOrder.getIsCancel());
+            }
+            //未派奖订单执行派奖
             Boolean awardSuccess = ordersToolService.getOrdersListAll(
                     pendingAwardList, noticeReq.getTitle(), 5, noticeReq.getRoomMaster());
             if (!Boolean.TRUE.equals(awardSuccess)) {
                 throw new IllegalStateException("奖金派发失败，奖期：" + noticeReq.getIssue()
                         + "，批次：" + (batchCount + 1));
             }
+            previousBatchKey = currentBatchKey;
             batchCount++;
         }
     }
@@ -1323,36 +1337,20 @@ public class AwardGivingServiceImpl implements AwardGivingService {
      * @param noticeReq
      */
     public void doCongealToReal(NoticeReq noticeReq) {
-        Runnable congealTask = () -> new Thread(() -> {
-            try {
-                ManualDistributionReq condition = new ManualDistributionReq();
-                condition.setIssue(noticeReq.getIssue());
-                condition.setLotteryId(noticeReq.getLotteryId());
-                condition.setMasterId(String.valueOf(noticeReq.getRoomMaster().getMasterId()));
-                ApiResp<String> response = oPissueToolService.doCongealToReal(condition);
-                if (response == null || !"0".equals(response.getResult())) {
-                    String message = response == null ? "结算接口无响应" : response.getResDesc();
-                    log.error("自动结算失败，厅主表名={}，彩种ID={}，奖期={}，原因={}",
-                            noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), message);
-                    return;
-                }
-                log.info("自动结算完成，厅主表名={}，彩种ID={}，奖期={}",
-                        noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue());
-            } catch (Exception e) {
-                log.error("自动结算异常，厅主表名={}，彩种ID={}，奖期={}",
-                        noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
-            }
-        }).start();
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    congealTask.run();
-                }
-            });
-            return;
+        ManualDistributionReq condition = new ManualDistributionReq();
+        condition.setIssue(noticeReq.getIssue());
+        condition.setLotteryId(noticeReq.getLotteryId());
+        condition.setMasterId(String.valueOf(noticeReq.getRoomMaster().getMasterId()));
+        ApiResp<String> response = oPissueToolService.doCongealToReal(condition);
+        if (response == null || !"0".equals(response.getResult())) {
+            String message = response == null ? "结算接口无响应" : response.getResDesc();
+            throw new IllegalStateException("自动结算失败，厅主表名=" + noticeReq.getTitle()
+                    + "，彩种ID=" + noticeReq.getLotteryId()
+                    + "，奖期=" + noticeReq.getIssue()
+                    + "，原因=" + message);
         }
-        congealTask.run();
+        log.info("自动结算完成，厅主表名={}，彩种ID={}，奖期={}",
+                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue());
     }
 
     // ---------- 小工具 ----------

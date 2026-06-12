@@ -156,14 +156,16 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             while (true) {
                 // 每批处理后待结算集合会缩小，必须始终取第一页，避免 offset 跳过订单。
                 PageHelper.startPage(1, pageSize);
+                //获取所有尚未'真实扣款'的方案
                 List<BetInfoEntity> projects = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
                 if (projects == null || projects.isEmpty()) {
-                    issueInfo.setStatusDeduct(2);
+                    issueInfo.setStatusDeduct(2);  //无方案真实扣款结束
                     break;
                 }
                 int retryCount = 0;
                 while (true) {
                     try {
+                        //执行type 8 真实扣款---结算
                         Boolean success = ordersToolService.getOrdersListAll(
                                 projects, roomMasterEntity.getTitle(), 8, roomMasterEntity);
                         if (!Boolean.TRUE.equals(success)) {
@@ -191,7 +193,9 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 }
                 batchCount++;
             }
+            //修改 真实扣款状态
             ordersToolService.updateIssueDeduct(issueInfo, roomMasterEntity.getTitle());
+
             Long endTime = System.currentTimeMillis();
             log.info("\n====结算进程 - {} - {} - {}" +
                     "\n结算批次:{}" +

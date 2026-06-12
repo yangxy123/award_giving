@@ -62,7 +62,7 @@
         order by pr.project_id
     </select>
 
-    <select id="selectPendingAwardList" resultType="com.giving.entity.BetInfoEntity">
+    <select id="selectPendingAwardList" resultMap="BaseResultMap">
         SELECT pr.*
         FROM ${noticeReq.title}_projects pr
         WHERE pr.issue = #{noticeReq.issue}
@@ -73,7 +73,7 @@
         ORDER BY pr.project_id
     </select>
 
-    <select id="selectProjectByIdForUpdate" resultType="com.giving.entity.BetInfoEntity">
+    <select id="selectProjectByIdForUpdate" resultMap="BaseResultMap">
         SELECT *
         FROM ${title}_projects
         WHERE project_id = #{projectId}

@@ -1,6 +1,7 @@
 package com.giving.service.impl;
 
 import java.util.Date;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import com.giving.req.NoticeReq;
 import com.giving.service.AwardGivingService;
 import com.giving.service.AwardingProcessService;
 import com.giving.service.OrdersToolService;
+import com.giving.util.RedisUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,6 +34,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class AwardingProcessServiceImpl implements AwardingProcessService {
+    private static final String AWARD_PROCESS_LOCK_PREFIX = "award:process:";
+    private static final long AWARD_PROCESS_LOCK_EXPIRE_SECONDS = 3600L;
+
     @Autowired
     IssueInfoMapper issueInfoMapper;
 
@@ -49,6 +54,8 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 
     @Autowired
     private IssueHistoryMapper issueHistoryMapper;
+    @Autowired
+    private RedisUtils redisUtils;
 
     /**
      * 派奖流程
@@ -112,6 +119,13 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                 roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
         LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
         new Thread(() -> {
+            String processLockKey = getAwardProcessLockKey(roomMaster, issueInfo);
+            String processLockToken = UUID.randomUUID().toString();
+            if (!redisUtils.setLock(processLockKey, processLockToken, AWARD_PROCESS_LOCK_EXPIRE_SECONDS)) {
+                log.warn("相同厅主、彩种和奖期的后台验派任务正在执行，本次重复任务跳过，厅主ID={}，彩种ID={}，奖期={}",
+                        roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
+                return;
+            }
             try {
                 NoticeReq n = new NoticeReq();
                 n.setRoomMaster(roomMaster);
@@ -146,8 +160,20 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
             } catch (Exception e) {
                 log.error("后台验奖派奖失败，厅主ID={}，彩种ID={}，奖期={}",
                         roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue(), e);
+            } finally {
+                if (!redisUtils.unlock(processLockKey, processLockToken)) {
+                    log.warn("后台验派任务锁未释放或已过期，厅主ID={}，彩种ID={}，奖期={}",
+                            roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
+                }
             }
         }).start();
+    }
+
+    private String getAwardProcessLockKey(RoomMasterEntity roomMaster, IssueInfoEntity issueInfo) {
+        return AWARD_PROCESS_LOCK_PREFIX
+                + roomMaster.getTitle() + ":"
+                + issueInfo.getLotteryId() + ":"
+                + issueInfo.getIssue();
     }
 
     //测试数据生成

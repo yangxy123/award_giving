@@ -65,7 +65,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
     @Autowired
     private TempIssueInfoMapper tempIssueInfoMapper;
 
-
+    //执行钱包操作 type5--0001
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public Boolean getOrdersListAll(List<BetInfoEntity> projects, String title, int orderType, RoomMasterEntity roomMaster) {
@@ -73,20 +73,20 @@ public class OrdersToolServiceImpl implements OrdersToolService {
         Set<String> lockedUserIds = ConcurrentHashMap.newKeySet();
         Map<String, String> walletRedisLockTokens = new ConcurrentHashMap<>();
         boolean synchronizationActive = TransactionSynchronizationManager.isSynchronizationActive();
+//        、、事务结束后的回调
         if (synchronizationActive) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCompletion(int status) {
-                    releaseWalletRedisLocks(title, walletRedisLockTokens);
                     if (status != TransactionSynchronization.STATUS_COMMITTED) {
                         for (String userId : lockedUserIds) {
                             if (!userFundLockTxService.doLockUserFund(
                                     userId, false, lockedWalletType, "批量账变回滚自动解锁", title)) {
-                                log.error("批量账变回滚后钱包解锁失败，厅主表名={}，账变类型={}，用户ID={}",
-                                        title, orderType, userId);
+                                log.error("批量账变回滚后钱包解锁失败，厅主表名={}，账变类型={}，用户ID={}", title, orderType, userId);
                             }
                         }
                     }
+                    releaseWalletRedisLocks(title, walletRedisLockTokens);
                 }
             });
         }
@@ -126,6 +126,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                         redisLockDeferredOrderCount++;
                         continue;
                     }
+                    //钱包锁定--Redis
                     if (!walletRedisLockTokens.containsKey(userId)) {
                         String lockToken = tryLockUserWallet(title, userId);
                         if (lockToken == null) {
@@ -144,8 +145,11 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                                 + "，订单ID：" + project.getProjectId());
                     }
                     if (!isOrderPending(currentProject, orderType)) {
-                        log.info("订单已被其他任务处理或已取消，本次跳过钱包操作，厅主表名={}，账变类型={}，用户ID={}，订单ID={}",
-                                title, orderType, userId, project.getProjectId());
+                        log.info("订单当前状态不允许重复操作钱包，本次跳过，厅主表名={}，账变类型={}，用户ID={}，订单ID={}，中奖状态={}，派奖状态={}，结算状态={}，返点状态={}，撤单状态={}",
+                                title, orderType, userId, project.getProjectId(),
+                                currentProject.getIsGetprize(), currentProject.getPrizeStatus(),
+                                currentProject.getIsDeduct(), currentProject.getPointStatus(),
+                                currentProject.getIsCancel());
                         continue;
                     }
                     if (orderType == 5 && project.getBonus() != null) {
