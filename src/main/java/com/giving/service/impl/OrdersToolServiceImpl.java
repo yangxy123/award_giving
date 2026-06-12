@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
@@ -314,10 +316,15 @@ public class OrdersToolServiceImpl implements OrdersToolService {
 
         //3.把主奖期表的号码写入各平台商奖期表中
         issueInfoMapper.insertIssueToRooms(roomMasters.stream().map(RoomMasterEntity::getTitle).collect(Collectors.toList()),issueInfo);
-        //todo:4.号码写入后查询该期订单（cn007_projects），通过对应订单的玩法(method)进行验派
-        for (RoomMasterEntity roomMaster : roomMasters) {
-            awardingProcessService.lotteryDraw(roomMaster,issueInfo);
-        }
+        // 厅组奖期提交后再启动验奖，避免首次录号读取到未提交状态。
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                for (RoomMasterEntity roomMaster : roomMasters) {
+                    awardingProcessService.lotteryDraw(roomMaster, issueInfo);
+                }
+            }
+        });
     }
 
     @Override

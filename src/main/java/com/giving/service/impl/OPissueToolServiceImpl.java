@@ -141,57 +141,46 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 throw new RuntimeException("[厅主奖期不存在] 厅主ID:" + req.getMasterId() + "奖期：" + req.getIssue());
             }
             if (issueInfo.getStatusDeduct() == 2) {
-                throw new RuntimeException("真實扣款已完成 status_deduct=2");
+                return ApiResp.sucess();
             } else if (issueInfo.getStatusDeduct() == 0) {
                 //修改為真實扣款進行中
                 issueInfo.setStatusDeduct(1);
                 ordersToolService.updateIssueDeduct(issueInfo, roomMasterEntity.getTitle());
             }
 
-            int pageNo = 1;
             int pageSize = 3000;
-            List<Integer> waitList = new ArrayList<>();
+            int batchCount = 0;
             // 获取所有尚未'真实扣款'的方案
             while (true) {
-                PageHelper.startPage(pageNo, pageSize);
+                // 每批处理后待结算集合会缩小，必须始终取第一页，避免 offset 跳过订单。
+                PageHelper.startPage(1, pageSize);
                 List<BetInfoEntity> projects = betInfoMapper.checkProjects(roomMasterEntity.getTitle(), issueInfo);
-                //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
-                if (ObjectUtils.isEmpty(projects) || projects == null) {
+                if (projects == null || projects.isEmpty()) {
                     issueInfo.setStatusDeduct(2);
                     break;
                 }
-                new Thread(() -> {
-                    if (!ordersToolService.getOrdersListAll(projects, roomMasterEntity.getTitle(), 8, roomMasterEntity)) {
-                        waitList.add(1);
-                        throw new RuntimeException("新增账变失败");
-                    }
-                    waitList.add(1);
-                }).start();
-                pageNo++;
-            }
-
-            while (true) {
-                if (waitList.size() == (pageNo - 1)) {
-                    break;
+                if (!ordersToolService.getOrdersListAll(
+                        projects, roomMasterEntity.getTitle(), 8, roomMasterEntity)) {
+                    throw new RuntimeException("新增账变失败，结算批次:" + (batchCount + 1));
                 }
-                try {
-                    Thread.sleep(200);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+                batchCount++;
             }
             ordersToolService.updateIssueDeduct(issueInfo, roomMasterEntity.getTitle());
             Long endTime = System.currentTimeMillis();
             log.info("\n====结算进程 - {} - {} - {}" +
+                    "\n结算批次:{}" +
                     "\n开始时间:{}" +
                     "\n结束时间:{}" +
-                    "\n耗时:{}", req.getIssue(), req.getLotteryId(), req.getMasterId(), startTime, endTime, endTime - startTime);
+                    "\n耗时:{}", req.getIssue(), req.getLotteryId(), req.getMasterId(),
+                    batchCount, startTime, endTime, endTime - startTime);
 
             //设置当前平台盈亏
 
 //            new Thread(this::setPlatformThreshold).start();
             return ApiResp.sucess();
         } catch (RuntimeException e) {
+            log.error("结算失败 issue={}, lotteryId={}, masterId={}",
+                    req.getIssue(), req.getLotteryId(), req.getMasterId(), e);
             return ApiResp.paramError(e.getMessage());
         }
     }

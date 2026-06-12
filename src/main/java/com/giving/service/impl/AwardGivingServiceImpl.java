@@ -19,6 +19,7 @@ import com.giving.util.RedisUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -54,6 +55,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private OPissueToolService oPissueToolService;
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void notice(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         int pageSize = 3000;
@@ -457,8 +459,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 }
                 //中奖订单
                 List<BetInfoEntity> sumList = getSumList(allWinList);
-                //更新注单数据
-                updateDataAll(sumList, noticeReq, list, bonusTime);
+                //只记录验奖结果，所有订单验奖完成后再统一派奖
+                updateValidationResult(sumList, noticeReq, list);
                 processedBatchCount++;
         }
 
@@ -467,6 +469,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             throw new IllegalStateException("Lottery judging incomplete, unprocessed orders: " + unprocessedCount);
         }
 
+        distributePendingAwards(noticeReq, pageSize);
         doCongealToReal(noticeReq);
 
         Long endTime = System.currentTimeMillis();
@@ -1209,6 +1212,50 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         }
     }
 
+    private void updateValidationResult(List<BetInfoEntity> sumList, NoticeReq noticeReq,
+                                        List<BetInfoEntity> list) {
+        String title = noticeReq.getTitle();
+        if (!sumList.isEmpty()
+                && betInfoMapper.updateWinResult(title, sumList) != sumList.size()) {
+            throw new IllegalStateException("Failed to save winning result for issue " + noticeReq.getIssue());
+        }
+
+        Set<String> winIdSet = sumList.stream()
+                .map(BetInfoEntity::getProjectId)
+                .collect(Collectors.toSet());
+        List<BetInfoEntity> notWinList = list.stream()
+                .filter(vo -> !winIdSet.contains(vo.getProjectId()))
+                .collect(Collectors.toList());
+        if (!notWinList.isEmpty()) {
+            betInfoMapper.updateIsGetprize2(notWinList, title);
+        }
+
+        List<String> projectIds = list.stream()
+                .map(BetInfoEntity::getProjectId)
+                .collect(Collectors.toList());
+        projectsTmpMapper.deleteBatchIds(projectIds);
+    }
+
+    private void distributePendingAwards(NoticeReq noticeReq, int pageSize) {
+        int batchCount = 0;
+        while (true) {
+            PageHelper.startPage(1, pageSize);
+            List<BetInfoEntity> pendingAwardList = betInfoMapper.selectPendingAwardList(noticeReq);
+            if (pendingAwardList == null || pendingAwardList.isEmpty()) {
+                log.info("Award distribution completed, title={}, lotteryId={}, issue={}, batches={}",
+                        noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), batchCount);
+                return;
+            }
+            Boolean awardSuccess = ordersToolService.getOrdersListAll(
+                    pendingAwardList, noticeReq.getTitle(), 5, noticeReq.getRoomMaster());
+            if (!Boolean.TRUE.equals(awardSuccess)) {
+                throw new IllegalStateException("Award distribution failed for issue "
+                        + noticeReq.getIssue() + ", batch " + (batchCount + 1));
+            }
+            batchCount++;
+        }
+    }
+
 
     /**
      * 生成数据-测试
@@ -1245,19 +1292,29 @@ public class AwardGivingServiceImpl implements AwardGivingService {
      * @param noticeReq
      */
     public void doCongealToReal(NoticeReq noticeReq) {
-        Runnable congealTask = () -> new Thread(() -> {
-            //结算
+        Runnable congealTask = () -> {
             ManualDistributionReq condition = new ManualDistributionReq();
             condition.setIssue(noticeReq.getIssue());
             condition.setLotteryId(noticeReq.getLotteryId());
             condition.setMasterId(String.valueOf(noticeReq.getRoomMaster().getMasterId()));
-            oPissueToolService.doCongealToReal(condition);
-        }).start();
+            ApiResp<String> response = oPissueToolService.doCongealToReal(condition);
+            if (response == null || !"0".equals(response.getResult())) {
+                String message = response == null ? "empty response" : response.getResDesc();
+                throw new IllegalStateException("Automatic settlement failed: " + message);
+            }
+        };
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    congealTask.run();
+                    new Thread(() -> {
+                        try {
+                            congealTask.run();
+                        } catch (Exception e) {
+                            log.error("Automatic settlement failed after commit, title={}, lotteryId={}, issue={}",
+                                    noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
+                        }
+                    }).start();
                 }
             });
             return;
