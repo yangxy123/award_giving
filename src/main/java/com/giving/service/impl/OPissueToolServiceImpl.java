@@ -138,7 +138,9 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                     req.getLotteryId(),
                     req.getIssue());
             if (ObjectUtils.isEmpty(issueInfo)) {
-                throw new RuntimeException("[厅主奖期不存在] 厅主ID:" + req.getMasterId() + "奖期：" + req.getIssue());
+                log.info("厅主奖期不存在，本期无投注，跳过结算。厅主ID:{}，彩种ID:{}，奖期:{}",
+                        req.getMasterId(), req.getLotteryId(), req.getIssue());
+                return ApiResp.sucess();
             }
             if (issueInfo.getStatusDeduct() == 2) {
                 return ApiResp.sucess();
