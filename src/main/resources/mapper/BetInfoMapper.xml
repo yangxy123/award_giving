@@ -175,10 +175,13 @@
     </update>
 
     <!--    获取所有尚未'真实扣款'的方案-->
-    <select id="checkProjects" resultType="com.giving.entity.BetInfoEntity">
+    <select id="checkProjects" resultMap="BaseResultMap">
         SELECT * FROM ${title}_projects
-                 WHERE lottery_id = #{issue.lotteryId} AND issue = #{issue.issue}
-                   AND is_deduct=0 AND is_cancel=0 ORDER BY user_id
+        WHERE lottery_id = #{issue.lotteryId}
+          AND issue = #{issue.issue}
+          AND is_deduct = 0
+          AND is_cancel = 0
+        ORDER BY user_id, project_id
     </select>
     <!--    获取所有尚未'派發返點'的方案-->
     <select id="checkProjectsPoint" resultType="com.giving.entity.BetInfoEntity">

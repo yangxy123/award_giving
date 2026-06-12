@@ -239,7 +239,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                         case 5: //奖金派送 -- 派奖时 wallet_type 5 + channelbalance  and availablebalance
                             amount = BigDecimal.valueOf(project.getBonus());
                             availableBalance = preAvailableBalance.add(amount);
-                            channelBalance = availableBalance.add(amount);
+                            channelBalance = preChannelBalance.add(amount);
                             titleAndDescription = "奖金派送";
                             //已经派奖
                             project.setPrizeStatus(1);
@@ -255,7 +255,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                         case 4: //返点派送 -- 派奖时 wallet_type 5 + channelbalance  and availablebalance
                             amount = BigDecimal.valueOf(Long.parseLong(project.getUserPoint()));
                             availableBalance = preAvailableBalance.add(amount);
-                            channelBalance = availableBalance.add(amount);
+                            channelBalance = preChannelBalance.add(amount);
                             titleAndDescription = "返点派送";
                             //已经返点派送
                             project.setPointStatus(1);

@@ -191,7 +191,7 @@ public class UserFundLockTxServiceImpl implements UserFundLockTxService {
                 case 5: //奖金派送 -- 派奖时 wallet_type 5 + channelbalance  and availablebalance
                     amount = BigDecimal.valueOf(project.getBonus());
                     availableBalance = preAvailableBalance.add(amount);
-                    channelBalance = availableBalance.add(amount);
+                    channelBalance = preChannelBalance.add(amount);
                     titleAndDescription = "奖金派送";
                     if (betInfoMapper.updateIsGetprize1(project, title)<=0){
                         throw new IllegalStateException("修改注单中奖 资料失败");

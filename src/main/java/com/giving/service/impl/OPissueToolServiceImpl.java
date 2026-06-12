@@ -137,21 +137,27 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMasterEntity.getTitle(),
                     req.getLotteryId(),
                     req.getIssue());
-            if (ObjectUtils.isEmpty(issueInfo)) {
-                log.info("厅主奖期不存在，本期无投注，跳过结算。厅主ID:{}，彩种ID:{}，奖期:{}",
-                        req.getMasterId(), req.getLotteryId(), req.getIssue());
-                return ApiResp.sucess();
+            boolean issueInfoExists = !ObjectUtils.isEmpty(issueInfo);
+            if (!issueInfoExists) {
+                issueInfo = new TempIssueInfoEntity();
+                issueInfo.setLotteryId(req.getLotteryId());
+                issueInfo.setIssue(req.getIssue());
+                PageHelper.startPage(1, 1);
+                List<BetInfoEntity> pendingProjects = betInfoMapper.checkProjects(
+                        roomMasterEntity.getTitle(), issueInfo);
+                if (pendingProjects != null && !pendingProjects.isEmpty()) {
+                    log.warn("厅主奖期不存在但发现待结算订单，继续按订单实际状态结算。厅主ID={}，彩种ID={}，奖期={}，首笔订单ID={}",
+                            req.getMasterId(), req.getLotteryId(), req.getIssue(),
+                            pendingProjects.get(0).getProjectId());
+                } else {
+                    log.info("厅主奖期不存在且没有待结算订单，本期无投注，跳过结算。厅主ID:{}，彩种ID:{}，奖期:{}",
+                            req.getMasterId(), req.getLotteryId(), req.getIssue());
+                    return ApiResp.sucess();
+                }
             }
-            if (issueInfo.getStatusDeduct() == 2) {
-                return ApiResp.sucess();
-            } else if (issueInfo.getStatusDeduct() == 0) {
-                //修改為真實扣款進行中
-                issueInfo.setStatusDeduct(1);
-                ordersToolService.updateIssueDeduct(issueInfo, roomMasterEntity.getTitle());
-            }
-
             int pageSize = 200;
             int batchCount = 0;
+            boolean deductStatusStarted = Integer.valueOf(1).equals(issueInfo.getStatusDeduct());
             // 获取所有尚未'真实扣款'的方案
             while (true) {
                 // 每批处理后待结算集合会缩小，必须始终取第一页，避免 offset 跳过订单。
@@ -161,6 +167,17 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 if (projects == null || projects.isEmpty()) {
                     issueInfo.setStatusDeduct(2);  //无方案真实扣款结束
                     break;
+                }
+                if (!deductStatusStarted) {
+                    if (Integer.valueOf(2).equals(issueInfo.getStatusDeduct())) {
+                        log.warn("奖期已标记结算完成但仍存在待结算订单，自动恢复结算。厅主ID={}，彩种ID={}，奖期={}，本批订单数={}",
+                                req.getMasterId(), req.getLotteryId(), req.getIssue(), projects.size());
+                    }
+                    issueInfo.setStatusDeduct(1);
+                    if (issueInfoExists) {
+                        ordersToolService.updateIssueDeduct(issueInfo, roomMasterEntity.getTitle());
+                    }
+                    deductStatusStarted = true;
                 }
                 int retryCount = 0;
                 while (true) {
@@ -194,7 +211,12 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 batchCount++;
             }
             //修改 真实扣款状态
-            ordersToolService.updateIssueDeduct(issueInfo, roomMasterEntity.getTitle());
+            if (issueInfoExists) {
+                ordersToolService.updateIssueDeduct(issueInfo, roomMasterEntity.getTitle());
+            } else {
+                log.warn("待结算订单已处理完成，但厅主奖期记录仍不存在，无法写入结算完成状态。厅主ID={}，彩种ID={}，奖期={}",
+                        req.getMasterId(), req.getLotteryId(), req.getIssue());
+            }
 
             Long endTime = System.currentTimeMillis();
             log.info("\n====结算进程 - {} - {} - {}" +
