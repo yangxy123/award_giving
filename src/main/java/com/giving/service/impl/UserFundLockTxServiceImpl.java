@@ -16,12 +16,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.ObjectUtils;
 
+import lombok.extern.slf4j.Slf4j;
+
 import javax.annotation.Resource;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
+@Slf4j
 public class UserFundLockTxServiceImpl implements UserFundLockTxService {
     @Resource
     private UserFundMapper userFundMapper;
@@ -75,6 +78,8 @@ public class UserFundLockTxServiceImpl implements UserFundLockTxService {
             }
             return true;
         } catch (Exception e) {
+            log.error("用户钱包锁操作失败，厅主表名={}，用户ID={}，钱包类型={}，目标锁状态={}",
+                    title, userId, sWalletType, bIsLocked ? "锁定" : "解锁", e);
             //手动标记回滚
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return false;

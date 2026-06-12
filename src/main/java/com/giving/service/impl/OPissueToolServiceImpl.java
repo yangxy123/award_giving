@@ -150,7 +150,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 ordersToolService.updateIssueDeduct(issueInfo, roomMasterEntity.getTitle());
             }
 
-            int pageSize = 1000;
+            int pageSize = 200;
             int batchCount = 0;
             // 获取所有尚未'真实扣款'的方案
             while (true) {
@@ -161,9 +161,30 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                     issueInfo.setStatusDeduct(2);
                     break;
                 }
-                if (!ordersToolService.getOrdersListAll(
-                        projects, roomMasterEntity.getTitle(), 8, roomMasterEntity)) {
-                    throw new RuntimeException("新增账变失败，结算批次:" + (batchCount + 1));
+                int retryCount = 0;
+                while (true) {
+                    try {
+                        Boolean success = ordersToolService.getOrdersListAll(
+                                projects, roomMasterEntity.getTitle(), 8, roomMasterEntity);
+                        if (!Boolean.TRUE.equals(success)) {
+                            throw new IllegalStateException("批量账变返回失败");
+                        }
+                        break;
+                    } catch (RuntimeException e) {
+                        retryCount++;
+                        if (retryCount >= 3) {
+                            throw new RuntimeException("结算批次" + (batchCount + 1)
+                                    + "连续失败3次，具体原因：" + getRootCauseMessage(e), e);
+                        }
+                        log.warn("结算批次{}执行失败，准备第{}次重试，原因：{}",
+                                batchCount + 1, retryCount + 1, getRootCauseMessage(e));
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException interruptedException) {
+                            Thread.currentThread().interrupt();
+                            throw new RuntimeException("结算重试等待被中断", interruptedException);
+                        }
+                    }
                 }
                 batchCount++;
             }
@@ -185,6 +206,17 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                     req.getIssue(), req.getLotteryId(), req.getMasterId(), e);
             return ApiResp.paramError(e.getMessage());
         }
+    }
+
+    private String getRootCauseMessage(Throwable throwable) {
+        Throwable rootCause = throwable;
+        while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
+            rootCause = rootCause.getCause();
+        }
+        String message = rootCause.getMessage();
+        return message == null || message.trim().isEmpty()
+                ? rootCause.getClass().getSimpleName()
+                : message;
     }
 
     /**

@@ -16,7 +16,6 @@ import org.springframework.boot.autoconfigure.cache.CacheProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.ObjectUtils;
@@ -131,7 +130,11 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                         os = userFundMapper.selectByUserAndTypeOne(title, o); //频道钱包
                         String lockAction = orderType==5?"CP_001":"CR_001";  // orderType=4,8 锁定用户钱包 CR_001
                         if (!userFundLockTxService.doLockUserFund(project.getUserId(), true, o.getWalletType(), lockAction, title)) {
-//                        throw new RuntimeException("--锁定用户钱包失败");
+                            UserFundEntity currentWallet = userFundMapper.selectByUserAndTypeOne(title, o);
+                            log.warn("用户钱包锁定失败，厅主表名={}，用户ID={}，钱包类型={}，当前锁状态={}，当前锁动作={}",
+                                    title, project.getUserId(), o.getWalletType(),
+                                    currentWallet == null ? null : currentWallet.getIslocked(),
+                                    currentWallet == null ? null : currentWallet.getLockAction());
                             errorBetInfoList.add(project);
                             continue;
                         }
@@ -338,14 +341,25 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                     ? null : projects.get(0).getProjectId();
             String lastProjectId = projects == null || projects.isEmpty()
                     ? null : projects.get(projects.size() - 1).getProjectId();
+            String rootCauseMessage = getRootCauseMessage(e);
             log.error("批量账变失败，厅主表名={}，账变类型={}，订单数={}，首笔订单ID={}，末笔订单ID={}",
                     title, orderType, projects == null ? 0 : projects.size(),
                     firstProjectId, lastProjectId, e);
-            //手动标记回滚
-            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
-            return false;
-
+            throw new IllegalStateException("批量账变失败，具体原因：" + rootCauseMessage
+                    + "，首笔订单ID：" + firstProjectId
+                    + "，末笔订单ID：" + lastProjectId, e);
         }
+    }
+
+    private String getRootCauseMessage(Throwable throwable) {
+        Throwable rootCause = throwable;
+        while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
+            rootCause = rootCause.getCause();
+        }
+        String message = rootCause.getMessage();
+        return message == null || message.trim().isEmpty()
+                ? rootCause.getClass().getSimpleName()
+                : message;
     }
 
     /**
