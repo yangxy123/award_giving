@@ -67,9 +67,13 @@ public class UserFundLockTxServiceImpl implements UserFundLockTxService {
                     }
                 }
                 count--;
-                if (!(updateCount >= iAffectNumber) && bIsLocked) {
+                boolean lockOperationSucceeded = bIsLocked
+                        ? updateCount >= iAffectNumber
+                        : isUserFundUnlocked(title, userId, sWalletType);
+                if (!lockOperationSucceeded) {
                     if(count == 0){
-                        throw new RuntimeException("锁定/解锁用户资金失败 userId=" + userId);
+                        throw new RuntimeException((bIsLocked ? "锁定" : "解锁")
+                                + "用户资金失败，用户ID=" + userId);
                     }
                     Thread.sleep(10);
                 }else {
@@ -84,6 +88,26 @@ public class UserFundLockTxServiceImpl implements UserFundLockTxService {
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return false;
         }
+    }
+
+    private boolean isUserFundUnlocked(String title, String userId, Integer walletType) {
+        if (walletType > 0) {
+            return isWalletTypeUnlocked(title, userId, walletType);
+        }
+        for (int currentWalletType = 0; currentWalletType < 6; currentWalletType++) {
+            if (!isWalletTypeUnlocked(title, userId, currentWalletType)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isWalletTypeUnlocked(String title, String userId, Integer walletType) {
+        UserFundEntity query = new UserFundEntity();
+        query.setUserid(userId);
+        query.setWalletType(walletType);
+        UserFundEntity wallet = userFundMapper.selectByUserAndTypeOne(title, query);
+        return wallet != null && Integer.valueOf(0).equals(wallet.getIslocked());
     }
 
     @Override

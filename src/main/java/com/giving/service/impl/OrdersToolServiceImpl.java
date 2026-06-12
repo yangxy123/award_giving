@@ -40,6 +40,10 @@ public class OrdersToolServiceImpl implements OrdersToolService {
 
     private static final AtomicLong LAST_MS = new AtomicLong(0);
     private static final AtomicInteger SEQ = new AtomicInteger(0);
+    private static final String WALLET_REDIS_LOCK_PREFIX = "wallet:";
+    private static final int WALLET_REDIS_LOCK_RETRY_TIMES = 10;
+    private static final long WALLET_REDIS_LOCK_RETRY_INTERVAL_MS = 10L;
+    private static final long WALLET_REDIS_LOCK_EXPIRE_SECONDS = 60L;
     @Autowired
     private UserFundMapper userFundMapper;
     @Autowired
@@ -67,18 +71,20 @@ public class OrdersToolServiceImpl implements OrdersToolService {
     public Boolean getOrdersListAll(List<BetInfoEntity> projects, String title, int orderType, RoomMasterEntity roomMaster) {
         int lockedWalletType = orderType == 8 ? 4 : orderType;
         Set<String> lockedUserIds = ConcurrentHashMap.newKeySet();
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+        Map<String, String> walletRedisLockTokens = new ConcurrentHashMap<>();
+        boolean synchronizationActive = TransactionSynchronizationManager.isSynchronizationActive();
+        if (synchronizationActive) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCompletion(int status) {
-                    if (status == TransactionSynchronization.STATUS_COMMITTED) {
-                        return;
-                    }
-                    for (String userId : lockedUserIds) {
-                        if (!userFundLockTxService.doLockUserFund(
-                                userId, false, lockedWalletType, "批量账变回滚自动解锁", title)) {
-                            log.error("批量账变回滚后钱包解锁失败，厅主表名={}，账变类型={}，用户ID={}",
-                                    title, orderType, userId);
+                    releaseWalletRedisLocks(title, walletRedisLockTokens);
+                    if (status != TransactionSynchronization.STATUS_COMMITTED) {
+                        for (String userId : lockedUserIds) {
+                            if (!userFundLockTxService.doLockUserFund(
+                                    userId, false, lockedWalletType, "批量账变回滚自动解锁", title)) {
+                                log.error("批量账变回滚后钱包解锁失败，厅主表名={}，账变类型={}，用户ID={}",
+                                        title, orderType, userId);
+                            }
                         }
                     }
                 }
@@ -105,6 +111,8 @@ public class OrdersToolServiceImpl implements OrdersToolService {
 
 
             int i = 0;
+            int redisLockDeferredOrderCount = 0;
+            Set<String> redisLockFailedUserIds = new HashSet<>();
             while(i < 5){
                 List<OrdersEntity> ordersList = new ArrayList<>();  //需要新增的orders
                 List<BetInfoEntity> betInfos = new ArrayList<>();   //需要修改的project
@@ -113,41 +121,57 @@ public class OrdersToolServiceImpl implements OrdersToolService {
 
                 List<BetInfoEntity> errorBetInfoList = new ArrayList<>();
                 for (BetInfoEntity project : projects) {
+                    String userId = project.getUserId();
+                    if (redisLockFailedUserIds.contains(userId)) {
+                        redisLockDeferredOrderCount++;
+                        continue;
+                    }
+                    if (!walletRedisLockTokens.containsKey(userId)) {
+                        String lockToken = tryLockUserWallet(title, userId);
+                        if (lockToken == null) {
+                            redisLockFailedUserIds.add(userId);
+                            redisLockDeferredOrderCount++;
+                            log.warn("用户钱包Redis锁获取失败，本轮不处理该用户订单，厅主表名={}，用户ID={}，账变类型={}",
+                                    title, userId, orderType);
+                            continue;
+                        }
+                        walletRedisLockTokens.put(userId, lockToken);
+                    }
                     UserFundEntity userFundSum;
                     UserFundEntity os;
-                    if (userFundMap.containsKey(project.getUserId()) && userFundSunMap.containsKey(project.getUserId())) {
+                    if (userFundMap.containsKey(userId) && userFundSunMap.containsKey(userId)) {
                         //存在
-                        userFundSum = userFundSunMap.get(project.getUserId());
-                        os = userFundMap.get(project.getUserId());
+                        userFundSum = userFundSunMap.get(userId);
+                        os = userFundMap.get(userId);
                     }
                     else {
                         UserFundEntity o = new UserFundEntity();
-                        o.setUserid(project.getUserId());
+                        o.setUserid(userId);
                         o.setWalletType(orderType);  //orderType=4锁定用户钱包4
                         if (orderType == 8) {
                             o.setWalletType(4);
                         }
                         os = userFundMapper.selectByUserAndTypeOne(title, o); //频道钱包
                         String lockAction = orderType==5?"CP_001":"CR_001";  // orderType=4,8 锁定用户钱包 CR_001
-                        if (!userFundLockTxService.doLockUserFund(project.getUserId(), true, o.getWalletType(), lockAction, title)) {
+                        if (!userFundLockTxService.doLockUserFund(userId, true, o.getWalletType(), lockAction, title)) {
                             UserFundEntity currentWallet = userFundMapper.selectByUserAndTypeOne(title, o);
                             log.warn("用户钱包锁定失败，厅主表名={}，用户ID={}，钱包类型={}，当前锁状态={}，当前锁动作={}",
-                                    title, project.getUserId(), o.getWalletType(),
+                                    title, userId, o.getWalletType(),
                                     currentWallet == null ? null : currentWallet.getIslocked(),
                                     currentWallet == null ? null : currentWallet.getLockAction());
                             errorBetInfoList.add(project);
                             continue;
                         }
-                        lockedUserIds.add(project.getUserId());
-                        userFundSum = userFundMapper.selectByUserSum(title, project.getUserId()); //钱包全
+                        lockedUserIds.add(userId);
+                        userFundSum = userFundMapper.selectByUserSum(title, userId); //钱包全
                         os = userFundMapper.selectByUserAndTypeOne(title, o); //锁定后重新读取钱包
                         if (ObjectUtils.isEmpty(userFundSum) || ObjectUtils.isEmpty(os)) {
                             throw new IllegalStateException("未查询到用户钱包，厅主表名：" + title
-                                    + "，用户ID：" + project.getUserId()
+                                    + "，用户ID：" + userId
                                     + "，钱包类型：" + o.getWalletType());
                         }
-                        userFundMap.putIfAbsent(project.getUserId(),os);
-                        userFundSunMap.putIfAbsent(project.getUserId(), userFundSum);
+                        userFundMap.putIfAbsent(userId,os);
+                        userFundSunMap.putIfAbsent(userId, userFundSum);
                     }
                     //开始执行时间
                     Date date = new Date();
@@ -256,8 +280,8 @@ public class OrdersToolServiceImpl implements OrdersToolService {
 
                     ordersList.add(order);
                     betInfos.add(project);
-                    userFundMap.put(project.getUserId(), os);
-                    userFundSunMap.put(project.getUserId(), userFundSum);
+                    userFundMap.put(userId, os);
+                    userFundSunMap.put(userId, userFundSum);
 
                 }
 
@@ -270,6 +294,10 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                     Thread.sleep(5000);
                     projects = new ArrayList<>(errorBetInfoList);
                     continue;
+                }
+
+                if (betInfos.isEmpty()) {
+                    break;
                 }
 
                 //收集全部ordersList 和userFundList再做修改
@@ -334,6 +362,12 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                     break;
                 }
             }
+            if (redisLockDeferredOrderCount > 0) {
+                log.warn("用户钱包Redis锁连续尝试{}次仍未获取，本次订单保持原状态，厅主表名={}，账变类型={}，跳过用户数={}，跳过订单数={}",
+                        WALLET_REDIS_LOCK_RETRY_TIMES, title, orderType,
+                        redisLockFailedUserIds.size(), redisLockDeferredOrderCount);
+                return false;
+            }
             return true;
 
         } catch (Exception e) {
@@ -348,7 +382,45 @@ public class OrdersToolServiceImpl implements OrdersToolService {
             throw new IllegalStateException("批量账变失败，具体原因：" + rootCauseMessage
                     + "，首笔订单ID：" + firstProjectId
                     + "，末笔订单ID：" + lastProjectId, e);
+        } finally {
+            if (!synchronizationActive) {
+                releaseWalletRedisLocks(title, walletRedisLockTokens);
+            }
         }
+    }
+
+    private String tryLockUserWallet(String title, String userId) {
+        String lockKey = getWalletRedisLockKey(title, userId);
+        String lockToken = UUID.randomUUID().toString();
+        for (int attempt = 1; attempt <= WALLET_REDIS_LOCK_RETRY_TIMES; attempt++) {
+            if (redisUtils.setLock(lockKey, lockToken, WALLET_REDIS_LOCK_EXPIRE_SECONDS)) {
+                return lockToken;
+            }
+            if (attempt < WALLET_REDIS_LOCK_RETRY_TIMES) {
+                try {
+                    Thread.sleep(WALLET_REDIS_LOCK_RETRY_INTERVAL_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("等待用户钱包Redis锁时线程被中断，厅主表名={}，用户ID={}", title, userId);
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+
+    private void releaseWalletRedisLocks(String title, Map<String, String> walletRedisLockTokens) {
+        walletRedisLockTokens.forEach((userId, lockToken) -> {
+            String lockKey = getWalletRedisLockKey(title, userId);
+            if (!redisUtils.unlock(lockKey, lockToken)) {
+                log.warn("用户钱包Redis锁未释放或已过期，厅主表名={}，用户ID={}", title, userId);
+            }
+        });
+        walletRedisLockTokens.clear();
+    }
+
+    private String getWalletRedisLockKey(String title, String userId) {
+        return WALLET_REDIS_LOCK_PREFIX + title + ":" + userId;
     }
 
     private String getRootCauseMessage(Throwable throwable) {

@@ -7,12 +7,14 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.*;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,6 +23,11 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Component
 public class RedisUtils {
+	private static final DefaultRedisScript<Long> RELEASE_LOCK_SCRIPT = new DefaultRedisScript<>(
+			"if redis.call('get', KEYS[1]) == ARGV[1] then "
+					+ "return redis.call('del', KEYS[1]) else return 0 end",
+			Long.class);
+
 	@Autowired
 	private RedisTemplate<String, Object> redisTemplate;
 
@@ -211,10 +218,23 @@ public class RedisUtils {
 	public boolean setLock(String key, Object value, long time) {
 		try {
 			Boolean setIfAbsent = redisTemplate.opsForValue().setIfAbsent(key, value, time, TimeUnit.SECONDS);
-			return setIfAbsent;
+			return Boolean.TRUE.equals(setIfAbsent);
 		} catch (Exception e) {
-			// TODO: handle exception
-			log.error("redis失败:{}", e);
+			log.error("Redis加锁失败，锁键={}", key, e);
+			return false;
+		}
+	}
+
+	/**
+	 * 仅允许锁持有者释放锁，避免旧任务误删其他任务后来获取的新锁。
+	 */
+	public boolean unlock(String key, Object value) {
+		try {
+			Long result = redisTemplate.execute(
+					RELEASE_LOCK_SCRIPT, Collections.singletonList(key), value);
+			return Long.valueOf(1L).equals(result);
+		} catch (Exception e) {
+			log.error("Redis释放锁失败，锁键={}", key, e);
 			return false;
 		}
 	}

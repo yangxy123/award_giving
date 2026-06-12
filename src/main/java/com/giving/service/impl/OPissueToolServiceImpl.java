@@ -167,7 +167,10 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                         Boolean success = ordersToolService.getOrdersListAll(
                                 projects, roomMasterEntity.getTitle(), 8, roomMasterEntity);
                         if (!Boolean.TRUE.equals(success)) {
-                            throw new IllegalStateException("批量账变返回失败");
+                            String message = "部分用户钱包锁获取失败，相关订单的钱包和结算状态保持不变，请稍后重试";
+                            log.warn("结算暂停，奖期={}，彩种ID={}，厅主ID={}，原因={}",
+                                    req.getIssue(), req.getLotteryId(), req.getMasterId(), message);
+                            return ApiResp.paramError(message);
                         }
                         break;
                     } catch (RuntimeException e) {
