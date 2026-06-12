@@ -63,11 +63,11 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         IssueInfoEntity issueInfo = issueInfoMapper.selectOne(queryWrapper);
         //如果存在就修改奖期
         if(ObjectUtils.isEmpty(issueInfo)){
-            log.info("========奖期不存在==========={}",req.getIssue());
+            log.info("彩种{}========奖期不存在==========={}",req.getLotteryId(), req.getIssue());
             return ApiResp.paramError("奖期不存在"+req.getIssue());
         }
         if(!StringUtils.isEmpty(issueInfo.getCode())) {
-            log.info("========Code存在,已经录号直接退出==========={}",req.getIssue());
+            log.info("彩种{}========Code存在,已经录号直接退出==========={}",req.getLotteryId(),req.getIssue());
 //            ordersToolService.updateRoomsIssueInfo(issueInfo);
             return ApiResp.paramError("Code存在,已经录号"+req.getIssue());
         }
