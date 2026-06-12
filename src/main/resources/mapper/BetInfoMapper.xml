@@ -73,6 +73,13 @@
         ORDER BY pr.project_id
     </select>
 
+    <select id="selectProjectByIdForUpdate" resultType="com.giving.entity.BetInfoEntity">
+        SELECT *
+        FROM ${title}_projects
+        WHERE project_id = #{projectId}
+        FOR UPDATE
+    </select>
+
     <update id="updateWinResult">
         UPDATE ${title}_projects
         SET bonus =

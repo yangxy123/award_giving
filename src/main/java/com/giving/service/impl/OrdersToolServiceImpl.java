@@ -137,6 +137,21 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                         }
                         walletRedisLockTokens.put(userId, lockToken);
                     }
+                    BetInfoEntity currentProject = betInfoMapper.selectProjectByIdForUpdate(
+                            title, project.getProjectId());
+                    if (currentProject == null) {
+                        throw new IllegalStateException("未查询到订单，厅主表名：" + title
+                                + "，订单ID：" + project.getProjectId());
+                    }
+                    if (!isOrderPending(currentProject, orderType)) {
+                        log.info("订单已被其他任务处理或已取消，本次跳过钱包操作，厅主表名={}，账变类型={}，用户ID={}，订单ID={}",
+                                title, orderType, userId, project.getProjectId());
+                        continue;
+                    }
+                    if (orderType == 5 && project.getBonus() != null) {
+                        currentProject.setBonus(project.getBonus());
+                    }
+                    project = currentProject;
                     UserFundEntity userFundSum;
                     UserFundEntity os;
                     if (userFundMap.containsKey(userId) && userFundSunMap.containsKey(userId)) {
@@ -421,6 +436,23 @@ public class OrdersToolServiceImpl implements OrdersToolService {
 
     private String getWalletRedisLockKey(String title, String userId) {
         return WALLET_REDIS_LOCK_PREFIX + title + ":" + userId;
+    }
+
+    private boolean isOrderPending(BetInfoEntity project, int orderType) {
+        if (project.getIsCancel() != null && project.getIsCancel() != 0) {
+            return false;
+        }
+        if (orderType == 5) {
+            return Integer.valueOf(0).equals(project.getPrizeStatus())
+                    && !Integer.valueOf(2).equals(project.getIsGetprize());
+        }
+        if (orderType == 8) {
+            return Integer.valueOf(0).equals(project.getIsDeduct());
+        }
+        if (orderType == 4) {
+            return Integer.valueOf(0).equals(project.getPointStatus());
+        }
+        return true;
     }
 
     private String getRootCauseMessage(Throwable throwable) {

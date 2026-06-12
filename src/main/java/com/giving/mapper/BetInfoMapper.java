@@ -51,6 +51,12 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	List<BetInfoEntity> selectPendingAwardList(@Param("noticeReq") NoticeReq noticeReq);
 
 	/**
+	 * 锁定并读取订单最新状态，避免并发任务使用过期状态重复操作钱包。
+	 */
+	BetInfoEntity selectProjectByIdForUpdate(@Param("title") String title,
+											@Param("projectId") String projectId);
+
+	/**
 	 * 只记录中奖结果，不派发奖金
 	 * @param title
 	 * @param projects
