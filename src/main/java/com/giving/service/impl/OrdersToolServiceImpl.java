@@ -21,9 +21,12 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.ObjectUtils;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -32,6 +35,7 @@ import java.util.stream.Collectors;
 /**
  * 修改注单状态，修改厅主奖期信息，
  */
+@Slf4j
 @Service
 public class OrdersToolServiceImpl implements OrdersToolService {
 
@@ -62,6 +66,25 @@ public class OrdersToolServiceImpl implements OrdersToolService {
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public Boolean getOrdersListAll(List<BetInfoEntity> projects, String title, int orderType, RoomMasterEntity roomMaster) {
+        int lockedWalletType = orderType == 8 ? 4 : orderType;
+        Set<String> lockedUserIds = ConcurrentHashMap.newKeySet();
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    if (status == TransactionSynchronization.STATUS_COMMITTED) {
+                        return;
+                    }
+                    for (String userId : lockedUserIds) {
+                        if (!userFundLockTxService.doLockUserFund(
+                                userId, false, lockedWalletType, "批量账变回滚自动解锁", title)) {
+                            log.error("批量账变回滚后钱包解锁失败，厅主表名={}，账变类型={}，用户ID={}",
+                                    title, orderType, userId);
+                        }
+                    }
+                }
+            });
+        }
         try {
             if (projects == null || projects.isEmpty()) {
                 return true;
@@ -99,7 +122,6 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                         os = userFundMap.get(project.getUserId());
                     }
                     else {
-                        userFundSum = userFundMapper.selectByUserSum(title, project.getUserId()); //钱包全
                         UserFundEntity o = new UserFundEntity();
                         o.setUserid(project.getUserId());
                         o.setWalletType(orderType);  //orderType=4锁定用户钱包4
@@ -112,6 +134,14 @@ public class OrdersToolServiceImpl implements OrdersToolService {
 //                        throw new RuntimeException("--锁定用户钱包失败");
                             errorBetInfoList.add(project);
                             continue;
+                        }
+                        lockedUserIds.add(project.getUserId());
+                        userFundSum = userFundMapper.selectByUserSum(title, project.getUserId()); //钱包全
+                        os = userFundMapper.selectByUserAndTypeOne(title, o); //锁定后重新读取钱包
+                        if (ObjectUtils.isEmpty(userFundSum) || ObjectUtils.isEmpty(os)) {
+                            throw new IllegalStateException("未查询到用户钱包，厅主表名：" + title
+                                    + "，用户ID：" + project.getUserId()
+                                    + "，钱包类型：" + o.getWalletType());
                         }
                         userFundMap.putIfAbsent(project.getUserId(),os);
                         userFundSunMap.putIfAbsent(project.getUserId(), userFundSum);
@@ -223,15 +253,15 @@ public class OrdersToolServiceImpl implements OrdersToolService {
 
                     ordersList.add(order);
                     betInfos.add(project);
-                    userFundMap.compute(project.getUserId(), (k, oldVal) -> os);
-                    userFundSunMap.compute(project.getUserId(), (k, oldVal) -> userFundSum);
+                    userFundMap.put(project.getUserId(), os);
+                    userFundSunMap.put(project.getUserId(), userFundSum);
 
                 }
 
                 if (betInfos.isEmpty() && !errorBetInfoList.isEmpty()) {
                     i++;
                     if (i >= 5) {
-                        throw new RuntimeException("Failed to lock user funds after retries, remaining orders: "
+                        throw new RuntimeException("多次重试后仍无法锁定用户钱包，剩余订单数："
                                 + errorBetInfoList.size());
                     }
                     Thread.sleep(5000);
@@ -240,23 +270,29 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                 }
 
                 //收集全部ordersList 和userFundList再做修改
-                if(userFundMapper.doUpdateAddOrdersList(title,userFundMap) != userFundMap.size()){
-                    throw new RuntimeException("批量修改钱包失败");
+                int updatedWalletCount = userFundMapper.doUpdateAddOrdersList(title,userFundMap);
+                if(updatedWalletCount != userFundMap.size()){
+                    throw new RuntimeException("批量修改钱包失败，应更新：" + userFundMap.size()
+                            + "，实际更新：" + updatedWalletCount);
                 }
 
                 //批量改注单
                 if (orderType == 8){
                     userFundMapper.doLockUserFund(title,userFundMap,4,"CR_004 解锁");
 //                    betInfoMapper.updateIsDeduct(title,betInfos);
-                    if(betInfoMapper.updateIsDeduct(title,betInfos) != betInfos.size()){
-                        throw new RuntimeException("修改注单状态失败");
+                    int updatedProjectCount = betInfoMapper.updateIsDeduct(title,betInfos);
+                    if(updatedProjectCount != betInfos.size()){
+                        throw new RuntimeException("修改结算状态失败，应更新：" + betInfos.size()
+                                + "，实际更新：" + updatedProjectCount);
                     }
 
                 }else if (orderType == 5){
                     userFundMapper.doLockUserFund(title,userFundMap,5,"CP_003 解锁");
 //                    betInfoMapper.updatePrizeStatus(title,betInfos);
-                    if(betInfoMapper.updatePrizeStatus(title,betInfos) != betInfos.size()){
-                        throw new RuntimeException("修改注单状态失败");
+                    int updatedProjectCount = betInfoMapper.updatePrizeStatus(title,betInfos);
+                    if(updatedProjectCount != betInfos.size()){
+                        throw new RuntimeException("修改派奖状态失败，应更新：" + betInfos.size()
+                                + "，实际更新：" + updatedProjectCount);
                     }
                 }
                 else if(orderType == 4){
@@ -268,8 +304,10 @@ public class OrdersToolServiceImpl implements OrdersToolService {
 
 
                 //批量插入orders
-                if(ordersMapper.addOrdersListAll(ordersList,title) != ordersList.size()){
-                    throw new RuntimeException("插入订单失败");
+                int insertedOrderCount = ordersMapper.addOrdersListAll(ordersList,title);
+                if(insertedOrderCount != ordersList.size()){
+                    throw new RuntimeException("插入账变失败，应插入：" + ordersList.size()
+                            + "，实际插入：" + insertedOrderCount);
                 }
                 if (orderType == 5 && (roomMaster.getUserWalletType() == 0 || roomMaster.getUserWalletType() == 1 || roomMaster.getUserWalletType() == 2 || roomMaster.getUserWalletType() == 3)){
                     roomMasterMapper.createSpeculationList(roomMaster,ordersList);
@@ -283,7 +321,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                     //如果有因异常钱包锁定导致无法派奖应当在5S后再次处理
                     i++;
                     if (i >= 5) {
-                        throw new RuntimeException("Failed to lock user funds after retries, remaining orders: "
+                        throw new RuntimeException("多次重试后仍无法锁定用户钱包，剩余订单数："
                                 + errorBetInfoList.size());
                     }
                     Thread.sleep(5000);
@@ -296,7 +334,13 @@ public class OrdersToolServiceImpl implements OrdersToolService {
             return true;
 
         } catch (Exception e) {
-            e.printStackTrace();
+            String firstProjectId = projects == null || projects.isEmpty()
+                    ? null : projects.get(0).getProjectId();
+            String lastProjectId = projects == null || projects.isEmpty()
+                    ? null : projects.get(projects.size() - 1).getProjectId();
+            log.error("批量账变失败，厅主表名={}，账变类型={}，订单数={}，首笔订单ID={}，末笔订单ID={}",
+                    title, orderType, projects == null ? 0 : projects.size(),
+                    firstProjectId, lastProjectId, e);
             //手动标记回滚
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return false;

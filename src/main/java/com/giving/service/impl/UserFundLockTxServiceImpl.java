@@ -56,11 +56,11 @@ public class UserFundLockTxServiceImpl implements UserFundLockTxService {
                 userFund.setLockAction(sLockAction);
                 if (sWalletType > 0) {
                     userFund.setWalletType(sWalletType);
-                    updateCount += userFundMapper.updateLockedById(title,userFund); // 每次返回 0/1
+                    updateCount += userFundMapper.updateLockedById(title, userFund, sNowIsLock); // 每次返回 0/1
                 }else {
                     for (int i = 0; i < 6; i++) {
                         userFund.setWalletType(i);
-                        updateCount += userFundMapper.updateLockedById(title,userFund); // 每次返回 0/1
+                        updateCount += userFundMapper.updateLockedById(title, userFund, sNowIsLock); // 每次返回 0/1
                     }
                 }
                 count--;

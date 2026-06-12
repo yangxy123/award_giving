@@ -81,6 +81,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         for (List<BetInfoEntity> list : allBetList) {
                 List<BetInfoEntity> allWinList = Collections.synchronizedList(Lists.newArrayList());
                 List<Integer> endList = Collections.synchronizedList(Lists.newArrayList());
+                List<Throwable> validationErrors = Collections.synchronizedList(Lists.newArrayList());
 
                 new Thread(() -> {// 包组
                     try {
@@ -147,9 +148,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
                         }
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
-                        log.error("");
+                        validationErrors.add(e);
+                        log.error("包组验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(1);
                 }).start();
@@ -190,9 +191,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                             }
                         }
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
-                        log.error("");
+                        validationErrors.add(e);
+                        log.error("2D包组7验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(2);
                 }).start();
@@ -233,9 +234,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                             }
                         }
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
-                        log.error("");
+                        validationErrors.add(e);
+                        log.error("3D包组7验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(3);
                 }).start();
@@ -287,9 +288,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
-                        log.error("");
+                        validationErrors.add(e);
+                        log.error("PL2验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(4);
                 }).start();
@@ -330,9 +331,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
-                        log.error("");
+                        validationErrors.add(e);
+                        log.error("PL3验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(5);
                 }).start();
@@ -353,9 +354,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
-                        log.error("");
+                        validationErrors.add(e);
+                        log.error("2D头验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(6);
                 }).start();
@@ -376,9 +377,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
-                        log.error("");
+                        validationErrors.add(e);
+                        log.error("2D尾验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(7);
                 }).start();
@@ -399,9 +400,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
-                        log.error("");
+                        validationErrors.add(e);
+                        log.error("3D头验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(8);
                 }).start();
@@ -423,9 +424,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
-                        log.error("");
+                        validationErrors.add(e);
+                        log.error("3D尾验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(9);
                 }).start();
@@ -440,9 +441,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
-                        log.error("");
+                        validationErrors.add(e);
+                        log.error("4D尾验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(10);
                 }).start();
@@ -457,6 +458,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         throw new RuntimeException(e);
                     }
                 }
+                if (!validationErrors.isEmpty()) {
+                    throw new IllegalStateException("验奖计算失败，奖期：" + noticeReq.getIssue(),
+                            validationErrors.get(0));
+                }
                 //中奖订单
                 List<BetInfoEntity> sumList = getSumList(allWinList);
                 //只记录验奖结果，所有订单验奖完成后再统一派奖
@@ -466,7 +471,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
         Integer unprocessedCount = betInfoMapper.countListByNoticeReq(noticeReq);
         if (unprocessedCount != null && unprocessedCount > 0) {
-            throw new IllegalStateException("Lottery judging incomplete, unprocessed orders: " + unprocessedCount);
+            throw new IllegalStateException("验奖未完成，剩余未验订单数：" + unprocessedCount);
         }
 
         distributePendingAwards(noticeReq, pageSize);
@@ -480,9 +485,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 "\n开始时间:{}" +
                 "\n结束时间:{}" +
                 "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), processedBatchCount, startTime, endTime, endTime - startTime);
-}
+    }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeNorth(NoticeReq noticeReq) {
         try {
             Long startTime = System.currentTimeMillis();
@@ -496,7 +502,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
             List<Integer> waitList = Lists.newArrayList();
             while (true) {
-                PageHelper.startPage(pageNo, pageSize);
+                PageHelper.startPage(1, pageSize);
                 // TODO Auto-generated method stub
                 // 获取对应奖期对应彩种未撤单且未派奖的所有订单
                 List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
@@ -504,8 +510,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     break;
                 }
                 pageNo += 1;
-                List<BetInfoEntity> allWinList = Lists.newArrayList();
-                List<Integer> endList = Lists.newArrayList();
+                List<BetInfoEntity> allWinList = Collections.synchronizedList(Lists.newArrayList());
+                List<Integer> endList = Collections.synchronizedList(Lists.newArrayList());
+                List<Throwable> validationErrors = Collections.synchronizedList(Lists.newArrayList());
 
                 new Thread(() -> {//2D头,尾，头尾玩法
                     try {
@@ -533,8 +540,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         }).collect(Collectors.toList());
                         allWinList.addAll(collect);
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
+                        validationErrors.add(e);
+                        log.error("北部彩2D验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(1);
                 }).start();
@@ -564,8 +572,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         }).collect(Collectors.toList());
                         allWinList.addAll(collect);
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
+                        validationErrors.add(e);
+                        log.error("北部彩3D验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(2);
                 }).start();
@@ -579,8 +588,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         List<BetInfoEntity> collect = betList.stream().filter(vo -> vo.getCode().indexOf(endCode) >= 0).collect(Collectors.toList());
                         allWinList.addAll(collect);
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
+                        validationErrors.add(e);
+                        log.error("北部彩4D尾验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(3);
                 }).start();
@@ -648,8 +658,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                             }
                         }
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
+                        validationErrors.add(e);
+                        log.error("北部彩包组验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(4);
                 }).start();
@@ -701,8 +712,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
+                        validationErrors.add(e);
+                        log.error("北部彩PL2验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(5);
                 }).start();
@@ -745,8 +757,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
-                        // TODO: handle exception
-                        e.printStackTrace();
+                        validationErrors.add(e);
+                        log.error("北部彩PL3验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                     }
                     endList.add(6);
                 }).start();
@@ -761,6 +774,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
+                }
+                if (!validationErrors.isEmpty()) {
+                    throw new IllegalStateException("北部彩验奖计算失败，奖期：" + noticeReq.getIssue(),
+                            validationErrors.get(0));
                 }
                 //中奖订单
                 List<BetInfoEntity> sumList = getSumList(allWinList);
@@ -792,6 +809,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeTh(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         // TODO Auto-generated method stub
@@ -803,7 +821,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         Date bonusTime = new Date();
         List<Integer> waitList = new ArrayList<>();
         while (true) {
-            PageHelper.startPage(pageNo, pageSize);
+            PageHelper.startPage(1, pageSize);
             // TODO Auto-generated method stub
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
@@ -811,8 +829,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 break;
             }
             pageNo += 1;
-            List<BetInfoEntity> allWinList = Lists.newArrayList();
-            List<Integer> endList = Lists.newArrayList();
+            List<BetInfoEntity> allWinList = Collections.synchronizedList(Lists.newArrayList());
+            List<Integer> endList = Collections.synchronizedList(Lists.newArrayList());
+            List<Throwable> validationErrors = Collections.synchronizedList(Lists.newArrayList());
             //1D头、2D头、3D头、1D尾，2D尾
             new Thread(() -> {
                 try {
@@ -837,7 +856,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     }).collect(Collectors.toList());
                     allWinList.addAll(collect);
                 } catch (Exception e) {
-                    // TODO: handle exception
+                    validationErrors.add(e);
+                    log.error("泰国彩头尾验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                            noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                 }
                 endList.add(1);
             }).start();
@@ -860,7 +881,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     }).collect(Collectors.toList()); //"3D后三"
                     allWinList.addAll(collect);
                 } catch (Exception e) {
-                    // TODO: handle exception
+                    validationErrors.add(e);
+                    log.error("泰国彩3D前后验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                            noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                 }
                 endList.add(2);
             }).start();
@@ -899,7 +922,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 //                    }).collect(Collectors.toList());
                     allWinList.addAll(collect);
                 } catch (Exception e) {
-                    // TODO: handle exception
+                    validationErrors.add(e);
+                    log.error("泰国彩组选验奖失败，厅主表名={}，彩种ID={}，奖期={}",
+                            noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
                 }
                 endList.add(3);
             }).start();
@@ -914,6 +939,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
+            }
+            if (!validationErrors.isEmpty()) {
+                throw new IllegalStateException("泰国彩验奖计算失败，奖期：" + noticeReq.getIssue(),
+                        validationErrors.get(0));
             }
             //中奖订单
             List<BetInfoEntity> sumList = getSumList(allWinList);
@@ -943,6 +972,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeLw(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         Date bonusTime = new Date();
@@ -954,7 +984,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         String headCode2 = headCode.substring(1, 3);
         String endCode = codeList.get(1);
         while (true) {
-            PageHelper.startPage(pageNo, pageSize);
+            PageHelper.startPage(1, pageSize);
             // TODO Auto-generated method stub
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
@@ -1007,6 +1037,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeKs(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         Date bonusTime = new Date();
@@ -1027,7 +1058,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         }
         String sumStr = (sum < 10) ? ("0" + sum) : String.valueOf(sum);
         while (true) {
-            PageHelper.startPage(pageNo, pageSize);
+            PageHelper.startPage(1, pageSize);
             // TODO Auto-generated method stub
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
@@ -1193,7 +1224,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             Boolean awardSuccess = ordersToolService.getOrdersListAll(
                     sumList, noticeReq.getTitle(), 5, noticeReq.getRoomMaster());
             if (!Boolean.TRUE.equals(awardSuccess)) {
-                throw new IllegalStateException("Award distribution failed for issue " + noticeReq.getIssue());
+                throw new IllegalStateException("奖金派发失败，奖期：" + noticeReq.getIssue());
             }
             List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
             //未中奖订单ID
@@ -1217,7 +1248,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         String title = noticeReq.getTitle();
         if (!sumList.isEmpty()
                 && betInfoMapper.updateWinResult(title, sumList) != sumList.size()) {
-            throw new IllegalStateException("Failed to save winning result for issue " + noticeReq.getIssue());
+            throw new IllegalStateException("保存中奖结果失败，奖期：" + noticeReq.getIssue());
         }
 
         Set<String> winIdSet = sumList.stream()
@@ -1242,15 +1273,15 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             PageHelper.startPage(1, pageSize);
             List<BetInfoEntity> pendingAwardList = betInfoMapper.selectPendingAwardList(noticeReq);
             if (pendingAwardList == null || pendingAwardList.isEmpty()) {
-                log.info("Award distribution completed, title={}, lotteryId={}, issue={}, batches={}",
+                log.info("奖金派发完成，厅主表名={}，彩种ID={}，奖期={}，处理批次={}",
                         noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), batchCount);
                 return;
             }
             Boolean awardSuccess = ordersToolService.getOrdersListAll(
                     pendingAwardList, noticeReq.getTitle(), 5, noticeReq.getRoomMaster());
             if (!Boolean.TRUE.equals(awardSuccess)) {
-                throw new IllegalStateException("Award distribution failed for issue "
-                        + noticeReq.getIssue() + ", batch " + (batchCount + 1));
+                throw new IllegalStateException("奖金派发失败，奖期：" + noticeReq.getIssue()
+                        + "，批次：" + (batchCount + 1));
             }
             batchCount++;
         }
@@ -1292,29 +1323,31 @@ public class AwardGivingServiceImpl implements AwardGivingService {
      * @param noticeReq
      */
     public void doCongealToReal(NoticeReq noticeReq) {
-        Runnable congealTask = () -> {
-            ManualDistributionReq condition = new ManualDistributionReq();
-            condition.setIssue(noticeReq.getIssue());
-            condition.setLotteryId(noticeReq.getLotteryId());
-            condition.setMasterId(String.valueOf(noticeReq.getRoomMaster().getMasterId()));
-            ApiResp<String> response = oPissueToolService.doCongealToReal(condition);
-            if (response == null || !"0".equals(response.getResult())) {
-                String message = response == null ? "empty response" : response.getResDesc();
-                throw new IllegalStateException("Automatic settlement failed: " + message);
+        Runnable congealTask = () -> new Thread(() -> {
+            try {
+                ManualDistributionReq condition = new ManualDistributionReq();
+                condition.setIssue(noticeReq.getIssue());
+                condition.setLotteryId(noticeReq.getLotteryId());
+                condition.setMasterId(String.valueOf(noticeReq.getRoomMaster().getMasterId()));
+                ApiResp<String> response = oPissueToolService.doCongealToReal(condition);
+                if (response == null || !"0".equals(response.getResult())) {
+                    String message = response == null ? "结算接口无响应" : response.getResDesc();
+                    log.error("自动结算失败，厅主表名={}，彩种ID={}，奖期={}，原因={}",
+                            noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), message);
+                    return;
+                }
+                log.info("自动结算完成，厅主表名={}，彩种ID={}，奖期={}",
+                        noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue());
+            } catch (Exception e) {
+                log.error("自动结算异常，厅主表名={}，彩种ID={}，奖期={}",
+                        noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
             }
-        };
+        }).start();
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    new Thread(() -> {
-                        try {
-                            congealTask.run();
-                        } catch (Exception e) {
-                            log.error("Automatic settlement failed after commit, title={}, lotteryId={}, issue={}",
-                                    noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), e);
-                        }
-                    }).start();
+                    congealTask.run();
                 }
             });
             return;

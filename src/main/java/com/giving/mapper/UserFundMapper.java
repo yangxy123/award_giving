@@ -39,7 +39,9 @@ public interface UserFundMapper extends BaseMapper<UserFundEntity> {
      * @param userFund
      * @return
      */
-    int updateLockedById(@Param("title") String title, @Param("userFund") UserFundEntity userFund);
+    int updateLockedById(@Param("title") String title,
+                         @Param("userFund") UserFundEntity userFund,
+                         @Param("nowIsLock") Integer nowIsLock);
 
     /**
      * 取得用户全部钱包合集

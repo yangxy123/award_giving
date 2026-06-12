@@ -150,7 +150,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 ordersToolService.updateIssueDeduct(issueInfo, roomMasterEntity.getTitle());
             }
 
-            int pageSize = 3000;
+            int pageSize = 1000;
             int batchCount = 0;
             // 获取所有尚未'真实扣款'的方案
             while (true) {
@@ -181,7 +181,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
 //            new Thread(this::setPlatformThreshold).start();
             return ApiResp.sucess();
         } catch (RuntimeException e) {
-            log.error("结算失败 issue={}, lotteryId={}, masterId={}",
+            log.error("结算失败，奖期={}，彩种ID={}，厅主ID={}",
                     req.getIssue(), req.getLotteryId(), req.getMasterId(), e);
             return ApiResp.paramError(e.getMessage());
         }
@@ -267,8 +267,8 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 wrapper.eq(RoomMasterEntity::getMasterId, req.getMasterId());
                 roomMasterList.add(roomMasterMapper.selectOne(wrapper));
             }
-            List<Integer> waitList = new ArrayList<>();
-            List<String> errorMessageList = new ArrayList<>();
+            List<Integer> waitList = java.util.Collections.synchronizedList(new ArrayList<>());
+            List<String> errorMessageList = java.util.Collections.synchronizedList(new ArrayList<>());
             for (RoomMasterEntity roomMaster : roomMasterList) {
                 new Thread(() -> {
                     TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(roomMaster.getTitle(), req.getLotteryId(), req.getIssue());
@@ -276,20 +276,19 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                         waitList.add(1);
                         return;
                     }
-                    int pageNo = 1;
-                    int pageSize = 3000;
+                    int pageSize = 1000;
                     // 获取所有尚未'真实扣款'的方案
                     while (true) {
-                        PageHelper.startPage(pageNo, pageSize);
+                        PageHelper.startPage(1, pageSize);
                         List<BetInfoEntity> projects = betInfoMapper.checkProjects(roomMaster.getTitle(), issueInfo);
                         //如果获取的结果集为空, 则表示当前奖期已全部'真实扣款'完成. 更新状态值
                         if (ObjectUtils.isEmpty(projects) || projects == null) {
                             break;
                         }
                         if (!ordersToolService.getOrdersListAll(projects, roomMaster.getTitle(), 8, roomMaster)) {
-                            errorMessageList.add("新增账变-存在错误 MasterId:"+roomMaster.getMasterId());
+                            errorMessageList.add("新增结算账变失败，厅主ID：" + roomMaster.getMasterId());
+                            break;
                         }
-                        pageNo++;
                     }
                     waitList.add(1);
                 }).start();

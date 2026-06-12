@@ -57,13 +57,13 @@
             updated_at = now()
         WHERE userid = #{userFund.userid}
           AND wallet_type = #{userFund.walletType}
+          AND islocked = #{nowIsLock}
     </update>
 
     <select id="selectByUserSum" resultType="com.giving.entity.UserFundEntity">
         SELECT userid,SUM(channelbalance) channelbalance,SUM(availablebalance) availablebalance,SUM(holdbalance) holdbalance
         FROM `${title}_user_fund`
         WHERE userid = #{userId}
-          AND islocked = 0
         GROUP BY userid;
     </select>
 
