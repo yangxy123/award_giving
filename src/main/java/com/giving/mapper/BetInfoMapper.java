@@ -37,13 +37,13 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 */
 	public List<BetInfoEntity> test(@Param("table")String table,@Param("where1")String param,@Param("where2")String param1);
     
-    @Update("UPDATE ${title}_projects set prize_status = 1,bonus_time = now() where issue = #{issue} and is_getprize =1")
+    @Update("UPDATE ${title}_projects set prize_status = 1,bonus_time = now(),is_deduct = 1,deduct_time=now() where issue = #{issue} and is_cancel = 0 and lottery_id = #{lotteryId}")
     /**
      * 修改当期中奖订单派奖状态和派奖时间
      * @param title 表头
      * @param issue 奖期
      */
-    public void updatePrize(@Param("title")String title,@Param("issue")String issue);
+    public void updatePrize(@Param("title")String title,@Param("issue")String issue,@Param("lotteryId") Long lotteryId);
 
 	/**
 	 * 取得未派奖订单
@@ -143,6 +143,7 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
     @Update("update ${title}_projects set is_getprize = 2,updated_at = now()"
     		+ "            where is_cancel = 0"
     		+ "            AND is_getprize = 0"
-    		+ "            and issue = #{issue}")
-    int updateIsGetprizeTo2(@Param("issue") String issue,@Param("title") String title);
+    		+ "            and issue = #{issue}"
+    		+ "            and lottery_id = #{lotteryId}")
+    int updateIsGetprizeTo2(@Param("issue") String issue,@Param("title") String title,@Param("lotteryId") Long lotteryId);
 }
