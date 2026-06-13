@@ -1,23 +1,26 @@
 package com.giving.mapper;
 
-import java.util.*;
+import java.util.List;
 
-import com.giving.entity.OrdersEntity;
-import com.giving.entity.TempIssueInfoEntity;
-import com.giving.entity.UserFundEntity;
-import com.giving.req.NoticeReq;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.giving.entity.BetInfoEntity;
+import com.giving.entity.TempIssueInfoEntity;
+import com.giving.req.NoticeReq;
 
 /** 
 * @author yangxy
 * @version 创建时间：2025年12月30日 下午5:10:22 
 */
 public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
-
+	/**
+	 * 锁定并读取订单最新状态，避免并发任务使用过期状态重复操作钱包。
+	 */
+	BetInfoEntity selectProjectByIdForUpdate(@Param("title") String title,
+											@Param("projectId") String projectId);
 
     @Select({
 		"<script>"
@@ -33,6 +36,14 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	* @param param 查询参数
 	 */
 	public List<BetInfoEntity> test(@Param("table")String table,@Param("where1")String param,@Param("where2")String param1);
+    
+    @Update("UPDATE ${title}_projects set prize_status = 1,bonus_time = now() where issue = #{issue} and is_getprize =1")
+    /**
+     * 修改当期中奖订单派奖状态和派奖时间
+     * @param title 表头
+     * @param issue 奖期
+     */
+    public void updatePrize(@Param("title")String title,@Param("issue")String issue);
 
 	/**
 	 * 取得未派奖订单
@@ -49,12 +60,6 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 * @return
 	 */
 	List<BetInfoEntity> selectPendingAwardList(@Param("noticeReq") NoticeReq noticeReq);
-
-	/**
-	 * 锁定并读取订单最新状态，避免并发任务使用过期状态重复操作钱包。
-	 */
-	BetInfoEntity selectProjectByIdForUpdate(@Param("title") String title,
-											@Param("projectId") String projectId);
 
 	/**
 	 * 只记录中奖结果，不派发奖金
@@ -128,4 +133,16 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 * @return
 	 */
     int updateIsGetprize2(@Param("notWinList") List<BetInfoEntity> notWinList,@Param("title") String title);
+    
+    /**
+	 * 修改指定奖期未验奖的订单为未中奖
+	 * @param issue 奖期
+	 * @param title 表头
+	 * @return
+	 */
+    @Update("update ${title}_projects set is_getprize = 2,updated_at = now()"
+    		+ "            where is_cancel = 0"
+    		+ "            AND is_getprize = 0"
+    		+ "            and issue = #{issue}")
+    int updateIsGetprizeTo2(@Param("issue") String issue,@Param("title") String title);
 }

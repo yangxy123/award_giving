@@ -1,30 +1,47 @@
 package com.giving.service.impl;
 
-import java.util.*;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
-import com.alibaba.fastjson.JSON;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.toolkit.ObjectUtils;
-import com.giving.base.resp.ApiResp;
-import com.giving.entity.IssueInfoEntity;
-import com.giving.mapper.*;
-import com.giving.req.ManualDistributionReq;
-import com.giving.service.OPissueToolService;
-import com.giving.service.OrdersToolService;
-import com.giving.service.UserFundLockTxService;
-import com.giving.util.JdbcCreateSqlUtil;
-import com.giving.util.RedisUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.ObjectUtils;
 import com.github.pagehelper.PageHelper;
+import com.giving.base.resp.ApiResp;
 import com.giving.entity.BetInfoEntity;
+import com.giving.entity.IssueInfoEntity;
+import com.giving.entity.OrdersEntity;
+import com.giving.entity.UserFundEntity;
+import com.giving.mapper.BetInfoMapper;
+import com.giving.mapper.IssueInfoMapper;
+import com.giving.mapper.OrdersMapper;
+import com.giving.mapper.ProjectsTmpMapper;
+import com.giving.mapper.UserFundMapper;
+import com.giving.req.ManualDistributionReq;
 import com.giving.req.NoticeReq;
 import com.giving.service.AwardGivingService;
+import com.giving.service.OPissueToolService;
+import com.giving.service.OrdersToolService;
+import com.giving.util.JdbcCreateSqlUtil;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -36,6 +53,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
+@Transactional
 public class AwardGivingServiceImpl implements AwardGivingService {
     @Autowired
     private BetInfoMapper betInfoMapper;
@@ -49,8 +67,13 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private JdbcCreateSqlUtil jdbcCreateSqlUtil;
     @Autowired
     private OPissueToolService oPissueToolService;
+    @Autowired
+    private UserFundMapper userFundMapper;
+    @Autowired
+    private OrdersMapper ordersMapper;
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void notice(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         int pageSize = 3000;
@@ -73,6 +96,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             pageNo += 1;
         }
         int processedBatchCount = 0;
+        Map<String, Double> betMap = Maps.newConcurrentMap();//用户对应总扣款金额
+        Map<String, Double> winMap = Maps.newConcurrentMap();//用户对应总中奖金额
+        ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
+        List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
         for (List<BetInfoEntity> list : allBetList) {
                 List<BetInfoEntity> allWinList = Collections.synchronizedList(Lists.newArrayList());
                 List<Integer> endList = Collections.synchronizedList(Lists.newArrayList());
@@ -459,31 +486,52 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 }
                 //中奖订单
                 List<BetInfoEntity> sumList = getSumList(allWinList);
-                //只记录验奖结果，所有订单验奖完成后再统一派奖
-                updateValidationResult(sumList, noticeReq, list);
-                processedBatchCount++;
+                betAllWinList.addAll(sumList);
+                sumList.stream()
+	    	        .collect(Collectors.groupingBy(
+	    	                BetInfoEntity::getUserId,
+	    	                Collectors.summingDouble(BetInfoEntity::getBonus)
+	    	        ))
+	    	        .forEach((userId, amount) ->
+	    	        	winMap.merge(userId, amount, Double::sum)
+	    	        );
+//                processedBatchCount++;
+                list.stream()
+	                .collect(Collectors.groupingBy(
+	                        BetInfoEntity::getUserId,
+	                        Collectors.summingDouble(BetInfoEntity::getTotalPrice)
+	                ))
+	                .forEach((userId, amount) ->
+	                        betMap.merge(userId, amount, Double::sum)
+	                );
+                
+                Set<String> bietIdSet = sumList.stream()
+                        .map(BetInfoEntity::getProjectId)
+                        .collect(Collectors.toSet());
+                list.forEach(item -> {
+                    if (bietIdSet.contains(item.getProjectId())) {
+                        item.setIsGetprize(1);
+                    }
+                });
+                
+                ConcurrentMap<String, List<BetInfoEntity>> userBetListMap = list.parallelStream()
+                        .collect(Collectors.groupingByConcurrent(BetInfoEntity::getUserId));
+                userBetListMap.forEach((userId, newList) ->
+	                    betRecordMap.merge(userId, new ArrayList<>(newList), (oldList, incomingList) -> {
+	                        List<BetInfoEntity> merged = new ArrayList<>(oldList);
+	                        merged.addAll(incomingList);
+	                        return merged;
+	                    })
+	                );
+              //只记录验奖结果，所有订单验奖完成后再统一派奖
+//              updateValidationResult(sumList, noticeReq, list);
+                
         }
-
-        Integer unprocessedCount = betInfoMapper.countListByNoticeReq(noticeReq);
-        if (unprocessedCount != null && unprocessedCount > 0) {
-            throw new IllegalStateException("验奖未完成，剩余未验订单数：" + unprocessedCount);
-        }
-        //奖金派发
-        distributePendingAwards(noticeReq, pageSize);
-        //执行结算
-        doCongealToReal(noticeReq);
-
-        Long endTime = System.currentTimeMillis();
-        log.info("\n============== notice - {} ================" +
-                "\nlotteryId = {}" +
-                "\nissue = {}" +
-                "\n注单数(3000):{}" +
-                "\n开始时间:{}" +
-                "\n结束时间:{}" +
-                "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), processedBatchCount, startTime, endTime, endTime - startTime);
+        this.dataHandle(betMap, winMap, betRecordMap, betAllWinList, noticeReq);
     }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeNorth(NoticeReq noticeReq) {
         try {
             Long startTime = System.currentTimeMillis();
@@ -496,6 +544,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             Date bonusTime = new Date();
 
             List<Integer> waitList = Lists.newArrayList();
+            Map<String, Double> betMap = Maps.newConcurrentMap();//用户对应总扣款金额
+            Map<String, Double> winMap = Maps.newConcurrentMap();//用户对应总中奖金额
+            ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
+            List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
             while (true) {
                 PageHelper.startPage(1, pageSize);
                 // TODO Auto-generated method stub
@@ -776,7 +828,44 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 }
                 //中奖订单
                 List<BetInfoEntity> sumList = getSumList(allWinList);
-                updateDataAll(sumList, noticeReq, list, bonusTime);
+                betAllWinList.addAll(sumList);
+                sumList.stream()
+	    	        .collect(Collectors.groupingBy(
+	    	                BetInfoEntity::getUserId,
+	    	                Collectors.summingDouble(BetInfoEntity::getBonus)
+	    	        ))
+	    	        .forEach((userId, amount) ->
+	    	        	winMap.merge(userId, amount, Double::sum)
+	    	        );
+//                processedBatchCount++;
+                list.stream()
+	                .collect(Collectors.groupingBy(
+	                        BetInfoEntity::getUserId,
+	                        Collectors.summingDouble(BetInfoEntity::getTotalPrice)
+	                ))
+	                .forEach((userId, amount) ->
+	                        betMap.merge(userId, amount, Double::sum)
+	                );
+                
+                Set<String> bietIdSet = sumList.stream()
+                        .map(BetInfoEntity::getProjectId)
+                        .collect(Collectors.toSet());
+                list.forEach(item -> {
+                    if (bietIdSet.contains(item.getProjectId())) {
+                        item.setIsGetprize(1);
+                    }
+                });
+                
+                ConcurrentMap<String, List<BetInfoEntity>> userBetListMap = list.parallelStream()
+                        .collect(Collectors.groupingByConcurrent(BetInfoEntity::getUserId));
+                userBetListMap.forEach((userId, newList) ->
+	                    betRecordMap.merge(userId, new ArrayList<>(newList), (oldList, incomingList) -> {
+	                        List<BetInfoEntity> merged = new ArrayList<>(oldList);
+	                        merged.addAll(incomingList);
+	                        return merged;
+	                    })
+	                );
+//                updateDataAll(sumList, noticeReq, list, bonusTime);
                 waitList.add(1);
             }
 
@@ -787,16 +876,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 Thread.sleep(100);
             }
 
-            doCongealToReal(noticeReq);
-            Long endTime = System.currentTimeMillis();
-            log.info("\n============== noticeNorth - {} ================" +
-                    "\nlotteryId = {}" +
-                    "\nissue = {}" +
-                    "\n注单数(3000):{}" +
-                    "\n开始时间:{}" +
-                    "\n结束时间:{}" +
-                    "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo - 1, startTime, endTime, endTime - startTime);
-        
+            this.dataHandle(betMap, winMap, betRecordMap, betAllWinList, noticeReq);
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -804,6 +884,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeTh(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         // TODO Auto-generated method stub
@@ -814,6 +895,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         int maxSize = codeList.size() - 1;
         Date bonusTime = new Date();
         List<Integer> waitList = new ArrayList<>();
+        Map<String, Double> betMap = Maps.newConcurrentMap();//用户对应总扣款金额
+        Map<String, Double> winMap = Maps.newConcurrentMap();//用户对应总中奖金额
+        ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
+        List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
         while (true) {
             PageHelper.startPage(1, pageSize);
             // TODO Auto-generated method stub
@@ -899,21 +984,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         }
                     	return false;
                     }).collect(Collectors.toList());
-
-//                    char[] a = headCode.toCharArray();
-//                    java.util.Arrays.sort(a);
-//                    String finalHeadCode = new String(a);
-//                    List<BetInfoEntity> collect = betList.stream().filter(vo -> {
-//                        char[] codeArr = vo.getCode().toCharArray();
-//                        java.util.Arrays.sort(codeArr);
-//                        String tjzxCode = new String(codeArr);
-//                        return (vo.getMethodCode().equals("3DTJZX") && finalHeadCode.equals(tjzxCode))
-//                                || vo.getMethodCode().equals("2DTJZX")
-//                                && (finalHeadCode.endsWith(tjzxCode)
-//                                || finalHeadCode.startsWith(tjzxCode)
-//                                || (finalHeadCode.substring(0, 1).equals(tjzxCode.substring(0, 1)) && finalHeadCode.substring(2, 3).equals(tjzxCode.substring(1, 2)))
-//                        );
-//                    }).collect(Collectors.toList());
                     allWinList.addAll(collect);
                 } catch (Exception e) {
                     validationErrors.add(e);
@@ -940,7 +1010,43 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             }
             //中奖订单
             List<BetInfoEntity> sumList = getSumList(allWinList);
-            updateDataAll(sumList, noticeReq, list, bonusTime);
+            betAllWinList.addAll(sumList);
+            sumList.stream()
+    	        .collect(Collectors.groupingBy(
+    	                BetInfoEntity::getUserId,
+    	                Collectors.summingDouble(BetInfoEntity::getBonus)
+    	        ))
+    	        .forEach((userId, amount) ->
+    	        	winMap.merge(userId, amount, Double::sum)
+    	        );
+//            processedBatchCount++;
+            list.stream()
+                .collect(Collectors.groupingBy(
+                        BetInfoEntity::getUserId,
+                        Collectors.summingDouble(BetInfoEntity::getTotalPrice)
+                ))
+                .forEach((userId, amount) ->
+                        betMap.merge(userId, amount, Double::sum)
+                );
+            
+            Set<String> bietIdSet = sumList.stream()
+                    .map(BetInfoEntity::getProjectId)
+                    .collect(Collectors.toSet());
+            list.forEach(item -> {
+                if (bietIdSet.contains(item.getProjectId())) {
+                    item.setIsGetprize(1);
+                }
+            });
+            
+            ConcurrentMap<String, List<BetInfoEntity>> userBetListMap = list.parallelStream()
+                    .collect(Collectors.groupingByConcurrent(BetInfoEntity::getUserId));
+            userBetListMap.forEach((userId, newList) ->
+                    betRecordMap.merge(userId, new ArrayList<>(newList), (oldList, incomingList) -> {
+                        List<BetInfoEntity> merged = new ArrayList<>(oldList);
+                        merged.addAll(incomingList);
+                        return merged;
+                    })
+                );
             waitList.add(1);
         }
         while (true) {
@@ -953,19 +1059,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 throw new RuntimeException(e);
             }
         }
-        doCongealToReal(noticeReq);
-        Long endTime = System.currentTimeMillis();
-        log.info("\n============== noticeTh - {} ================" +
-                "\nlotteryId = {}" +
-                "\nissue = {}" +
-                "\n注单数(3000):{}" +
-                "\n开始时间:{}" +
-                "\n结束时间:{}" +
-                "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo - 1, startTime, endTime, endTime - startTime);
-    
+        
+        this.dataHandle(betMap, winMap, betRecordMap, betAllWinList, noticeReq);
     }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeLw(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         Date bonusTime = new Date();
@@ -976,6 +1075,11 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         String headCode = codeList.get(0);
         String headCode2 = headCode.substring(1, 3);
         String endCode = codeList.get(1);
+        List<Integer> waitList = new ArrayList<>();
+        Map<String, Double> betMap = Maps.newConcurrentMap();//用户对应总扣款金额
+        Map<String, Double> winMap = Maps.newConcurrentMap();//用户对应总中奖金额
+        ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
+        List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
         while (true) {
             PageHelper.startPage(1, pageSize);
             // TODO Auto-generated method stub
@@ -1014,22 +1118,50 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             }).collect(Collectors.toList());
             allWinList.addAll(collect2);
             List<BetInfoEntity> sumList = getSumList(allWinList);
-            updateDataAll(sumList, noticeReq, list, bonusTime);
+            betAllWinList.addAll(sumList);
+            sumList.stream()
+    	        .collect(Collectors.groupingBy(
+    	                BetInfoEntity::getUserId,
+    	                Collectors.summingDouble(BetInfoEntity::getBonus)
+    	        ))
+    	        .forEach((userId, amount) ->
+    	        	winMap.merge(userId, amount, Double::sum)
+    	        );
+//            processedBatchCount++;
+            list.stream()
+                .collect(Collectors.groupingBy(
+                        BetInfoEntity::getUserId,
+                        Collectors.summingDouble(BetInfoEntity::getTotalPrice)
+                ))
+                .forEach((userId, amount) ->
+                        betMap.merge(userId, amount, Double::sum)
+                );
+            
+            Set<String> bietIdSet = sumList.stream()
+                    .map(BetInfoEntity::getProjectId)
+                    .collect(Collectors.toSet());
+            list.forEach(item -> {
+                if (bietIdSet.contains(item.getProjectId())) {
+                    item.setIsGetprize(1);
+                }
+            });
+            
+            ConcurrentMap<String, List<BetInfoEntity>> userBetListMap = list.parallelStream()
+                    .collect(Collectors.groupingByConcurrent(BetInfoEntity::getUserId));
+            userBetListMap.forEach((userId, newList) ->
+                    betRecordMap.merge(userId, new ArrayList<>(newList), (oldList, incomingList) -> {
+                        List<BetInfoEntity> merged = new ArrayList<>(oldList);
+                        merged.addAll(incomingList);
+                        return merged;
+                    })
+                );
         }
-        doCongealToReal(noticeReq);
-
-        Long endTime = System.currentTimeMillis();
-        log.info("\n============== noticeLw - {} ================" +
-                "\nlotteryId = {}" +
-                "\nissue = {}" +
-                "\n注单数(3000):{}" +
-                "\n开始时间:{}" +
-                "\n结束时间:{}" +
-                "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo - 1, startTime, endTime, endTime - startTime);
+        this.dataHandle(betMap, winMap, betRecordMap, betAllWinList, noticeReq);
     
     }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeKs(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         Date bonusTime = new Date();
@@ -1049,6 +1181,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             sum += (c - '0');   // '1'->1, '2'->2 ...
         }
         String sumStr = (sum < 10) ? ("0" + sum) : String.valueOf(sum);
+        Map<String, Double> betMap = Maps.newConcurrentMap();//用户对应总扣款金额
+        Map<String, Double> winMap = Maps.newConcurrentMap();//用户对应总中奖金额
+        ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
+        List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
         while (true) {
             PageHelper.startPage(1, pageSize);
             // TODO Auto-generated method stub
@@ -1098,19 +1234,45 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 } //二同号-复选
                 return false;
             }).collect(Collectors.toList());
-            updateDataAll(allWinList, noticeReq, list, bonusTime);
+            betAllWinList.addAll(allWinList);
+            allWinList.stream()
+    	        .collect(Collectors.groupingBy(
+    	                BetInfoEntity::getUserId,
+    	                Collectors.summingDouble(BetInfoEntity::getBonus)
+    	        ))
+    	        .forEach((userId, amount) ->
+    	        	winMap.merge(userId, amount, Double::sum)
+    	        );
+//            processedBatchCount++;
+            list.stream()
+                .collect(Collectors.groupingBy(
+                        BetInfoEntity::getUserId,
+                        Collectors.summingDouble(BetInfoEntity::getTotalPrice)
+                ))
+                .forEach((userId, amount) ->
+                        betMap.merge(userId, amount, Double::sum)
+                );
+            
+            Set<String> bietIdSet = allWinList.stream()
+                    .map(BetInfoEntity::getProjectId)
+                    .collect(Collectors.toSet());
+            list.forEach(item -> {
+                if (bietIdSet.contains(item.getProjectId())) {
+                    item.setIsGetprize(1);
+                }
+            });
+            
+            ConcurrentMap<String, List<BetInfoEntity>> userBetListMap = list.parallelStream()
+                    .collect(Collectors.groupingByConcurrent(BetInfoEntity::getUserId));
+            userBetListMap.forEach((userId, newList) ->
+                    betRecordMap.merge(userId, new ArrayList<>(newList), (oldList, incomingList) -> {
+                        List<BetInfoEntity> merged = new ArrayList<>(oldList);
+                        merged.addAll(incomingList);
+                        return merged;
+                    })
+                );
         }
-        doCongealToReal(noticeReq);
-
-        Long endTime = System.currentTimeMillis();
-        log.info("\n============== noticeKs - {} ================" +
-                "\nlotteryId = {}" +
-                "\nissue = {}" +
-                "\n注单数(3000):{}" +
-                "\n开始时间:{}" +
-                "\n结束时间:{}" +
-                "\n耗时:{}", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo - 1, startTime, endTime, endTime - startTime);
-    
+        this.dataHandle(betMap, winMap, betRecordMap, betAllWinList, noticeReq);
     }
 
 
@@ -1149,58 +1311,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 ));
     }
 
-    public void newUpdateAll(List<BetInfoEntity> sumList, NoticeReq noticeReq, List<BetInfoEntity> list, Date bonusTime) {
-        //中奖订单ID列表
-        List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-        //未中奖订单ID
-        List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
-                .collect(Collectors.toList());
-        if (!notWinList.isEmpty()) {
-            List<BetInfoEntity> tempList = new ArrayList<>();
-            tempList.addAll(notWinList);
-            tempList.forEach(vo -> {
-                vo.setIsGetprize(2);
-                vo.setPrizeStatus(1);
-                vo.setUpdatedAt(new Date());
-            });
-            List<String> setCloumList = Lists.newArrayList("isGetprize", "prizeStatus", "updatedAt");
-            List<String> whereValueList = Lists.newArrayList("projectId");
-            jdbcCreateSqlUtil.batchUpdate(tempList,
-                    "update " + noticeReq.getTitle() + "_projects "
-                            + "set is_getprize = ?,prize_status = ?,updated_at = ? " +
-                            "where project_id = ?",
-                    setCloumList, whereValueList);
-        }
-        if (!sumList.isEmpty()) {
-            List<BetInfoEntity> tempList = new ArrayList<>();
-            tempList.addAll(sumList);
-            tempList.forEach(vo -> {
-                vo.setBonus(Double.valueOf(vo.getWinbonus()));
-                vo.setIsGetprize(1);
-                vo.setBonusTime(new Date());
-                vo.setUpdateTime(new Date());
-                vo.setUpdatedAt(new Date());
-            });
-            List<String> setCloumList = Lists.newArrayList("bonus", "isGetprize", "bonusTime", "updateTime", "updatedAt");
-            List<String> whereValueList = Lists.newArrayList("projectId");
-            jdbcCreateSqlUtil.batchUpdate(tempList,
-                    "update " + noticeReq.getTitle() + "_projects set "
-                            + "bonus = ?, is_getprize = ?, bonus_time = ?, update_time = ? updated_at = ? " +
-                            "where project_id = ? and is_cancel = 0",
-                    setCloumList, whereValueList);
-        }
-        List<String> userIds = sumList.stream().map(BetInfoEntity::getUserId).collect(Collectors.toSet()).stream().collect(Collectors.toList());
-        //删除临时注单记录 1
-        List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-        projectsTmpMapper.deleteBatchIds(projectIds);
-
-        //中奖
-        if (userIds == null || userIds.size() == 0) {
-            return;
-        }
-        //锁定用户资金
-//        betInfoMapper.doLockUserFund(noticeReq.getTitle(), userIds, 5);
-    }
 
     /**
      * 更新注单数据
@@ -1259,48 +1369,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         projectsTmpMapper.deleteBatchIds(projectIds);
     }
 
-    private void distributePendingAwards(NoticeReq noticeReq, int pageSize) {
-        if (TransactionSynchronizationManager.isActualTransactionActive()
-                || TransactionSynchronizationManager.isSynchronizationActive()) {
-            throw new IllegalStateException("奖金派发主流程检测到外层事务或事务同步上下文，为避免读取旧订单状态已停止处理，奖期："
-                    + noticeReq.getIssue());
-        }
-        int batchCount = 0;
-        String previousBatchKey = null;
-        while (true) {
-            PageHelper.startPage(1, pageSize);
-            //取得中奖--未派奖 订单
-            List<BetInfoEntity> pendingAwardList = betInfoMapper.selectPendingAwardList(noticeReq);
-            if (pendingAwardList == null || pendingAwardList.isEmpty()) {
-                log.info("奖金派发完成，厅主表名={}，彩种ID={}，奖期={}，处理批次={}",
-                        noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), batchCount);
-                return;
-            }
-            String currentBatchKey = pendingAwardList.stream()
-                    .map(BetInfoEntity::getProjectId)
-                    .collect(Collectors.joining(","));
-            if (currentBatchKey.equals(previousBatchKey)) {
-                BetInfoEntity firstOrder = pendingAwardList.get(0);
-                throw new IllegalStateException("奖金派发未取得进展，停止重复处理，奖期："
-                        + noticeReq.getIssue()
-                        + "，待处理订单数：" + pendingAwardList.size()
-                        + "，首笔订单ID：" + firstOrder.getProjectId()
-                        + "，中奖状态：" + firstOrder.getIsGetprize()
-                        + "，派奖状态：" + firstOrder.getPrizeStatus()
-                        + "，撤单状态：" + firstOrder.getIsCancel());
-            }
-            //未派奖订单执行派奖
-            Boolean awardSuccess = ordersToolService.getOrdersListAll(
-                    pendingAwardList, noticeReq.getTitle(), 5, noticeReq.getRoomMaster());
-            if (!Boolean.TRUE.equals(awardSuccess)) {
-                throw new IllegalStateException("奖金派发失败，奖期：" + noticeReq.getIssue()
-                        + "，批次：" + (batchCount + 1));
-            }
-            previousBatchKey = currentBatchKey;
-            batchCount++;
-        }
-    }
-
 
     /**
      * 生成数据-测试
@@ -1331,28 +1399,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         return ApiResp.sucess();
     }
 
-    /**
-     * 结算
-     *
-     * @param noticeReq
-     */
-    public void doCongealToReal(NoticeReq noticeReq) {
-        ManualDistributionReq condition = new ManualDistributionReq();
-        condition.setIssue(noticeReq.getIssue());
-        condition.setLotteryId(noticeReq.getLotteryId());
-        condition.setMasterId(String.valueOf(noticeReq.getRoomMaster().getMasterId()));
-        ApiResp<String> response = oPissueToolService.doCongealToReal(condition);
-        if (response == null || !"0".equals(response.getResult())) {
-            String message = response == null ? "结算接口无响应" : response.getResDesc();
-            throw new IllegalStateException("自动结算失败，厅主表名=" + noticeReq.getTitle()
-                    + "，彩种ID=" + noticeReq.getLotteryId()
-                    + "，奖期=" + noticeReq.getIssue()
-                    + "，原因=" + message);
-        }
-        log.info("自动结算完成，厅主表名={}，彩种ID={}，奖期={}",
-                noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue());
-    }
-
     // ---------- 小工具 ----------
     static String uniqId() {
         // 类似 uniqid：时间 + 随机
@@ -1365,9 +1411,239 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         return new String(arr);
     }
     
-    private String getLast(String str,int len) {
-		String trim = str.trim();
-		return trim.substring(trim.length()-len);
-	}
+    private void dataHandle(Map<String, Double> betMap,Map<String, Double> winMap,ConcurrentMap<String, List<BetInfoEntity>> betRecordMap,List<BetInfoEntity> betAllWinList, NoticeReq noticeReq) {
+        Long startTime = System.currentTimeMillis();
+    	if(betRecordMap.isEmpty()) {
+    		log.info("奖期：{},表头:{}没有投注记录",noticeReq.getIssue(),noticeReq.getTitle());
+    		return;
+    	}
+    	//用户钱包上锁
+    	for(String userId : betRecordMap.keySet()) {
+    		updateWalletLocked(userId, noticeReq.getTitle(), "充提上锁", 1, 0, 0);
+    		updateWalletLocked(userId, noticeReq.getTitle(), "投注上锁", 1, 0, 1);
+    		updateWalletLocked(userId, noticeReq.getTitle(), "验派上锁", 1, 0, 2);
+    		updateWalletLocked(userId, noticeReq.getTitle(), "撤单上锁", 1, 0, 3);
+    		updateWalletLocked(userId, noticeReq.getTitle(), "扣款上锁", 1, 0, 4);
+        	updateWalletLocked(userId, noticeReq.getTitle(), "派奖上锁", 1, 0, 5);
+    	}
+    	if(!betAllWinList.isEmpty()) {
+        	List<BetInfoEntity> sumList = getSumList(betAllWinList);
+        	betInfoMapper.updateWinResult(noticeReq.getTitle(), sumList);
+    	}
+    	 // 1. 把未校验订单修改为未中奖
+    	betInfoMapper.updateIsGetprizeTo2(noticeReq.getIssue().trim(), noticeReq.getTitle());
+    	
+    	Integer betNum = 0;
+    	
+    	Map<String,List<OrdersEntity>> chargeMap = Maps.newConcurrentMap();//扣款账变集合
+    	Map<String,List<OrdersEntity>> prizeMap = Maps.newConcurrentMap();//派奖账变集合
+    	//组装扣款账变集合和派奖账变集合
+    	for(String userId : betRecordMap.keySet()) {
+    		UserFundEntity wallet = userFundMapper.selectByUserSum(noticeReq.getTitle(), userId);
+    		List<BetInfoEntity> list = betRecordMap.get(userId);
+        	list.sort(Comparator.comparing(BetInfoEntity::getCreatedAt));
+        	List<OrdersEntity> chargeList = Lists.newArrayList();
+        	for(BetInfoEntity project : list) {
+            	BigDecimal channelbalance = wallet.getChannelbalance();
+            	BigDecimal holdbalance = wallet.getHoldbalance();
+            	BigDecimal availablebalance = wallet.getAvailablebalance();
+        		//添加账变记录
+        		OrdersEntity order = new OrdersEntity();
+                String uuid =OrdersToolServiceImpl.uniqId16();
+                order.setEntry(uuid);
+                order.setLotteryId(project.getLotteryId());
+                order.setMethodId(project.getMethodId());
+                order.setTaskId(project.getTaskId());
+                order.setProjectId(project.getProjectId());
+                order.setFromuserId(project.getUserId());
+                order.setOrderTypeId(5);
+                order.setIssue(project.getIssue());
+                order.setTitle("游戏扣款");
+                order.setAmount(BigDecimal.valueOf(project.getTotalPrice()));
+                order.setDescription("游戏扣款");
+                order.setPreBalance(channelbalance);     //账变前 -帐变前频道资金
+                wallet.setChannelbalance(channelbalance.subtract(BigDecimal.valueOf(project.getTotalPrice())));
+                order.setPreHold(holdbalance);           //账变前 -帐变前冻结资金
+                wallet.setHoldbalance(holdbalance.subtract(BigDecimal.valueOf(project.getTotalPrice())));
+                order.setPreAvailable(availablebalance); //账变前 -帐变前可用资金
+                wallet.setAvailablebalance(availablebalance.subtract(BigDecimal.valueOf(project.getTotalPrice())));
+
+                order.setChannelBalance(wallet.getChannelbalance());        //账变后 -帐变后可用资金
+                order.setHoldBalance(wallet.getHoldbalance());              //账变后 -帐变后的冻结资金
+                order.setAvailableBalance(wallet.getChannelbalance());    //账变后 -帐变后频道资金
+
+                order.setUniqueKey(String.valueOf(System.currentTimeMillis()));
+                order.setModes(project.getModes());
+                Date date = new Date();
+                order.setCreatedAt(date);
+                order.setUpdatedAt(date);
+                order.setActionTime(date);
+                chargeList.add(order);
+                betNum += 1;
+        	}
+        	chargeMap.put(userId, chargeList);
+        	List<BetInfoEntity> winList = list.stream().filter(vo -> vo.getIsGetprize() == 1).collect(Collectors.toList());
+        	List<OrdersEntity> prizeList = Lists.newArrayList();
+        	for(BetInfoEntity project : winList) {
+            	BigDecimal channelbalance = wallet.getChannelbalance();
+            	BigDecimal holdbalance = wallet.getHoldbalance();
+            	BigDecimal availablebalance = wallet.getAvailablebalance();
+        		//添加账变记录
+        		OrdersEntity order = new OrdersEntity();
+                String uuid =OrdersToolServiceImpl.uniqId16();
+                order.setEntry(uuid);
+                order.setLotteryId(project.getLotteryId());
+                order.setMethodId(project.getMethodId());
+                order.setTaskId(project.getTaskId());
+                order.setProjectId(project.getProjectId());
+                order.setFromuserId(project.getUserId());
+                order.setOrderTypeId(5);
+                order.setIssue(project.getIssue());
+                order.setTitle("奖金派送");
+                order.setAmount(BigDecimal.valueOf(project.getTotalPrice()));
+                order.setDescription("奖金派送");
+                order.setPreBalance(channelbalance);     //账变前 -帐变前频道资金
+                wallet.setChannelbalance(channelbalance.add(BigDecimal.valueOf(project.getTotalPrice())));
+                order.setPreHold(holdbalance);           //账变前 -帐变前冻结资金
+                order.setPreAvailable(availablebalance); //账变前 -帐变前可用资金
+                wallet.setAvailablebalance(availablebalance.add(BigDecimal.valueOf(project.getTotalPrice())));
+
+                order.setChannelBalance(wallet.getChannelbalance());        //账变后 -帐变后可用资金
+                order.setHoldBalance(wallet.getHoldbalance());              //账变后 -帐变后的冻结资金
+                order.setAvailableBalance(wallet.getChannelbalance());    //账变后 -帐变后频道资金
+
+                order.setUniqueKey(String.valueOf(System.currentTimeMillis()));
+                order.setModes(project.getModes());
+                Date date = new Date();
+                order.setCreatedAt(date);
+                order.setUpdatedAt(date);
+                order.setActionTime(date);
+                prizeList.add(order);
+        	}
+        	prizeMap.put(userId, prizeList);
+    	}
+    	
+    	//获取所有需要操作的钱包
+    	Map<String, UserFundEntity> updateFundMap = Maps.newConcurrentMap();
+    	for(String userId : betRecordMap.keySet()) {
+    		//查询用户钱包 并上锁
+        	UserFundEntity chargeFund = getUserFund(noticeReq.getTitle(),userId,4);
+        	if(betMap.containsKey(userId)) {
+        		Double chargeAmt = betMap.get(userId);
+        		chargeFund.setHoldbalance(chargeFund.getHoldbalance().subtract(BigDecimal.valueOf(chargeAmt)));
+        		updateFundMap.put(userId, chargeFund);
+        	}
+        	UserFundEntity prizeFund = getUserFund(noticeReq.getTitle(),userId,5);
+        	if(winMap.containsKey(userId)) {
+        		Double prizeAmt = winMap.get(userId);
+        		prizeFund.setHoldbalance(prizeFund.getHoldbalance().add(BigDecimal.valueOf(prizeAmt)));
+        		updateFundMap.put(userId, prizeFund);
+        	}
+    	}
+
+    	//数据库操作
+    	for(String userId : betRecordMap.keySet()) {
+    		List<OrdersEntity> ordersList = new ArrayList<>();  //需要新增的orders
+    		if(chargeMap.containsKey(userId)) {
+    			List<OrdersEntity> list = chargeMap.get(userId);
+    			ordersList.addAll(list);
+    		}
+    		
+    		if(prizeMap.containsKey(userId)) {
+    			List<OrdersEntity> list = prizeMap.get(userId);
+    			ordersList.addAll(list);
+    		}
+    		
+    		if(!prizeMap.isEmpty()) {
+    			int insertedOrderCount = ordersMapper.addOrdersListAll(ordersList,noticeReq.getTitle());
+    			 if(insertedOrderCount != ordersList.size()){
+                     throw new RuntimeException("插入账变失败，应插入：" + ordersList.size()
+                             + "，实际插入：" + insertedOrderCount);
+                 }
+    		}
+    	}
+    	
+    	//更新用户钱包
+    	if(!updateFundMap.isEmpty()) {
+    		int updatedWalletCount = userFundMapper.doUpdateAddOrdersList(noticeReq.getTitle(),updateFundMap);
+    		if(updatedWalletCount != updateFundMap.size()) {
+    			throw new RuntimeException("批量修改钱包失败，应更新：" + updateFundMap.size()
+                	+ "，实际更新：" + updatedWalletCount);
+    		}
+    	}
+
+    	//修改当前中奖订单派奖时间
+    	betInfoMapper.updatePrize(noticeReq.getTitle(), noticeReq.getIssue().trim());
+    	
+    	//用户钱包解锁
+    	for(String userId : betRecordMap.keySet()) {
+    		updateWalletLocked(userId, noticeReq.getTitle(), "充提解锁", 0, 1, 0);
+    		updateWalletLocked(userId, noticeReq.getTitle(), "投注解锁", 0, 1, 1);
+    		updateWalletLocked(userId, noticeReq.getTitle(), "验派解锁", 0, 1, 2);
+    		updateWalletLocked(userId, noticeReq.getTitle(), "撤单解锁", 0, 1, 3);
+    		updateWalletLocked(userId, noticeReq.getTitle(), "扣款解锁", 0, 1, 4);
+        	updateWalletLocked(userId, noticeReq.getTitle(), "派奖解锁", 0, 1, 5);
+    	}
+    	
+    	Long endTime = System.currentTimeMillis();
+        log.info("\n============={}=================" +
+                "\nlotteryId = {}" +
+                "\nissue = {}" +
+                "\n注单数:{}" +
+                "\n开始时间:{}" +
+                "\n结束时间:{}" +
+                "\n耗时:{}" +
+                "\n============={}=================", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), betNum, startTime, endTime, endTime - startTime);
+    }
+    
+    /**
+     * 获取钱包
+     * @param title 表头
+     * @param userId 用户ID
+     * @param walletType 钱包类别 0: 充提, 1: 投注, 2: 验派, 3: 撤单, 4: 扣款 ,5 派奖
+     * @return
+     */
+    private UserFundEntity getUserFund(String title,String userId,int walletType) {
+    	UserFundEntity o = new UserFundEntity();
+        o.setUserid(userId);
+        o.setWalletType(walletType);
+        UserFundEntity userFundEntity = userFundMapper.selectByUserAndTypeOne(title, o); //频道钱包
+        if(ObjectUtils.isEmpty(userFundEntity)) {
+        	throw new RuntimeException("用户:" + userId+"获取类型为："+walletType+"钱包失败");
+        }
+        return userFundEntity;
+    }
+    
+    /**
+	 * 修改钱包状态
+	 * @param userid 用户ID
+	 * @param title 表头
+	 * @param lockAction 操作说明
+	 * @param islocked 是否上锁 0=正常, 1=被锁
+	 * @param nowIsLock 当前锁定状态
+	 * @param walletType 钱包类别 0: 充提, 1: 投注, 2: 验派, 3: 撤单, 4: 扣款 ,5 派奖
+	 * @return
+	 */
+	private void updateWalletLocked(String userid,String title, String lockAction, int islocked,  int nowIsLock,int walletType) {
+		int count = 0;
+    	while(true) {
+    		int lockStatus = userFundMapper.updateWalletLocked(userid, title, lockAction, islocked, nowIsLock, walletType);
+    		if(lockStatus > 0) {
+    			break;
+    		}
+    		count ++ ;
+    		
+    		if(count == 5) {
+    			throw new RuntimeException("用户:" + userid+"尝试"+count+"后"+lockAction+"失败");
+    		}
+    		
+    		try {
+				Thread.sleep(20);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+    	}
+    }
 
 }
