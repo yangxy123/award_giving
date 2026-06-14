@@ -75,7 +75,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private RoomMasterMapper roomMasterMapper;
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void notice(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         int pageSize = 3000;
@@ -514,7 +513,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeNorth(NoticeReq noticeReq) {
         try {
             Long startTime = System.currentTimeMillis();
@@ -848,7 +846,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeTh(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         // TODO Auto-generated method stub
@@ -1009,7 +1006,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeLw(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         Date bonusTime = new Date();
@@ -1086,7 +1082,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void noticeKs(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         Date bonusTime = new Date();
@@ -1299,7 +1294,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             return;
         }
         TempIssueInfoEntity tempIssueInfoEntity = tempIssueInfoMapper.selectByTitle(noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue());
-        if(ObjectUtils.isEmpty(tempIssueInfoEntity) && tempIssueInfoEntity.getStatusDeduct() != 0) {
+        if(ObjectUtils.isEmpty(tempIssueInfoEntity) || tempIssueInfoEntity.getStatusDeduct() != 0) {
             return;
         }
         tempIssueInfoEntity.setStatusDeduct(1);
@@ -1330,6 +1325,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         //组装扣款账变集合和派奖账变集合
         for(String userId : betRecordMap.keySet()) {
             UserFundEntity wallet = userFundMapper.selectByUserSum(noticeReq.getTitle(), userId);
+            if(ObjectUtils.isEmpty(wallet)) {
+            	continue;
+            }
             List<BetInfoEntity> list = betRecordMap.get(userId);
             list.sort(Comparator.comparing(BetInfoEntity::getCreatedAt));
             List<OrdersEntity> chargeList = Lists.newArrayList();
@@ -1428,7 +1426,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 if(chargeAmt > 0) {
                     chargeFund.setChannelbalance(chargeFund.getChannelbalance().subtract(BigDecimal.valueOf(chargeAmt)));
                     chargeFund.setHoldbalance(chargeFund.getHoldbalance().subtract(BigDecimal.valueOf(chargeAmt)));
-                    updateFundMap.put(userId, chargeFund);
+                    updateFundMap.put(userId+"4", chargeFund);
                 }
             }
             UserFundEntity prizeFund = getUserFund(noticeReq.getTitle(),userId,5);
@@ -1437,7 +1435,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 if(prizeAmt > 0) {
                     prizeFund.setChannelbalance(prizeFund.getChannelbalance().add(BigDecimal.valueOf(prizeAmt)));
                     prizeFund.setAvailablebalance(prizeFund.getAvailablebalance().add(BigDecimal.valueOf(prizeAmt)));
-                    updateFundMap.put(userId, prizeFund);
+                    updateFundMap.put(userId+"5", prizeFund);
                 }
             }
         }
@@ -1526,7 +1524,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         o.setWalletType(walletType);
         UserFundEntity userFundEntity = userFundMapper.selectByUserAndTypeOne(title, o); //频道钱包
         if(ObjectUtils.isEmpty(userFundEntity)) {
-        	throw new RuntimeException("用户:" + userId+"获取类型为："+walletType+"钱包失败");
+        	log.info("用户:" + userId+"，表头:"+title+"未查询到类型为："+walletType+"钱包");
+//        	throw new RuntimeException("用户:" + userId+"获取类型为："+walletType+"钱包失败");
         }
         return userFundEntity;
     }
@@ -1544,14 +1543,19 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 	private void updateWalletLocked(String userid,String title, String lockAction, int islocked,  int nowIsLock,int walletType) {
 		int count = 0;
     	while(true) {
+    		UserFundEntity wallet = userFundMapper.selectByUserSum(title, userid);
+    		if(ObjectUtils.isEmpty(wallet)) {
+    			log.info("用户:" + userid+"，表头:"+title+"未查询到钱包");
+    			return;
+    		}
     		int lockStatus = userFundMapper.updateWalletLocked(userid, title, lockAction, islocked, nowIsLock, walletType);
     		if(lockStatus > 0) {
     			break;
     		}
     		count ++ ;
     		
-    		if(count == 10) {
-    			throw new RuntimeException("用户:" + userid+"尝试"+count+"后"+lockAction+"失败");
+    		if(count == 20) {
+    			throw new RuntimeException("用户:" + userid+"，表头:"+title+"尝试"+count+"后"+lockAction+"失败");
     		}
     		
     		try {
