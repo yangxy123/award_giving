@@ -1294,18 +1294,18 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     
     private void dataHandle(ConcurrentMap<String, List<BetInfoEntity>> betRecordMap,List<BetInfoEntity> betAllWinList, NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
-    	if(betRecordMap.isEmpty()) {
-    		log.info("奖期：{},表头:{}没有投注记录",noticeReq.getIssue(),noticeReq.getTitle());
-    		return;
-    	}
-    	TempIssueInfoEntity tempIssueInfoEntity = tempIssueInfoMapper.selectByTitle(noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue());
-    	if(ObjectUtils.isEmpty(tempIssueInfoEntity) && tempIssueInfoEntity.getStatusDeduct() != 0) {
-    		return;
-    	}
-    	tempIssueInfoEntity.setStatusDeduct(1);
-    	tempIssueInfoMapper.updateById(tempIssueInfoEntity);
-    	//用户钱包上锁
-    	for(String userId : betRecordMap.keySet()) {
+        if(betRecordMap.isEmpty()) {
+            log.info("奖期：{},表头:{}没有投注记录",noticeReq.getIssue(),noticeReq.getTitle());
+            return;
+        }
+        TempIssueInfoEntity tempIssueInfoEntity = tempIssueInfoMapper.selectByTitle(noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue());
+        if(ObjectUtils.isEmpty(tempIssueInfoEntity) && tempIssueInfoEntity.getStatusDeduct() != 0) {
+            return;
+        }
+        tempIssueInfoEntity.setStatusDeduct(1);
+        tempIssueInfoMapper.updateById(tempIssueInfoEntity);
+        //用户钱包上锁
+        for(String userId : betRecordMap.keySet()) {
 //    		updateWalletLocked(userId, noticeReq.getTitle(), "[java]充提上锁", 1, 0, 0);
 //    		updateWalletLocked(userId, noticeReq.getTitle(), "[java]投注上锁", 1, 0, 1);
 //    		updateWalletLocked(userId, noticeReq.getTitle(), "[java]验派上锁", 1, 0, 2);
@@ -1314,33 +1314,33 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         	updateWalletLocked(userId, noticeReq.getTitle(), "[java]派奖上锁", 1, 0, 5);
     	}
     	
-    	if(!betAllWinList.isEmpty()) {
-        	List<BetInfoEntity> sumList = getSumList(betAllWinList);
-        	betInfoMapper.updateWinResult(noticeReq.getTitle(), sumList);
-    	}
+        if(!betAllWinList.isEmpty()) {
+            List<BetInfoEntity> sumList = getSumList(betAllWinList);
+            betInfoMapper.updateWinResult(noticeReq.getTitle(), sumList);
+        }
     	 // 1. 把未校验订单修改为未中奖
-    	betInfoMapper.updateIsGetprizeTo2(noticeReq.getIssue().trim(), noticeReq.getTitle(),noticeReq.getLotteryId());
+        betInfoMapper.updateIsGetprizeTo2(noticeReq.getIssue().trim(), noticeReq.getTitle(),noticeReq.getLotteryId());
     	
     	Integer betNum = 0;
     	
-    	Map<String,List<OrdersEntity>> chargeMap = Maps.newConcurrentMap();//扣款账变集合
-    	Map<String,List<OrdersEntity>> prizeMap = Maps.newConcurrentMap();//派奖账变集合
-    	Map<String, Double> betMap = Maps.newConcurrentMap();// 用户对应扣款总额
-    	Map<String, Double> winMap = Maps.newConcurrentMap();// 用户对应中奖总额
-    	//组装扣款账变集合和派奖账变集合
-    	for(String userId : betRecordMap.keySet()) {
-    		UserFundEntity wallet = userFundMapper.selectByUserSum(noticeReq.getTitle(), userId);
-    		List<BetInfoEntity> list = betRecordMap.get(userId);
-        	list.sort(Comparator.comparing(BetInfoEntity::getCreatedAt));
-        	List<OrdersEntity> chargeList = Lists.newArrayList();
+        Map<String,List<OrdersEntity>> chargeMap = Maps.newConcurrentMap();//扣款账变集合
+        Map<String,List<OrdersEntity>> prizeMap = Maps.newConcurrentMap();//派奖账变集合
+        Map<String, Double> betMap = Maps.newConcurrentMap();// 用户对应扣款总额
+        Map<String, Double> winMap = Maps.newConcurrentMap();// 用户对应中奖总额
+        //组装扣款账变集合和派奖账变集合
+        for(String userId : betRecordMap.keySet()) {
+            UserFundEntity wallet = userFundMapper.selectByUserSum(noticeReq.getTitle(), userId);
+            List<BetInfoEntity> list = betRecordMap.get(userId);
+            list.sort(Comparator.comparing(BetInfoEntity::getCreatedAt));
+            List<OrdersEntity> chargeList = Lists.newArrayList();
             Date date = new Date();
             Double amt = 0.00;//扣款总额
-        	for(BetInfoEntity project : list) {
-            	BigDecimal channelbalance = wallet.getChannelbalance();
-            	BigDecimal holdbalance = wallet.getHoldbalance();
-            	BigDecimal availablebalance = wallet.getAvailablebalance();
-        		//添加账变记录
-        		OrdersEntity order = new OrdersEntity();
+            for(BetInfoEntity project : list) {
+                BigDecimal channelbalance = wallet.getChannelbalance();
+                BigDecimal holdbalance = wallet.getHoldbalance();
+                BigDecimal availablebalance = wallet.getAvailablebalance();
+                //添加账变记录
+                OrdersEntity order = new OrdersEntity();
                 String uuid =OrdersToolServiceImpl.uniqId16();
                 order.setEntry(uuid);
                 order.setLotteryId(project.getLotteryId());
@@ -1373,18 +1373,18 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 betNum += 1;
                 amt += project.getTotalPrice();
         	}
-        	betMap.put(userId, amt);
-        	chargeMap.put(userId, chargeList);
-        	List<BetInfoEntity> winList = list.stream().filter(vo -> vo.getIsGetprize() == 1).collect(Collectors.toList());
-        	List<OrdersEntity> prizeList = Lists.newArrayList();
+            betMap.put(userId, amt);
+            chargeMap.put(userId, chargeList);
+            List<BetInfoEntity> winList = list.stream().filter(vo -> vo.getIsGetprize() == 1).collect(Collectors.toList());
+            List<OrdersEntity> prizeList = Lists.newArrayList();
 
             Double amt1 = 0.00;//中奖总额
-        	for(BetInfoEntity project : winList) {
-            	BigDecimal channelbalance = wallet.getChannelbalance();
-            	BigDecimal holdbalance = wallet.getHoldbalance();
-            	BigDecimal availablebalance = wallet.getAvailablebalance();
-        		//添加账变记录
-        		OrdersEntity order = new OrdersEntity();
+            for(BetInfoEntity project : winList) {
+                BigDecimal channelbalance = wallet.getChannelbalance();
+                BigDecimal holdbalance = wallet.getHoldbalance();
+                BigDecimal availablebalance = wallet.getAvailablebalance();
+                //添加账变记录
+                OrdersEntity order = new OrdersEntity();
                 String uuid =OrdersToolServiceImpl.uniqId16();
                 order.setEntry(uuid);
                 order.setLotteryId(project.getLotteryId());
@@ -1414,95 +1414,95 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 order.setActionTime(new Date(date.getTime() + 1000));
                 prizeList.add(order);
                 amt1 += project.getBonus();
-        	}
-        	winMap.put(userId, amt1);
-        	prizeMap.put(userId, prizeList);
-    	}
-    	
-    	//获取所有需要操作的钱包
-    	Map<String, UserFundEntity> updateFundMap = Maps.newConcurrentMap();
-    	for(String userId : betRecordMap.keySet()) {
-        	UserFundEntity chargeFund = getUserFund(noticeReq.getTitle(),userId,4);
-        	if(betMap.containsKey(userId)) {
-        		Double chargeAmt = betMap.get(userId);
-        		if(chargeAmt > 0) {
-            		chargeFund.setChannelbalance(chargeFund.getChannelbalance().subtract(BigDecimal.valueOf(chargeAmt)));
-            		chargeFund.setHoldbalance(chargeFund.getHoldbalance().subtract(BigDecimal.valueOf(chargeAmt)));
-            		updateFundMap.put(userId, chargeFund);
-        		}
-        	}
-        	UserFundEntity prizeFund = getUserFund(noticeReq.getTitle(),userId,5);
-        	if(winMap.containsKey(userId)) {
-        		Double prizeAmt = winMap.get(userId);
-        		if(prizeAmt > 0) {
-        			prizeFund.setChannelbalance(prizeFund.getChannelbalance().add(BigDecimal.valueOf(prizeAmt)));
-        			prizeFund.setAvailablebalance(prizeFund.getAvailablebalance().add(BigDecimal.valueOf(prizeAmt)));
-        			updateFundMap.put(userId, prizeFund);
-        		}
-        	}
-    	}
+            }
+            winMap.put(userId, amt1);
+            prizeMap.put(userId, prizeList);
+        }
 
-    	//数据库操作
-    	for(String userId : betRecordMap.keySet()) {
-    		List<OrdersEntity> ordersList = new ArrayList<>();  //需要新增的orders
-    		if(chargeMap.containsKey(userId)) {
-    			List<OrdersEntity> list = chargeMap.get(userId);
-    			ordersList.addAll(list);
-    		}
-    		
-    		if(prizeMap.containsKey(userId)) {
-    			List<OrdersEntity> list = prizeMap.get(userId);
-    			ordersList.addAll(list);
-    		}
-    		
-    		if(!ordersList.isEmpty()) {
-    			int insertedOrderCount = ordersMapper.addOrdersListAll(ordersList,noticeReq.getTitle());
-    			 if(insertedOrderCount != ordersList.size()){
-                     throw new RuntimeException("插入账变失败，应插入：" + ordersList.size()
-                             + "，实际插入：" + insertedOrderCount);
-                 }
-    		}
-    	}
-    	
-    	//更新用户钱包
-    	if(!updateFundMap.isEmpty()) {
-    		int updatedWalletCount = userFundMapper.doUpdateAddOrdersList(noticeReq.getTitle(),updateFundMap);
-    		if(updatedWalletCount != updateFundMap.size()) {
-    			throw new RuntimeException("批量修改钱包失败，应更新：" + updateFundMap.size()
-                	+ "，实际更新：" + updatedWalletCount);
-    		}
-    	}
+        //获取所有需要操作的钱包
+        Map<String, UserFundEntity> updateFundMap = Maps.newConcurrentMap();
+        for(String userId : betRecordMap.keySet()) {
+            UserFundEntity chargeFund = getUserFund(noticeReq.getTitle(),userId,4);
+            if(betMap.containsKey(userId)) {
+                Double chargeAmt = betMap.get(userId);
+                if(chargeAmt > 0) {
+                    chargeFund.setChannelbalance(chargeFund.getChannelbalance().subtract(BigDecimal.valueOf(chargeAmt)));
+                    chargeFund.setHoldbalance(chargeFund.getHoldbalance().subtract(BigDecimal.valueOf(chargeAmt)));
+                    updateFundMap.put(userId, chargeFund);
+                }
+            }
+            UserFundEntity prizeFund = getUserFund(noticeReq.getTitle(),userId,5);
+            if(winMap.containsKey(userId)) {
+                Double prizeAmt = winMap.get(userId);
+                if(prizeAmt > 0) {
+                    prizeFund.setChannelbalance(prizeFund.getChannelbalance().add(BigDecimal.valueOf(prizeAmt)));
+                    prizeFund.setAvailablebalance(prizeFund.getAvailablebalance().add(BigDecimal.valueOf(prizeAmt)));
+                    updateFundMap.put(userId, prizeFund);
+                }
+            }
+        }
 
-    	//修改当前订单派奖时间
-    	betInfoMapper.updatePrize(noticeReq.getTitle(), noticeReq.getIssue().trim(),noticeReq.getLotteryId());
-    	
-    	//用户钱包解锁
-    	for(String userId : betRecordMap.keySet()) {
+        //数据库操作
+        for(String userId : betRecordMap.keySet()) {
+            List<OrdersEntity> ordersList = new ArrayList<>();  //需要新增的orders
+            if(chargeMap.containsKey(userId)) {
+                List<OrdersEntity> list = chargeMap.get(userId);
+                ordersList.addAll(list);
+            }
+
+            if(prizeMap.containsKey(userId)) {
+                List<OrdersEntity> list = prizeMap.get(userId);
+                ordersList.addAll(list);
+            }
+
+            if(!ordersList.isEmpty()) {
+                int insertedOrderCount = ordersMapper.addOrdersListAll(ordersList,noticeReq.getTitle());
+                if(insertedOrderCount != ordersList.size()){
+                    throw new RuntimeException("插入账变失败，应插入：" + ordersList.size()
+                            + "，实际插入：" + insertedOrderCount);
+                }
+            }
+        }
+
+        //更新用户钱包
+        if(!updateFundMap.isEmpty()) {
+            int updatedWalletCount = userFundMapper.doUpdateAddOrdersList(noticeReq.getTitle(),updateFundMap);
+            if(updatedWalletCount != updateFundMap.size()) {
+                throw new RuntimeException("批量修改钱包失败，应更新：" + updateFundMap.size()
+                        + "，实际更新：" + updatedWalletCount);
+            }
+        }
+
+        //修改当前订单派奖时间
+        betInfoMapper.updatePrize(noticeReq.getTitle(), noticeReq.getIssue().trim(),noticeReq.getLotteryId());
+
+        //用户钱包解锁
+        for(String userId : betRecordMap.keySet()) {
 //    		updateWalletLocked(userId, noticeReq.getTitle(), "充提解锁", 0, 1, 0);
 //    		updateWalletLocked(userId, noticeReq.getTitle(), "投注解锁", 0, 1, 1);
 //    		updateWalletLocked(userId, noticeReq.getTitle(), "验派解锁", 0, 1, 2);
 //    		updateWalletLocked(userId, noticeReq.getTitle(), "撤单解锁", 0, 1, 3);
-    		updateWalletLocked(userId, noticeReq.getTitle(), "[java]扣款解锁", 0, 1, 4);
-        	updateWalletLocked(userId, noticeReq.getTitle(), "[java]派奖解锁", 0, 1, 5);
-    	} 
-    	
-    	//单钱包处理
-    	RoomMasterEntity roomMaster = noticeReq.getRoomMaster();
-    	if (roomMaster.getUserWalletType() == 0 || roomMaster.getUserWalletType() == 1 || roomMaster.getUserWalletType() == 2 || roomMaster.getUserWalletType() == 3){
-    	    
-    	    for(String userId : betRecordMap.keySet()) {
-        		if(prizeMap.containsKey(userId)) {
-        			List<OrdersEntity> list = prizeMap.get(userId);
-        			if(!list.isEmpty()) {
-        				roomMasterMapper.createSpeculationList(roomMaster,list);
-        			}
-        		}
-        	};
-    	}
-    	
-    	tempIssueInfoEntity.setStatusDeduct(2);
-    	tempIssueInfoMapper.updateById(tempIssueInfoEntity);
-    	Long endTime = System.currentTimeMillis();
+            updateWalletLocked(userId, noticeReq.getTitle(), "[java]扣款解锁", 0, 1, 4);
+            updateWalletLocked(userId, noticeReq.getTitle(), "[java]派奖解锁", 0, 1, 5);
+        }
+
+        //单钱包处理
+        RoomMasterEntity roomMaster = noticeReq.getRoomMaster();
+        if (roomMaster.getUserWalletType() == 0 || roomMaster.getUserWalletType() == 1 || roomMaster.getUserWalletType() == 2 || roomMaster.getUserWalletType() == 3){
+
+            for(String userId : betRecordMap.keySet()) {
+                if(prizeMap.containsKey(userId)) {
+                    List<OrdersEntity> list = prizeMap.get(userId);
+                    if(!list.isEmpty()) {
+                        roomMasterMapper.createSpeculationList(roomMaster,list);
+                    }
+                }
+            };
+        }
+
+        tempIssueInfoEntity.setStatusDeduct(2);
+        tempIssueInfoMapper.updateById(tempIssueInfoEntity);
+        Long endTime = System.currentTimeMillis();
         log.info("\n============={}=================" +
                 "\nlotteryId = {}" +
                 "\nissue = {}" +
@@ -1512,7 +1512,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 "\n耗时:{}" +
                 "\n============={}=================", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), betNum, startTime, endTime, endTime - startTime);
     }
-    
+
     /**
      * 获取钱包
      * @param title 表头
