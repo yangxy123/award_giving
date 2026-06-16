@@ -74,6 +74,17 @@ public interface UserFundMapper extends BaseMapper<UserFundEntity> {
 	UserFundEntity selectByUserSum(@Param("title") String title, @Param("userId") String userId);
 
 	/**
+	 * 通过type 与锁定状态取得一条
+	 *
+	 * @param title
+	 * @param userId
+	 * @param walletType
+	 * @return
+	 */
+	UserFundEntity selectByUserAndType(@Param("title") String title, @Param("userId") String userId,@Param("walletType") int walletType);
+
+
+	/**
 	 * 批量解锁--1
 	 * 
 	 * @param title

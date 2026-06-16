@@ -67,6 +67,12 @@
         GROUP BY userid;
     </select>
 
+    <select id="selectByUserAndType" resultType="com.giving.entity.UserFundEntity">
+        SELECT * FROM `${title}_user_fund`
+        WHERE userid = #{userId}
+          AND wallet_type = #{walletType}
+    </select>
+
     <!--    执行用户钱包解锁 批量1-->
     <update id="doLockUserFund">
         UPDATE ${title}_user_fund

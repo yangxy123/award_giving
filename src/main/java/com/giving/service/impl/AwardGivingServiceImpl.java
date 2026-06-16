@@ -1324,19 +1324,30 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         Map<String, Double> winMap = Maps.newConcurrentMap();// 用户对应中奖总额
         //组装扣款账变集合和派奖账变集合
         for(String userId : betRecordMap.keySet()) {
+            // 钱包汇总
             UserFundEntity wallet = userFundMapper.selectByUserSum(noticeReq.getTitle(), userId);
             if(ObjectUtils.isEmpty(wallet)) {
             	continue;
             }
+            //结算频道钱包--4
+            UserFundEntity wallet4 = userFundMapper.selectByUserAndType(noticeReq.getTitle(), userId,4);
+            //派奖频道钱包--5
+            UserFundEntity wallet5 = userFundMapper.selectByUserAndType(noticeReq.getTitle(), userId,5);
+
             List<BetInfoEntity> list = betRecordMap.get(userId);
             list.sort(Comparator.comparing(BetInfoEntity::getCreatedAt));
             List<OrdersEntity> chargeList = Lists.newArrayList();
             Date date = new Date();
+            //处理结算
             Double amt = 0.00;//扣款总额
             for(BetInfoEntity project : list) {
-                BigDecimal channelbalance = wallet.getChannelbalance();
-                BigDecimal holdbalance = wallet.getHoldbalance();
-                BigDecimal availablebalance = wallet.getAvailablebalance();
+                BigDecimal channelbalance = wallet4.getChannelbalance();
+                BigDecimal holdbalance = wallet4.getHoldbalance();
+                BigDecimal availablebalance = wallet4.getAvailablebalance();
+
+                BigDecimal channelbalanceAll    = wallet.getChannelbalance();
+                BigDecimal holdbalanceAll       = wallet.getHoldbalance();
+
                 //添加账变记录
                 OrdersEntity order = new OrdersEntity();
                 String uuid =OrdersToolServiceImpl.uniqId16();
@@ -1351,16 +1362,19 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 order.setTitle("游戏扣款");
                 order.setAmount(BigDecimal.valueOf(project.getTotalPrice()));
                 order.setDescription("游戏扣款");
-                order.setPreBalance(channelbalance);     //账变前 -帐变前频道资金
-                wallet.setChannelbalance(channelbalance.subtract(BigDecimal.valueOf(project.getTotalPrice())));
-                order.setPreHold(holdbalance);           //账变前 -帐变前冻结资金
-                wallet.setHoldbalance(holdbalance.subtract(BigDecimal.valueOf(project.getTotalPrice())));
-                order.setPreAvailable(availablebalance); //账变前 -帐变前可用资金
-                wallet.setAvailablebalance(availablebalance.subtract(BigDecimal.valueOf(project.getTotalPrice())));
+                order.setPreBalance(channelbalance);     //账变前 --帐变前频道-资金
+                order.setPreHold(holdbalance);           //账变前 --帐变前频道-冻结资金
+                order.setPreAvailable(availablebalance); //账变前 --帐变前频道-可用资金
 
-                order.setChannelBalance(wallet.getChannelbalance());        //账变后 -帐变后可用资金
-                order.setHoldBalance(wallet.getHoldbalance());              //账变后 -帐变后的冻结资金
-                order.setAvailableBalance(wallet.getChannelbalance());    //账变后 -帐变后频道资金
+                wallet.setChannelbalance(channelbalanceAll.subtract(BigDecimal.valueOf(project.getTotalPrice())));
+                wallet.setHoldbalance(holdbalanceAll.subtract(BigDecimal.valueOf(project.getTotalPrice())));
+
+                wallet4.setChannelbalance(channelbalance.subtract(BigDecimal.valueOf(project.getTotalPrice())));
+                wallet4.setHoldbalance(holdbalance.subtract(BigDecimal.valueOf(project.getTotalPrice())));
+
+                order.setChannelBalance(wallet.getChannelbalance());        //账变后 --帐变后-资金
+                order.setHoldBalance(wallet.getHoldbalance());              //账变后 --帐变后-冻结资金
+                order.setAvailableBalance(wallet.getChannelbalance());      //账变后 --帐变后-可用资金
 
                 order.setUniqueKey(String.valueOf(System.currentTimeMillis()));
                 order.setModes(project.getModes());
@@ -1376,11 +1390,16 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             List<BetInfoEntity> winList = list.stream().filter(vo -> vo.getIsGetprize() == 1).collect(Collectors.toList());
             List<OrdersEntity> prizeList = Lists.newArrayList();
 
+            //处理派奖
             Double amt1 = 0.00;//中奖总额
             for(BetInfoEntity project : winList) {
-                BigDecimal channelbalance = wallet.getChannelbalance();
-                BigDecimal holdbalance = wallet.getHoldbalance();
-                BigDecimal availablebalance = wallet.getAvailablebalance();
+                BigDecimal channelbalance       = wallet5.getChannelbalance();
+                BigDecimal holdbalance          = wallet5.getHoldbalance();
+                BigDecimal availablebalance     = wallet5.getAvailablebalance();
+
+                BigDecimal channelbalanceAll    = wallet.getChannelbalance();
+                BigDecimal availablebalanceAll  = wallet.getAvailablebalance();
+
                 //添加账变记录
                 OrdersEntity order = new OrdersEntity();
                 String uuid =OrdersToolServiceImpl.uniqId16();
@@ -1395,15 +1414,19 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 order.setTitle("奖金派送");
                 order.setAmount(BigDecimal.valueOf(project.getBonus()));
                 order.setDescription("奖金派送");
-                order.setPreBalance(channelbalance);     //账变前 -帐变前频道资金
-                wallet.setChannelbalance(channelbalance.add(BigDecimal.valueOf(project.getBonus())));
-                order.setPreHold(holdbalance);           //账变前 -帐变前冻结资金
-                order.setPreAvailable(availablebalance); //账变前 -帐变前可用资金
-                wallet.setAvailablebalance(availablebalance.add(BigDecimal.valueOf(project.getBonus())));
+                order.setPreBalance(channelbalance);     //账变前 --帐变前频道-资金
+                order.setPreHold(holdbalance);           //账变前 --帐变前频道-冻结资金
+                order.setPreAvailable(availablebalance); //账变前 --帐变前频道-可用资金
 
-                order.setChannelBalance(wallet.getChannelbalance());        //账变后 -帐变后可用资金
-                order.setHoldBalance(wallet.getHoldbalance());              //账变后 -帐变后的冻结资金
-                order.setAvailableBalance(wallet.getChannelbalance());    //账变后 -帐变后频道资金
+                wallet.setChannelbalance(channelbalanceAll.add(BigDecimal.valueOf(project.getBonus())));
+                wallet.setAvailablebalance(availablebalanceAll.add(BigDecimal.valueOf(project.getBonus())));
+
+                wallet5.setChannelbalance(channelbalance.add(BigDecimal.valueOf(project.getBonus())));
+                wallet5.setAvailablebalance(availablebalance.add(BigDecimal.valueOf(project.getBonus())));
+
+                order.setChannelBalance(wallet.getChannelbalance());        //账变后 --帐变后-资金
+                order.setHoldBalance(wallet.getHoldbalance());              //账变后 --帐变后-冻结资金
+                order.setAvailableBalance(wallet.getChannelbalance());      //账变后 --帐变后-可用资金
 
                 order.setUniqueKey(String.valueOf(System.currentTimeMillis()));
                 order.setModes(project.getModes());
@@ -1486,7 +1509,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
         //单钱包处理
         RoomMasterEntity roomMaster = noticeReq.getRoomMaster();
-        if (roomMaster.getUserWalletType() == 0 || roomMaster.getUserWalletType() == 1 || roomMaster.getUserWalletType() == 2 || roomMaster.getUserWalletType() == 3){
+        if (roomMaster.getUserWalletType() == 1){
 
             for(String userId : betRecordMap.keySet()) {
                 if(prizeMap.containsKey(userId)) {

@@ -78,7 +78,7 @@
         (room_master_id, orders_id, status, created_at, updated_at)
         VALUES
         <foreach collection="orders" item="o" separator=",">
-            (#{roomMaster.id}, #{o.entry}, '0', now(), now())
+            (#{roomMaster.masterId}, #{o.entry}, '0', now(), now())
         </foreach>
     </insert>
 
