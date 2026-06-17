@@ -1329,10 +1329,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             if(ObjectUtils.isEmpty(wallet)) {
             	continue;
             }
-            //结算频道钱包--4
-            UserFundEntity wallet4 = userFundMapper.selectByUserAndType(noticeReq.getTitle(), userId,4);
-            //派奖频道钱包--5
-            UserFundEntity wallet5 = userFundMapper.selectByUserAndType(noticeReq.getTitle(), userId,5);
 
             List<BetInfoEntity> list = betRecordMap.get(userId);
             list.sort(Comparator.comparing(BetInfoEntity::getCreatedAt));
@@ -1341,12 +1337,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             //处理结算
             Double amt = 0.00;//扣款总额
             for(BetInfoEntity project : list) {
-                BigDecimal channelbalance = wallet4.getChannelbalance();
-                BigDecimal holdbalance = wallet4.getHoldbalance();
-                BigDecimal availablebalance = wallet4.getAvailablebalance();
-
-                BigDecimal channelbalanceAll    = wallet.getChannelbalance();
-                BigDecimal holdbalanceAll       = wallet.getHoldbalance();
+                BigDecimal channelbalance = wallet.getChannelbalance();
+                BigDecimal holdbalance = wallet.getHoldbalance();
+                BigDecimal availablebalance = wallet.getAvailablebalance();
 
                 //添加账变记录
                 OrdersEntity order = new OrdersEntity();
@@ -1366,11 +1359,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 order.setPreHold(holdbalance);           //账变前 --帐变前频道-冻结资金
                 order.setPreAvailable(availablebalance); //账变前 --帐变前频道-可用资金
 
-                wallet.setChannelbalance(channelbalanceAll.subtract(BigDecimal.valueOf(project.getTotalPrice())));
-                wallet.setHoldbalance(holdbalanceAll.subtract(BigDecimal.valueOf(project.getTotalPrice())));
+                wallet.setChannelbalance(channelbalance.subtract(BigDecimal.valueOf(project.getTotalPrice())));
+                wallet.setHoldbalance(holdbalance.subtract(BigDecimal.valueOf(project.getTotalPrice())));
 
-                wallet4.setChannelbalance(channelbalance.subtract(BigDecimal.valueOf(project.getTotalPrice())));
-                wallet4.setHoldbalance(holdbalance.subtract(BigDecimal.valueOf(project.getTotalPrice())));
 
                 order.setChannelBalance(wallet.getChannelbalance());        //账变后 --帐变后-资金
                 order.setHoldBalance(wallet.getHoldbalance());              //账变后 --帐变后-冻结资金
@@ -1393,12 +1384,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             //处理派奖
             Double amt1 = 0.00;//中奖总额
             for(BetInfoEntity project : winList) {
-                BigDecimal channelbalance       = wallet5.getChannelbalance();
-                BigDecimal holdbalance          = wallet5.getHoldbalance();
-                BigDecimal availablebalance     = wallet5.getAvailablebalance();
+                BigDecimal channelbalance       = wallet.getChannelbalance();
+                BigDecimal holdbalance          = wallet.getHoldbalance();
+                BigDecimal availablebalance     = wallet.getAvailablebalance();
 
-                BigDecimal channelbalanceAll    = wallet.getChannelbalance();
-                BigDecimal availablebalanceAll  = wallet.getAvailablebalance();
 
                 //添加账变记录
                 OrdersEntity order = new OrdersEntity();
@@ -1418,11 +1407,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 order.setPreHold(holdbalance);           //账变前 --帐变前频道-冻结资金
                 order.setPreAvailable(availablebalance); //账变前 --帐变前频道-可用资金
 
-                wallet.setChannelbalance(channelbalanceAll.add(BigDecimal.valueOf(project.getBonus())));
-                wallet.setAvailablebalance(availablebalanceAll.add(BigDecimal.valueOf(project.getBonus())));
+                wallet.setChannelbalance(channelbalance.add(BigDecimal.valueOf(project.getBonus())));
+                wallet.setAvailablebalance(availablebalance.add(BigDecimal.valueOf(project.getBonus())));
 
-                wallet5.setChannelbalance(channelbalance.add(BigDecimal.valueOf(project.getBonus())));
-                wallet5.setAvailablebalance(availablebalance.add(BigDecimal.valueOf(project.getBonus())));
 
                 order.setChannelBalance(wallet.getChannelbalance());        //账变后 --帐变后-资金
                 order.setHoldBalance(wallet.getHoldbalance());              //账变后 --帐变后-冻结资金
