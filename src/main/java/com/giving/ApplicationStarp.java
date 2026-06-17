@@ -9,6 +9,7 @@ import org.springframework.core.env.Environment;
 import com.giving.util.DefaultProfileUtil;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /** 
 * @author yangxy
@@ -16,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 */
 @Slf4j
 @SpringBootApplication
+@EnableScheduling
 @MapperScan(basePackages = "com.giving.**.mapper")
 public class ApplicationStarp {
 	public static void main( String[] args )

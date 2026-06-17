@@ -14,6 +14,12 @@ import java.util.List;
 public interface LotteryMapper extends BaseMapper<LotteryEntity> {
 
     List<LotteryEntity> selectLotterIdIn18();
+
+    /**
+     * 取得开启的彩种id
+     * @return
+     */
+    List<LotteryEntity> selectLotterInAction();
 }
 
 
