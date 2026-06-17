@@ -328,7 +328,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 				List<Integer> indexList = Lists.newArrayList();
                 				for(String checkCode : checkCodes) {
                 					for(String key : map.keySet()) {
-                						if(key.indexOf(checkCode) >= 0) {
+                						if(key.indexOf(checkCode+",") >= 0) {
                 							Integer index = map.get(key);
                 							if(!indexList.contains(index)) {
                 								indexList.add(index);
