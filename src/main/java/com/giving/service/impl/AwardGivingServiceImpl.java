@@ -1365,7 +1365,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
                 order.setChannelBalance(wallet.getChannelbalance());        //账变后 --帐变后-资金
                 order.setHoldBalance(wallet.getHoldbalance());              //账变后 --帐变后-冻结资金
-                order.setAvailableBalance(wallet.getChannelbalance());      //账变后 --帐变后-可用资金
+                order.setAvailableBalance(wallet.getAvailablebalance());      //账变后 --帐变后-可用资金
 
                 order.setUniqueKey(String.valueOf(System.currentTimeMillis()));
                 order.setModes(project.getModes());
@@ -1413,7 +1413,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
                 order.setChannelBalance(wallet.getChannelbalance());        //账变后 --帐变后-资金
                 order.setHoldBalance(wallet.getHoldbalance());              //账变后 --帐变后-冻结资金
-                order.setAvailableBalance(wallet.getChannelbalance());      //账变后 --帐变后-可用资金
+                order.setAvailableBalance(wallet.getAvailablebalance());      //账变后 --帐变后-可用资金
 
                 order.setUniqueKey(String.valueOf(System.currentTimeMillis()));
                 order.setModes(project.getModes());
