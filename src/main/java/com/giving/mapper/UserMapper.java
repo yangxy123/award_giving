@@ -1,0 +1,19 @@
+package com.giving.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.giving.entity.UserEntity;
+import org.apache.ibatis.annotations.Param;
+
+/**
+ * 用户动态表Mapper
+ */
+public interface UserMapper extends BaseMapper<UserEntity> {
+
+    /**
+     * 根据用户ID查询厅主用户
+     * @param title 厅主动态表前缀
+     * @param userId 用户ID
+     * @return 用户信息
+     */
+    UserEntity selectByUserId(@Param("title") String title, @Param("userId") String userId);
+}

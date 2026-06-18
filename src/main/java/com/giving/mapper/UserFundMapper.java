@@ -83,6 +83,16 @@ public interface UserFundMapper extends BaseMapper<UserFundEntity> {
 	 */
 	UserFundEntity selectByUserAndType(@Param("title") String title, @Param("userId") String userId,@Param("walletType") int walletType);
 
+	/**
+	 * 冻结投注金额
+	 * @param title 厅主动态表前缀
+	 * @param userId 用户ID
+	 * @param walletType 钱包类型
+	 * @param amount 冻结金额
+	 * @return 更新行数
+	 */
+	int freezeBetAmount(@Param("title") String title, @Param("userId") String userId,
+						@Param("walletType") int walletType, @Param("amount") java.math.BigDecimal amount);
 
 	/**
 	 * 批量解锁--1

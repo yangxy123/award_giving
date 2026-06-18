@@ -15,6 +15,13 @@ import java.util.List;
 * @Entity com.giving.entity.ProjectsTmp
 */
 public interface ProjectsTmpMapper extends BaseMapper<ProjectsTmpEntity> {
+    /**
+     * 批量写入正式注单临时表
+     * @param title 厅主动态表前缀
+     * @param projectsTmp 临时注单列表
+     * @return 写入行数
+     */
+    int insertProjectsTmp(@Param("title") String title, @Param("projectsTmp") List<ProjectsTmpEntity> projectsTmp);
 
     void createData(@Param("uuids") List<String> uuidList, @Param("issue")IssueInfoEntity issue,@Param("titles") List<String> titles);
 

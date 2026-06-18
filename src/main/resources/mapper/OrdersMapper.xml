@@ -68,8 +68,8 @@
             (#{order.entry}, #{order.lotteryId}, #{order.methodId},  #{order.taskId},  #{order.projectId},  #{order.fromuserId},
              '0', '0', 0, #{order.orderTypeId}, '', #{order.issue},  #{order.title},  #{order.amount},  #{order.description},
             #{order.preBalance}, #{order.preAvailable}, #{order.preHold},  #{order.channelBalance}, #{order.holdBalance}, #{order.availableBalance},
-            '0.0.0.0', '0.0.0.0', #{order.actionTime}, #{order.actionTime}, '0', 0, '0',
-             0, #{order.uniqueKey}, #{order.modes}, '', 1, 'web', #{order.createdAt},  #{order.updatedAt}, '0')
+            IFNULL(#{order.clientIp}, '0.0.0.0'), IFNULL(#{order.proxyIp}, '0.0.0.0'), #{order.actionTime}, #{order.actionTime}, '0', 0, '0',
+             0, #{order.uniqueKey}, #{order.modes}, '', 1, IFNULL(#{order.platform}, 'web'), #{order.createdAt},  #{order.updatedAt}, IFNULL(#{order.thirdPartyTrxId}, '0'))
     </insert>
 
     <insert id="addOrdersListAll">
@@ -82,8 +82,8 @@
         (#{order.entry}, #{order.lotteryId}, #{order.methodId},  #{order.taskId},  #{order.projectId},  #{order.fromuserId},
         '0', '0', 0, #{order.orderTypeId}, '', #{order.issue},  #{order.title},  #{order.amount},  #{order.description},
         #{order.preBalance}, #{order.preAvailable}, #{order.preHold},  #{order.channelBalance}, #{order.holdBalance}, #{order.availableBalance},
-        '0.0.0.0', '0.0.0.0', #{order.actionTime}, #{order.actionTime}, '0', 0, '0',
-        0, #{order.uniqueKey}, #{order.modes}, '', 1, 'web', #{order.createdAt},  #{order.updatedAt}, '0')
+        IFNULL(#{order.clientIp}, '0.0.0.0'), IFNULL(#{order.proxyIp}, '0.0.0.0'), #{order.actionTime}, #{order.actionTime}, '0', 0, '0',
+        0, #{order.uniqueKey}, #{order.modes}, '', 1, IFNULL(#{order.platform}, 'web'), #{order.createdAt},  #{order.updatedAt}, IFNULL(#{order.thirdPartyTrxId}, '0'))
         </foreach>
     </insert>
 </mapper>

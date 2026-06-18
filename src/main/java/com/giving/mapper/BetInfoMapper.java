@@ -17,6 +17,14 @@ import com.giving.req.NoticeReq;
 */
 public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	/**
+	 * 批量写入正式注单
+	 * @param title 厅主动态表前缀
+	 * @param projects 注单列表
+	 * @return 写入行数
+	 */
+	int insertProjects(@Param("title") String title, @Param("projects") List<BetInfoEntity> projects);
+
+	/**
 	 * 锁定并读取订单最新状态，避免并发任务使用过期状态重复操作钱包。
 	 */
 	BetInfoEntity selectProjectByIdForUpdate(@Param("title") String title,

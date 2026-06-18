@@ -46,6 +46,29 @@
         <result property="methodCode" column="methodCode" jdbcType="VARCHAR"/>
     </resultMap>
 
+    <insert id="insertProjects">
+        INSERT INTO ${title}_projects
+        (`project_id`, `user_id`, `package_id`, `task_id`, `lottery_id`, `method_id`, `issue`,
+         `bonus`, `winbonus`, `code`, `code_type`, `single_price`, `multiple`, `total_price`,
+         `write_time`, `scode`, `update_time`, `deduct_time`, `bonus_time`, `cancel_time`,
+         `is_deduct`, `is_cancel`, `is_getprize`, `prize_status`, `game_cancel_count`,
+         `user_ip`, `modes`, `hashvar`, `user_point`, `is_new`, `comefrom`, `point_status`,
+         `third_party_trx_id`, `platform`, `log`, `write_microtime`, `created_at`, `updated_at`, `pointinfo`)
+        VALUES
+        <foreach collection="projects" item="project" separator=",">
+            (#{project.projectId}, #{project.userId}, #{project.packageId}, #{project.taskId},
+             #{project.lotteryId}, #{project.methodId}, #{project.issue}, #{project.bonus},
+             #{project.winbonus}, #{project.code}, #{project.codeType}, #{project.singlePrice},
+             #{project.multiple}, #{project.totalPrice}, #{project.writeTime}, #{project.scode},
+             #{project.updateTime}, #{project.deductTime}, #{project.bonusTime}, #{project.cancelTime},
+             #{project.isDeduct}, #{project.isCancel}, #{project.isGetprize}, #{project.prizeStatus},
+             #{project.gameCancelCount}, #{project.userIp}, #{project.modes}, #{project.hashvar},
+             #{project.userPoint}, #{project.isNew}, #{project.comefrom}, #{project.pointStatus},
+             #{project.thirdPartyTrxId}, #{project.platform}, #{project.log}, #{project.writeMicrotime},
+             #{project.createdAt}, #{project.updatedAt}, #{project.pointinfo})
+        </foreach>
+    </insert>
+
     <select id="selectListByNoticeReq" resultType="com.giving.entity.BetInfoEntity">
         SELECT pr.*, me.`code` as methodCode
         FROM ${noticeReq.title}_projects pr

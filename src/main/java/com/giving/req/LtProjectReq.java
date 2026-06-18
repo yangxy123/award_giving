@@ -1,20 +1,20 @@
-package com.giving.resp;
+package com.giving.req;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
+import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
 
 @Data
-public class LtProjectResp {
+public class LtProjectReq {
 
-    /**
-     * 对应 Laravel:
-     * ltProject.*.methodId => required_without:lotteryId|filled|int|exists:method,method_id
-     *
-     * 如果你现在 lotteryId 已经必填，那 methodId 建议也先设为必填。
-     */
+    @ApiModelProperty(value = "彩种ID")
+    private Integer lotteryId;
+
     @NotNull(message = "玩法ID不能为空")
     @ApiModelProperty(value = "玩法ID", required = true)
     private Integer methodId;
@@ -22,22 +22,15 @@ public class LtProjectResp {
     @ApiModelProperty(value = "投注号码code")
     private String codes;
 
+    @JsonAlias("scode_key")
     @ApiModelProperty(value = "投注号key")
-    private String scode_key;
+    private String scodeKey;
 
-    /**
-     * 对应 Laravel:
-     * ltProject.*.onePrice => required|numeric
-     */
     @NotNull(message = "onePrice不能为空")
-    @Min(value = 1, message = "onePrice不能小于1")
+    @DecimalMin(value = "0", inclusive = false, message = "onePrice必须大于0")
     @ApiModelProperty(value = "单价", required = true)
-    private Integer onePrice;
+    private BigDecimal onePrice;
 
-    /**
-     * 对应 Laravel:
-     * ltProject.*.times => required|integer|min:1
-     */
     @NotNull(message = "times不能为空")
     @Min(value = 1, message = "times不能小于1")
     @ApiModelProperty(value = "倍数", required = true)
@@ -46,10 +39,6 @@ public class LtProjectResp {
     @ApiModelProperty(value = "奖期号")
     private String issue;
 
-    /**
-     * 对应 Laravel:
-     * ltProject.*.mode => required|integer
-     */
     @NotNull(message = "mode不能为空")
     @ApiModelProperty(value = "模式", required = true)
     private Integer mode;
@@ -57,24 +46,34 @@ public class LtProjectResp {
     @ApiModelProperty(value = "投注方式")
     private String type;
 
-    @ApiModelProperty(value = "digitstr")
+    @ApiModelProperty(value = "号码位置信息")
     private String digitstr;
 
-    /**
-     * 对应 Laravel:
-     * ltProject.*.nums => required|integer|min:1
-     */
     @NotNull(message = "nums不能为空")
     @Min(value = 1, message = "nums不能小于1")
-    @ApiModelProperty(value = "号数", required = true)
+    @ApiModelProperty(value = "注数", required = true)
     private Integer nums;
 
-    /**
-     * 对应 Laravel:
-     * ltProject.*.money => required|numeric
-     */
     @NotNull(message = "money不能为空")
-    @Min(value = 1, message = "money不能小于1")
+    @DecimalMin(value = "0", inclusive = false, message = "money必须大于0")
     @ApiModelProperty(value = "金额", required = true)
-    private Integer money;
+    private BigDecimal money;
+
+    @ApiModelProperty(value = "号码类型")
+    private String codeType;
+
+    @ApiModelProperty(value = "选择类型")
+    private String selectType;
+
+    @ApiModelProperty(value = "保留返点")
+    private BigDecimal keepPoint;
+
+    @ApiModelProperty(value = "前端传入奖金")
+    private String hprize;
+
+    @ApiModelProperty(value = "控赔或特殊玩法使用的上层名称")
+    private String upperName;
+
+    @ApiModelProperty(value = "奖金模式")
+    private Integer omodel;
 }

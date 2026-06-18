@@ -2,6 +2,7 @@ package com.giving.controller;
 
 import com.giving.base.resp.ApiResp;
 import com.giving.req.BetOrderReq;
+import com.giving.resp.BetOrderResp;
 import com.giving.service.BetService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -19,13 +20,10 @@ import javax.validation.Valid;
 public class BetController {
     @Autowired
     private BetService betService;
-    /**
-     * 1.根据彩种奖期取到号码->写入主奖期表中（issue_info）
-     * @param req
-     */
+
     @PostMapping("/order")
     @ApiOperation("投注")
-    public ApiResp<String> order(@RequestBody @Valid BetOrderReq req) {
+    public ApiResp<BetOrderResp> order(@RequestBody @Valid BetOrderReq req) {
         return betService.order(req);
     }
 }

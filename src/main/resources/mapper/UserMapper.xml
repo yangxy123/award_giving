@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.UserMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.UserEntity">
+        <id property="userId" column="user_id" jdbcType="VARCHAR"/>
+        <result property="lvtopId" column="lvtop_id" jdbcType="VARCHAR"/>
+        <result property="parenttree" column="parenttree" jdbcType="VARCHAR"/>
+        <result property="operator" column="operator" jdbcType="VARCHAR"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="thirdpartyId" column="thirdparty_id" jdbcType="VARCHAR"/>
+        <result property="appAccount" column="app_account" jdbcType="VARCHAR"/>
+        <result property="nickName" column="nick_name" jdbcType="VARCHAR"/>
+        <result property="isFrozen" column="is_frozen" jdbcType="VARCHAR"/>
+        <result property="frozenType" column="frozen_type" jdbcType="VARCHAR"/>
+        <result property="currency" column="currency" jdbcType="VARCHAR"/>
+        <result property="isTester" column="is_tester" jdbcType="VARCHAR"/>
+        <result property="isBlockhistory" column="is_blockhistory" jdbcType="INTEGER"/>
+        <result property="isDeleted" column="is_deleted" jdbcType="VARCHAR"/>
+        <result property="keepPoint" column="keep_point" jdbcType="DECIMAL"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT user_id, lvtop_id, parenttree, operator, name, thirdparty_id,
+               app_account, nick_name, is_frozen, frozen_type, currency,
+               is_tester, is_blockhistory, is_deleted, keep_point, created_at, updated_at
+        FROM ${title}_users
+        WHERE user_id = #{userId}
+    </select>
+</mapper>

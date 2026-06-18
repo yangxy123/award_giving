@@ -3,6 +3,16 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.giving.mapper.ProjectsTmpMapper">
+    <insert id="insertProjectsTmp">
+        INSERT INTO ${title}_projects_tmp
+        (`tmp_id`, `issue_id`, `lottery_id`, `project_id`, `status`, `tmp_value`, `created_at`, `updated_at`)
+        VALUES
+        <foreach collection="projectsTmp" item="item" separator=",">
+            (#{item.tmpId}, #{item.issueId}, #{item.lotteryId}, #{item.projectId}, #{item.status},
+             #{item.tmpValue}, #{item.createdAt}, #{item.updatedAt})
+        </foreach>
+    </insert>
+
     <insert id="createData">
         <foreach collection='titles' item='title' separator=';'>
             INSERT INTO ${title}_projects (`project_id`, `user_id`, `package_id`, `task_id`, `lottery_id`, `method_id`, `issue`, `bonus`, `winbonus`, `code`, `code_type`, `single_price`, `multiple`, `total_price`, `write_time`, `scode`, `update_time`, `deduct_time`, `bonus_time`, `cancel_time`, `is_deduct`, `is_cancel`, `is_getprize`, `prize_status`, `game_cancel_count`, `user_ip`, `modes`, `hashvar`, `user_point`, `is_new`, `comefrom`, `point_status`, `third_party_trx_id`, `platform`, `log`, `write_microtime`, `created_at`, `updated_at`, `pointinfo`)
