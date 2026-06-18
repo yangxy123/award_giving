@@ -124,6 +124,7 @@
             status_bonus = 2,
             status_task_to_project = 2
             where issue_id = #{issueInfo.issueId}
+               or (lottery_id = #{issueInfo.lotteryId} and issue = #{issueInfo.issue})
         </foreach>
     </insert>
     <select id="selectByTitle" resultType="com.giving.entity.IssueInfoEntity">

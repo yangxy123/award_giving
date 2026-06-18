@@ -115,7 +115,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 issueInfo.setCode(issueInfoEntity.getCode());
             } else {
                 log.info("厅组id错误，厅组已录号");
-                return ApiResp.paramError("厅组id错误，厅组已录号");
+//                return ApiResp.paramError("厅组id错误，厅组已录号");
             }
             awardingProcessService.lotteryDraw(roomMasterEntity, issueInfo);
         }

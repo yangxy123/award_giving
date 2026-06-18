@@ -528,11 +528,14 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
             List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
             while (true) {
-                PageHelper.startPage(1, pageSize);
+                PageHelper.startPage(pageNo, pageSize);
                 // TODO Auto-generated method stub
                 // 获取对应奖期对应彩种未撤单且未派奖的所有订单
                 List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
-                if (list.isEmpty()) {
+                log.info("noticeNorth load projects, title={}, lotteryId={}, issue={}, pageNo={}, size={}",
+                        noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), pageNo,
+                        list == null ? 0 : list.size());
+                if (list == null || list.isEmpty()) {
                     break;
                 }
                 pageNo += 1;
@@ -859,7 +862,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
         List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
         while (true) {
-            PageHelper.startPage(1, pageSize);
+            PageHelper.startPage(pageNo, pageSize);
             // TODO Auto-generated method stub
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
@@ -1020,7 +1023,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
         List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
         while (true) {
-            PageHelper.startPage(1, pageSize);
+            PageHelper.startPage(pageNo, pageSize);
             // TODO Auto-generated method stub
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
@@ -1104,7 +1107,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
         List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
         while (true) {
-            PageHelper.startPage(1, pageSize);
+            PageHelper.startPage(pageNo, pageSize);
             // TODO Auto-generated method stub
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
@@ -1294,11 +1297,19 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             return;
         }
         TempIssueInfoEntity tempIssueInfoEntity = tempIssueInfoMapper.selectByTitle(noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue());
-        if(ObjectUtils.isEmpty(tempIssueInfoEntity) || tempIssueInfoEntity.getStatusDeduct() != 0) {
+        if(ObjectUtils.isEmpty(tempIssueInfoEntity)) {
+            log.warn("issue info not found in room table, title={}, lotteryId={}, issue={}",
+                    noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue());
+            return;
+        }
+        if(!Integer.valueOf(0).equals(tempIssueInfoEntity.getStatusDeduct())) {
+            log.warn("skip award dataHandle by statusDeduct, title={}, lotteryId={}, issue={}, statusDeduct={}",
+                    noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(),
+                    tempIssueInfoEntity.getStatusDeduct());
             return;
         }
         tempIssueInfoEntity.setStatusDeduct(1);
-        tempIssueInfoMapper.updateById(tempIssueInfoEntity);
+        updateIssueDeductStatus(noticeReq.getTitle(), tempIssueInfoEntity);
         //用户钱包上锁
         for(String userId : betRecordMap.keySet()) {
 //    		updateWalletLocked(userId, noticeReq.getTitle(), "[java]充提上锁", 1, 0, 0);
@@ -1509,7 +1520,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         }
 
         tempIssueInfoEntity.setStatusDeduct(2);
-        tempIssueInfoMapper.updateById(tempIssueInfoEntity);
+        updateIssueDeductStatus(noticeReq.getTitle(), tempIssueInfoEntity);
         Long endTime = System.currentTimeMillis();
         log.info("\n============={}=================" +
                 "\nlotteryId = {}" +
@@ -1519,6 +1530,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 "\n结束时间:{}" +
                 "\n耗时:{}" +
                 "\n============={}=================", noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), betNum, startTime, endTime, endTime - startTime);
+    }
+
+    private void updateIssueDeductStatus(String title, TempIssueInfoEntity issueInfo) {
+        if (tempIssueInfoMapper.updateByTitleStatusDeduct(title, issueInfo) != 1) {
+            throw new RuntimeException("update issue deduct status failed");
+        }
     }
 
     /**
