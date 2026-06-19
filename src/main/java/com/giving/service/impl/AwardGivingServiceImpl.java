@@ -700,7 +700,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         		map.put(codeList.get(7)+","+codeList.get(8)+","+codeList.get(9)+","+codeList.get(10)+","+codeList.get(11)+","+codeList.get(12)+",",5);
         		map.put(codeList.get(13)+","+codeList.get(14)+","+codeList.get(15)+","+codeList.get(16)+",",4);
         		map.put(codeList.get(17)+","+codeList.get(18)+","+codeList.get(19)+","+codeList.get(20)+","+codeList.get(21)+","+codeList.get(22)+",",3);
-        		map.put(codeList.get(23)+","+codeList.get(24),2);
+        		map.put(codeList.get(23)+","+codeList.get(24)+",",2);
         		map.put(codeList.get(25)+",",1);
         		map.put(codeList.get(26)+",",0);
                 new Thread(() -> {//pl2玩法
