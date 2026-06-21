@@ -96,7 +96,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             allBetList.add(list);
             pageNo += 1;
         }
-        int processedBatchCount = 0;
         ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
         List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
         for (List<BetInfoEntity> list : allBetList) {
@@ -278,42 +277,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("PL2"))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream().filter(vo -> {
-                        	String[] groups = vo.getCode().split(",");
-                			int num = 0;
-                			for(String group : groups) {
-                				String[] checkCodes = group.split("&");
-                				List<List<Integer>> allIndexList = Lists.newArrayList();
-                				for(String checkCode : checkCodes) {
-                					List<Integer> indexList = Lists.newArrayList();
-                					for(String key : map.keySet()) {
-                						if(key.indexOf(checkCode+",") >= 0) {
-                							Integer index = map.get(key);
-                							if(!indexList.contains(index)) {
-                								indexList.add(index);
-                							}
-                						}
-                					}
-                					
-                					if(indexList.isEmpty()) {
-                						break;
-                					}
-                					Collections.sort(indexList);
-                					allIndexList.add(indexList);
-                				}
-                				if(allIndexList.size() == 2) {
-                					String oneIndexStr = JSON.toJSONString(allIndexList.get(0));
-                					String twoIndexStr = JSON.toJSONString(allIndexList.get(1));
-                					if(!oneIndexStr.equals(twoIndexStr)) {
-                						num += 1;
-                					}
-                				}
-                			}
-                			
-                			if(num > 0) {
-                				vo.setBonus(Double.valueOf(vo.getWinbonus()) * num);
-                				return true;
-                			}
-                			return false;
+                        	return this.checkPl(vo, map, "pl2");
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -329,43 +293,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("PL3"))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream().filter(vo -> {
-                        	String[] groups = vo.getCode().split(",");
-                			int num = 0;
-                			for(String group : groups) {
-                				String[] checkCodes = group.split("&");
-                				List<List<Integer>> allIndexList = Lists.newArrayList();
-                				for(String checkCode : checkCodes) {
-                					List<Integer> indexList = Lists.newArrayList();
-                					for(String key : map.keySet()) {
-                						if(key.indexOf(checkCode+",") >= 0) {
-                							Integer index = map.get(key);
-                							if(!indexList.contains(index)) {
-                								indexList.add(index);
-                							}
-                						}
-                					}
-                					
-                					if(indexList.isEmpty()) {
-                						break;
-                					}
-                					Collections.sort(indexList);
-                					allIndexList.add(indexList);
-                				}
-                				if(allIndexList.size() == 3) {
-                					String oneIndexStr = JSON.toJSONString(allIndexList.get(0));
-                					String twoIndexStr = JSON.toJSONString(allIndexList.get(1));
-                					String threeIndexStr = JSON.toJSONString(allIndexList.get(2));
-                					if(!oneIndexStr.equals(twoIndexStr) && !oneIndexStr.equals(threeIndexStr) && !twoIndexStr.equals(threeIndexStr)) {
-                						num += 1;
-                					}
-                				}
-                			}
-                			
-                			if(num > 0) {
-                				vo.setBonus(Double.valueOf(vo.getWinbonus()) * num);
-                				return true;
-                			}
-                			return false;
+                        	return this.checkPl(vo, map, "pl3");
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -724,42 +652,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .filter(vo -> "PL2".equals(vo.getMethodCode()) || Integer.valueOf(7).equals(vo.getMethodId()))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream().filter(vo -> {
-                        	String[] groups = vo.getCode().split(",");
-                			int num = 0;
-                			for(String group : groups) {
-                				String[] checkCodes = group.split("&");
-                				List<List<Integer>> allIndexList = Lists.newArrayList();
-                				for(String checkCode : checkCodes) {
-                					List<Integer> indexList = Lists.newArrayList();
-                					for(String key : map.keySet()) {
-                						if(key.indexOf(checkCode+",") >= 0) {
-                							Integer index = map.get(key);
-                							if(!indexList.contains(index)) {
-                								indexList.add(index);
-                							}
-                						}
-                					}
-                					
-                					if(indexList.isEmpty()) {
-                						break;
-                					}
-                					Collections.sort(indexList);
-                					allIndexList.add(indexList);
-                				}
-                				if(allIndexList.size() == 2) {
-                					String oneIndexStr = JSON.toJSONString(allIndexList.get(0));
-                					String twoIndexStr = JSON.toJSONString(allIndexList.get(1));
-                					if(!oneIndexStr.equals(twoIndexStr)) {
-                						num += 1;
-                					}
-                				}
-                			}
-                			
-                			if(num > 0) {
-                				vo.setBonus(Double.valueOf(vo.getWinbonus()) * num);
-                				return true;
-                			}
-                			return false;
+                        	return this.checkPl(vo, map, "pl2");
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -777,43 +670,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .filter(vo -> "PL3".equals(vo.getMethodCode()) || Integer.valueOf(8).equals(vo.getMethodId()))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream().filter(vo -> {
-                        	String[] groups = vo.getCode().split(",");
-                			int num = 0;
-                			for(String group : groups) {
-                				String[] checkCodes = group.split("&");
-                				List<List<Integer>> allIndexList = Lists.newArrayList();
-                				for(String checkCode : checkCodes) {
-                					List<Integer> indexList = Lists.newArrayList();
-                					for(String key : map.keySet()) {
-                						if(key.indexOf(checkCode+",") >= 0) {
-                							Integer index = map.get(key);
-                							if(!indexList.contains(index)) {
-                								indexList.add(index);
-                							}
-                						}
-                					}
-                					
-                					if(indexList.isEmpty()) {
-                						break;
-                					}
-                					Collections.sort(indexList);
-                					allIndexList.add(indexList);
-                				}
-                				if(allIndexList.size() == 3) {
-                					String oneIndexStr = JSON.toJSONString(allIndexList.get(0));
-                					String twoIndexStr = JSON.toJSONString(allIndexList.get(1));
-                					String threeIndexStr = JSON.toJSONString(allIndexList.get(2));
-                					if(!oneIndexStr.equals(twoIndexStr) && !oneIndexStr.equals(threeIndexStr) && !twoIndexStr.equals(threeIndexStr)) {
-                						num += 1;
-                					}
-                				}
-                			}
-                			
-                			if(num > 0) {
-                				vo.setBonus(Double.valueOf(vo.getWinbonus()) * num);
-                				return true;
-                			}
-                			return false;
+                        	return this.checkPl(vo, map, "pl3");
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -1610,5 +1467,86 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 			}
     	}
     }
-
+	
+	/**
+	 * 判断越南彩pl是否中奖
+	* @author yangxy
+	* @version 创建时间：2026年6月21日 下午1:59:29 
+	* @param vo 投注订单信息
+	* @param map 开奖号码
+	* @param pl pl2、pl3
+	* @return
+	 */
+	private boolean checkPl(BetInfoEntity vo,Map<String,Integer> map,String pl) {
+		String[] groups = vo.getCode().split(",");
+		int num = 0;
+		for(String group : groups) {
+			String[] checkCodes = group.split("&");
+			List<List<Integer>> allIndexList = Lists.newArrayList();
+			for(String checkCode : checkCodes) {
+				List<Integer> indexList = Lists.newArrayList();
+				for(String key : map.keySet()) {
+					if(key.indexOf(checkCode+",") >= 0) {
+						Integer index = map.get(key);
+						if(!indexList.contains(index)) {
+							indexList.add(index);
+						}
+					}
+				}
+				
+				if(indexList.isEmpty()) {
+					break;
+				}
+				allIndexList.add(indexList);
+			}
+			
+			if("pl2".equals(pl)) {
+				if(allIndexList.size() == 2) {
+					List<Integer> oneList = allIndexList.get(0);
+					List<Integer> twoList = allIndexList.get(1);
+					tt : for(int i =0;i<oneList.size();i++) {
+						int oneNum = oneList.get(i);
+						for(int j=0;j<twoList.size();j++) {
+							int twoNum = twoList.get(j);
+							if(oneNum != twoNum) {
+								num += 1;
+								break tt;
+							}
+						}
+					}
+				}
+			}else if("pl3".equals(pl)) {
+				if(allIndexList.size() == 3) {
+					List<Integer> oneList = allIndexList.get(0);
+					List<Integer> twoList = allIndexList.get(1);
+					List<Integer> threeList = allIndexList.get(2);
+					tt : for(int i =0;i<oneList.size();i++) {
+						int oneNum = oneList.get(i);
+						for(int j=0;j<twoList.size();j++) {
+							int twoNum = twoList.get(j);
+							if(oneNum == twoNum) {
+								continue;
+							}
+							for(int k=0;k<threeList.size();k++) {
+								int threeNum = threeList.get(k);
+								if(oneNum != threeNum && twoNum != threeNum) {
+									num += 1;
+									break tt;
+								}
+							}
+						}
+					}
+				}
+			}else {
+				log.error("pl参数错我");
+				return false;
+			}
+		}
+		
+		if(num > 0) {
+			vo.setBonus(Double.valueOf(vo.getWinbonus()) * num);
+			return true;
+		}
+		return false;
+	}
 }
