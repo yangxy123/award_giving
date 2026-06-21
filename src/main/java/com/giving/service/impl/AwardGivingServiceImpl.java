@@ -750,7 +750,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
         List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
         while (true) {
-            PageHelper.startPage(1, pageSize);
+            PageHelper.startPage(pageNo, pageSize);
             // TODO Auto-generated method stub
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
@@ -907,11 +907,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         String headCode = codeList.get(0);
         String headCode2 = headCode.substring(1, 3);
         String endCode = codeList.get(1);
-        List<Integer> waitList = new ArrayList<>();
         ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
         List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
         while (true) {
-            PageHelper.startPage(1, pageSize);
+            PageHelper.startPage(pageNo, pageSize);
             // TODO Auto-generated method stub
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = betInfoMapper.selectListByNoticeReq(noticeReq);
