@@ -277,7 +277,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("PL2"))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream().filter(vo -> {
-                        	return this.checkPl(vo, map, "pl2");
+                        	return this.checkPl(vo, noticeReq.getCode(), "pl2");
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -293,7 +293,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         List<BetInfoEntity> betList = list.stream().filter(vo -> vo.getMethodCode().equals("PL3"))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream().filter(vo -> {
-                        	return this.checkPl(vo, map, "pl3");
+                        	return this.checkPl(vo, noticeReq.getCode(), "pl3");
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -652,7 +652,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .filter(vo -> "PL2".equals(vo.getMethodCode()) || Integer.valueOf(7).equals(vo.getMethodId()))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream().filter(vo -> {
-                        	return this.checkPl(vo, map, "pl2");
+                        	return this.checkPl(vo, noticeReq.getCode(), "pl2");
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -670,7 +670,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                                 .filter(vo -> "PL3".equals(vo.getMethodCode()) || Integer.valueOf(8).equals(vo.getMethodId()))
                                 .collect(Collectors.toList());
                         List<BetInfoEntity> winList = betList.stream().filter(vo -> {
-                        	return this.checkPl(vo, map, "pl3");
+                        	return this.checkPl(vo, noticeReq.getCode(), "pl3");
                 		}).collect(Collectors.toList());
                         allWinList.addAll(winList);
                     } catch (Exception e) {
@@ -1468,7 +1468,89 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 	
 	/**
-	 * 判断越南彩pl是否中奖
+	 * 判断越南彩pl是否中奖（号码能匹配且位置不同）
+	* @author yangxy
+	* @version 创建时间：2026年6月21日 下午1:59:29 
+	* @param vo 投注订单信息
+	* @param code 开奖号码
+	* @param pl pl2、pl3
+	* @return
+	 */
+	private boolean checkPl(BetInfoEntity vo,String code,String pl) {
+		code = code + ",";
+		String[] groups = vo.getCode().split(",");
+		int num = 0;
+		for(String group : groups) {
+			String[] checkCodes = group.split("&");
+			List<List<Integer>> allIndexList = Lists.newArrayList();
+			for(String checkCode : checkCodes) {
+				List<Integer> indexList = Lists.newArrayList();
+				int index = code.indexOf(checkCode+",");
+				if(index >= 0) {
+					indexList.add(index);
+				}
+				
+				if(indexList.isEmpty()) {
+					break;
+				}
+				allIndexList.add(indexList);
+			}
+			
+			if("pl2".equals(pl)) {
+				if(allIndexList.size() == 2) {
+					List<Integer> oneList = allIndexList.get(0);
+					List<Integer> twoList = allIndexList.get(1);
+					tt : for(int i =0;i<oneList.size();i++) {
+						int oneNum = oneList.get(i);
+						for(int j=0;j<twoList.size();j++) {
+							int twoNum = twoList.get(j);
+							if(oneNum != twoNum) {
+								num += 1;
+								break tt;
+							}
+						}
+					}
+				}
+			}else if("pl3".equals(pl)) {
+				if(allIndexList.size() == 3) {
+					List<Integer> oneList = allIndexList.get(0);
+					List<Integer> twoList = allIndexList.get(1);
+					List<Integer> threeList = allIndexList.get(2);
+					tt : for(int i =0;i<oneList.size();i++) {
+						int oneNum = oneList.get(i);
+						for(int j=0;j<twoList.size();j++) {
+							int twoNum = twoList.get(j);
+							if(oneNum == twoNum) {
+								continue;
+							}
+							for(int k=0;k<threeList.size();k++) {
+								int threeNum = threeList.get(k);
+								if(oneNum != threeNum && twoNum != threeNum) {
+									num += 1;
+									break tt;
+								}
+							}
+						}
+					}
+				}
+			}else {
+				log.error("pl参数错我");
+				return false;
+			}
+		}
+		
+
+		
+		if(num > 0) {
+			vo.setBonus(Double.valueOf(vo.getWinbonus()) * num);
+			return true;
+		}
+		return false;
+		
+	}
+	
+	/**
+	 * 判断越南彩pl是否中奖（号码匹配不能再相同奖里）
 	* @author yangxy
 	* @version 创建时间：2026年6月21日 下午1:59:29 
 	* @param vo 投注订单信息
