@@ -18,14 +18,6 @@ public class ClientUserSessionHolder {
     }
 
     /**
-     * 获取当前请求上下文
-     * @return 客户端会话
-     */
-    public static ClientUserSession get() {
-        return HOLDER.get();
-    }
-
-    /**
      * 获取当前请求上下文，不存在则抛出认证异常
      * @return 客户端会话
      */

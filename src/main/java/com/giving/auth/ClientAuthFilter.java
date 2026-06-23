@@ -23,7 +23,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Enumeration;
 
 /**
  * 客户端投注Token认证过滤器
@@ -104,14 +103,9 @@ public class ClientAuthFilter extends OncePerRequestFilter {
             }
         }
 
-        String headerToken = extractHeaderToken(request);
-        if (StringUtils.hasText(headerToken)) {
-            return headerToken;
-        }
-
-        String parameterToken = extractParameterToken(request);
-        if (StringUtils.hasText(parameterToken)) {
-            return parameterToken;
+        String cookieHeaderToken = extractCookieHeaderToken(request);
+        if (StringUtils.hasText(cookieHeaderToken)) {
+            return cookieHeaderToken;
         }
 
         String authorization = request.getHeader("Authorization");
@@ -126,61 +120,16 @@ public class ClientAuthFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 从请求头中读取JWT
+     * 从Cookie请求头中读取JWT
      * @param request HTTP请求
-     * @return 请求头中的JWT
+     * @return Cookie请求头中的JWT
      */
-    private String extractHeaderToken(HttpServletRequest request) {
-        String cookieToken = extractCookieToken(getHeaderIgnoreCase(request, "Cookie"));
-        if (StringUtils.hasText(cookieToken)) {
-            return cookieToken;
+    private String extractCookieHeaderToken(HttpServletRequest request) {
+        String cookieHeader = request.getHeader("Cookie");
+        if (!StringUtils.hasText(cookieHeader)) {
+            cookieHeader = request.getHeader("cookie");
         }
-
-        String jwtHeader = getHeaderIgnoreCase(request, JWT_COOKIE_NAME);
-        if (StringUtils.hasText(jwtHeader)) {
-            return decodeToken(normalizeTokenValue(jwtHeader), "JWT请求头解析失败");
-        }
-        return null;
-    }
-
-    /**
-     * 从请求参数中读取JWT，便于本地调试工具兼容
-     * @param request HTTP请求
-     * @return 请求参数中的JWT
-     */
-    private String extractParameterToken(HttpServletRequest request) {
-        String cookieParameter = request.getParameter("cookie");
-        String cookieToken = extractCookieToken(cookieParameter);
-        if (StringUtils.hasText(cookieToken)) {
-            return cookieToken;
-        }
-
-        String jwtParameter = request.getParameter(JWT_COOKIE_NAME);
-        if (StringUtils.hasText(jwtParameter)) {
-            return decodeToken(normalizeTokenValue(jwtParameter), "JWT参数解析失败");
-        }
-        return null;
-    }
-
-    /**
-     * 忽略大小写读取请求头
-     * @param request HTTP请求
-     * @param name 请求头名称
-     * @return 请求头值
-     */
-    private String getHeaderIgnoreCase(HttpServletRequest request, String name) {
-        String value = request.getHeader(name);
-        if (StringUtils.hasText(value)) {
-            return value;
-        }
-        Enumeration<String> headerNames = request.getHeaderNames();
-        while (headerNames != null && headerNames.hasMoreElements()) {
-            String headerName = headerNames.nextElement();
-            if (name.equalsIgnoreCase(headerName)) {
-                return request.getHeader(headerName);
-            }
-        }
-        return null;
+        return extractCookieToken(cookieHeader);
     }
 
     /**
@@ -200,22 +149,6 @@ public class ClientAuthFilter extends OncePerRequestFilter {
             }
         }
         return null;
-    }
-
-    /**
-     * 兼容JWT=xxx和Bearer xxx两种值格式
-     * @param value 请求头或参数值
-     * @return JWT
-     */
-    private String normalizeTokenValue(String value) {
-        String token = value.trim();
-        if (token.startsWith("Bearer ")) {
-            return token.substring("Bearer ".length());
-        }
-        if (token.startsWith(JWT_COOKIE_NAME + "=")) {
-            return token.substring((JWT_COOKIE_NAME + "=").length());
-        }
-        return token;
     }
 
     /**
@@ -282,13 +215,10 @@ public class ClientAuthFilter extends OncePerRequestFilter {
         }
 
         ClientUserSession session = new ClientUserSession();
-        session.setToken(token);
         session.setUserId(userId);
-        session.setCurrency(StringUtils.hasText(user.getCurrency()) ? user.getCurrency() : payload.getString("currency"));
         session.setRoomMasterId(roomMasterId);
         session.setRoomMasterTitle(title);
         session.setOperator(operator == null ? "" : operator);
-        session.setMiscInfo(roomMaster.getMiscInfo());
         return session;
     }
 

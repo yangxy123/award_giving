@@ -8,17 +8,11 @@ import lombok.Data;
 @Data
 public class ClientUserSession {
 
-    private String token;
-
     private String userId;
-
-    private String currency;
 
     private Integer roomMasterId;
 
     private String roomMasterTitle;
 
     private String operator;
-
-    private String miscInfo;
 }
