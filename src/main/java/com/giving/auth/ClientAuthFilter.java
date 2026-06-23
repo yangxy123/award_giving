@@ -23,6 +23,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Enumeration;
 
 /**
  * 客户端投注Token认证过滤器
@@ -103,6 +104,16 @@ public class ClientAuthFilter extends OncePerRequestFilter {
             }
         }
 
+        String headerToken = extractHeaderToken(request);
+        if (StringUtils.hasText(headerToken)) {
+            return headerToken;
+        }
+
+        String parameterToken = extractParameterToken(request);
+        if (StringUtils.hasText(parameterToken)) {
+            return parameterToken;
+        }
+
         String authorization = request.getHeader("Authorization");
         if (StringUtils.hasText(authorization)) {
             if (authorization.startsWith("Bearer ")) {
@@ -112,6 +123,99 @@ public class ClientAuthFilter extends OncePerRequestFilter {
         }
 
         throw new ClientAuthException("缺少JWT");
+    }
+
+    /**
+     * 从请求头中读取JWT
+     * @param request HTTP请求
+     * @return 请求头中的JWT
+     */
+    private String extractHeaderToken(HttpServletRequest request) {
+        String cookieToken = extractCookieToken(getHeaderIgnoreCase(request, "Cookie"));
+        if (StringUtils.hasText(cookieToken)) {
+            return cookieToken;
+        }
+
+        String jwtHeader = getHeaderIgnoreCase(request, JWT_COOKIE_NAME);
+        if (StringUtils.hasText(jwtHeader)) {
+            return decodeToken(normalizeTokenValue(jwtHeader), "JWT请求头解析失败");
+        }
+        return null;
+    }
+
+    /**
+     * 从请求参数中读取JWT，便于本地调试工具兼容
+     * @param request HTTP请求
+     * @return 请求参数中的JWT
+     */
+    private String extractParameterToken(HttpServletRequest request) {
+        String cookieParameter = request.getParameter("cookie");
+        String cookieToken = extractCookieToken(cookieParameter);
+        if (StringUtils.hasText(cookieToken)) {
+            return cookieToken;
+        }
+
+        String jwtParameter = request.getParameter(JWT_COOKIE_NAME);
+        if (StringUtils.hasText(jwtParameter)) {
+            return decodeToken(normalizeTokenValue(jwtParameter), "JWT参数解析失败");
+        }
+        return null;
+    }
+
+    /**
+     * 忽略大小写读取请求头
+     * @param request HTTP请求
+     * @param name 请求头名称
+     * @return 请求头值
+     */
+    private String getHeaderIgnoreCase(HttpServletRequest request, String name) {
+        String value = request.getHeader(name);
+        if (StringUtils.hasText(value)) {
+            return value;
+        }
+        Enumeration<String> headerNames = request.getHeaderNames();
+        while (headerNames != null && headerNames.hasMoreElements()) {
+            String headerName = headerNames.nextElement();
+            if (name.equalsIgnoreCase(headerName)) {
+                return request.getHeader(headerName);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 从Cookie格式内容中读取JWT
+     * @param cookieText Cookie格式内容
+     * @return JWT
+     */
+    private String extractCookieToken(String cookieText) {
+        if (!StringUtils.hasText(cookieText)) {
+            return null;
+        }
+        String[] cookies = cookieText.split(";");
+        for (String cookie : cookies) {
+            String[] pair = cookie.trim().split("=", 2);
+            if (pair.length == 2 && JWT_COOKIE_NAME.equals(pair[0].trim()) && StringUtils.hasText(pair[1])) {
+                return decodeToken(pair[1].trim(), "Cookie JWT解析失败");
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 兼容JWT=xxx和Bearer xxx两种值格式
+     * @param value 请求头或参数值
+     * @return JWT
+     */
+    private String normalizeTokenValue(String value) {
+        String token = value.trim();
+        if (token.startsWith("Bearer ")) {
+            return token.substring("Bearer ".length());
+        }
+        if (token.startsWith(JWT_COOKIE_NAME + "=")) {
+            return token.substring((JWT_COOKIE_NAME + "=").length());
+        }
+        return token;
     }
 
     /**
@@ -126,10 +230,20 @@ public class ClientAuthFilter extends OncePerRequestFilter {
             return null;
         }
         String token = path.substring(prefix.length());
+        return decodeToken(token, "URL JWT解析失败");
+    }
+
+    /**
+     * 解码可能被URL编码的JWT
+     * @param token JWT
+     * @param errorMessage 失败提示
+     * @return 解码后的JWT
+     */
+    private String decodeToken(String token, String errorMessage) {
         try {
             return URLDecoder.decode(token, StandardCharsets.UTF_8.name());
         } catch (Exception e) {
-            throw new ClientAuthException("URL JWT解析失败");
+            throw new ClientAuthException(errorMessage);
         }
     }
 

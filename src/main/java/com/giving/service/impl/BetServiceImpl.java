@@ -125,7 +125,7 @@ public class BetServiceImpl implements BetService {
             }
 
             BigDecimal totalAmount = req.getLtMoneyAmout();
-            if (nvl(betWallet.getAvailablebalance()).compareTo(totalAmount) < 0) {
+            if (nvl(userFundSum.getAvailablebalance()).compareTo(totalAmount) < 0) {
                 throw new BetBusinessException("余额不足");
             }
 
