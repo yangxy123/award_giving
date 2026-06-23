@@ -37,6 +37,78 @@
         cancel_status,created_at,updated_at,
         draw_type,random,is_close
     </sql>
+    <select id="selectExistentIssues" resultType="java.lang.String">
+        SELECT issue
+        FROM issue_info
+        WHERE lottery_id = #{lotteryId}
+          AND issue IN
+        <foreach collection="issues" item="issue" open="(" separator="," close=")">
+            #{issue}
+        </foreach>
+        FOR UPDATE
+    </select>
+
+    <insert id="insertIssueIdProducer"
+            parameterType="com.giving.entity.IssueIdProducerEntity"
+            useGeneratedKeys="true"
+            keyProperty="issueId"
+            keyColumn="issue_id">
+        INSERT INTO issue_id_producer (suffix)
+        VALUES (#{suffix})
+    </insert>
+
+    <insert id="batchInsertIssueInfo">
+        INSERT INTO issue_info (
+            issue_id,
+            lottery_id,
+            code,
+            issue,
+            job_id,
+            open_date,
+            belong_date,
+            autoissue_belong_date,
+            sale_start,
+            sale_end,
+            cancel_deadline,
+            write_time,
+            write_id,
+            status_fetch,
+            status_code,
+            cancel_status,
+            created_at,
+            updated_at,
+            draw_type,
+            random,
+            is_close
+        )
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.issueId},
+                #{item.lotteryId},
+                #{item.code},
+                #{item.issue},
+                #{item.jobId},
+                #{item.openDate},
+                #{item.belongDate},
+                #{item.autoissueBelongDate},
+                #{item.saleStart},
+                #{item.saleEnd},
+                #{item.cancelDeadline},
+                #{item.writeTime},
+                #{item.writeId},
+                #{item.statusFetch},
+                #{item.statusCode},
+                #{item.cancelStatus},
+                #{item.createdAt},
+                #{item.updatedAt},
+                #{item.drawType},
+                #{item.random},
+                #{item.isClose}
+            )
+        </foreach>
+    </insert>
+
     <insert id="insertIssueToRooms">
         <foreach collection="titles" item="prefix" open="" close="" separator=";">
             UPDATE `${prefix}_issue_info` set
@@ -52,6 +124,7 @@
             status_bonus = 2,
             status_task_to_project = 2
             where issue_id = #{issueInfo.issueId}
+               or (lottery_id = #{issueInfo.lotteryId} and issue = #{issueInfo.issue})
         </foreach>
     </insert>
     <select id="selectByTitle" resultType="com.giving.entity.IssueInfoEntity">

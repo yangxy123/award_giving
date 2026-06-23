@@ -65,5 +65,9 @@
         SELECT lottery_id FROM lottery WHERE is_local=1 AND is_Active=1
     </select>
 
+    <select id="selectLotterInAction" resultType="com.giving.entity.LotteryEntity">
+        SELECT * FROM lottery WHERE is_Active=1
+    </select>
+
 
 </mapper>
