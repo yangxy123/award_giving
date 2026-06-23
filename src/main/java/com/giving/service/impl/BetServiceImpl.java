@@ -4,21 +4,21 @@ import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.BetInfoEntity;
-import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.LotteryEntity;
 import com.giving.entity.MethodEntity;
 import com.giving.entity.OrdersEntity;
 import com.giving.entity.ProjectsTmpEntity;
 import com.giving.entity.RoomMasterEntity;
+import com.giving.entity.TempIssueInfoEntity;
 import com.giving.entity.UserEntity;
 import com.giving.entity.UserFundEntity;
 import com.giving.mapper.BetInfoMapper;
-import com.giving.mapper.IssueInfoMapper;
 import com.giving.mapper.LotteryMapper;
 import com.giving.mapper.MethodMapper;
 import com.giving.mapper.OrdersMapper;
 import com.giving.mapper.ProjectsTmpMapper;
 import com.giving.mapper.RoomMasterMapper;
+import com.giving.mapper.TempIssueInfoMapper;
 import com.giving.mapper.UserFundMapper;
 import com.giving.mapper.UserMapper;
 import com.giving.req.BetOrderReq;
@@ -62,7 +62,7 @@ public class BetServiceImpl implements BetService {
     @Autowired
     private LotteryMapper lotteryMapper;
     @Autowired
-    private IssueInfoMapper issueInfoMapper;
+    private TempIssueInfoMapper tempIssueInfoMapper;
     @Autowired
     private MethodMapper methodMapper;
     @Autowired
@@ -171,7 +171,7 @@ public class BetServiceImpl implements BetService {
             throw new BetBusinessException("彩种不存在或未启用");
         }
 
-        IssueInfoEntity issue = findIssue(title, req);
+        TempIssueInfoEntity issue = findIssue(title, req);
         validateIssue(issue);
 
         Map<Integer, MethodEntity> methodMap = loadMethodMap(req);
@@ -210,32 +210,21 @@ public class BetServiceImpl implements BetService {
      * @param req 投注请求
      * @return 奖期信息
      */
-    private IssueInfoEntity findIssue(String title, BetOrderReq req) {
-        IssueInfoEntity issue;
+    private TempIssueInfoEntity findIssue(String title, BetOrderReq req) {
+        Long lotteryId = Long.valueOf(req.getLotteryId());
         if ("now".equalsIgnoreCase(req.getLtIssueStart())) {
-            issue = issueInfoMapper.selectCurrentByTitle(title, req.getLotteryId());
-            if (issue == null) {
-                issue = issueInfoMapper.selectCurrentByTitle(null, req.getLotteryId());
-            }
-            return issue;
+            return tempIssueInfoMapper.selectCurrentByTitle(title, lotteryId);
         }
-        issue = issueInfoMapper.selectByTitleAndLotteryIssue(title, req.getLotteryId(), req.getLtIssueStart());
-        if (issue == null) {
-            issue = issueInfoMapper.selectByTitleAndLotteryIssue(null, req.getLotteryId(), req.getLtIssueStart());
-        }
-        return issue;
+        return tempIssueInfoMapper.selectByTitle(title, lotteryId, req.getLtIssueStart());
     }
 
     /**
      * 校验奖期销售时间
      * @param issue 奖期信息
      */
-    private void validateIssue(IssueInfoEntity issue) {
+    private void validateIssue(TempIssueInfoEntity issue) {
         if (issue == null) {
             throw new BetBusinessException("奖期不存在");
-        }
-        if (Integer.valueOf(1).equals(issue.getIsClose())) {
-            throw new BetBusinessException("当前奖期已休市");
         }
         Date now = new Date();
         if (issue.getSaleStart() == null || issue.getSaleEnd() == null

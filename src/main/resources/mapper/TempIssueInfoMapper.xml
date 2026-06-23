@@ -71,4 +71,14 @@
         select * from ${titles}_issue_info
         where lottery_id = #{lotteryId} and issue = #{issue}
     </select>
+
+    <select id="selectCurrentByTitle" resultMap="BaseResultMap">
+        select *
+        from ${titles}_issue_info
+        where lottery_id = #{lotteryId}
+          and sale_start &lt; now()
+          and sale_end &gt; now()
+        order by sale_end asc
+        limit 1
+    </select>
 </mapper>

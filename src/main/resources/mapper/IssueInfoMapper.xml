@@ -58,35 +58,6 @@
         select * from ${titles}_issue_info
         where lottery_id = #{req.lotteryId} and issue = #{req.issue}
     </select>
-    <select id="selectByTitleAndLotteryIssue" resultMap="BaseResultMap">
-        select *
-        from
-        <if test="title != null and title != ''">
-            ${title}_issue_info
-        </if>
-        <if test="title == null or title == ''">
-            issue_info
-        </if>
-        where lottery_id = #{lotteryId}
-          and issue = #{issue}
-        limit 1
-    </select>
-    <select id="selectCurrentByTitle" resultMap="BaseResultMap">
-        select *
-        from
-        <if test="title != null and title != ''">
-            ${title}_issue_info
-        </if>
-        <if test="title == null or title == ''">
-            issue_info
-        </if>
-        where lottery_id = #{lotteryId}
-          and sale_start &lt; now()
-          and sale_end &gt; now()
-          and ifnull(is_close, 0) != 1
-        order by sale_end asc
-        limit 1
-    </select>
     <select id="selectUserNoteList" resultType="com.giving.resp.UserNoteListResp">
         select
         issue_id as issueId,

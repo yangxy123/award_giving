@@ -1,10 +1,10 @@
 package com.giving.service.context;
 
 import com.giving.entity.BetInfoEntity;
-import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.LotteryEntity;
 import com.giving.entity.MethodEntity;
 import com.giving.entity.RoomMasterEntity;
+import com.giving.entity.TempIssueInfoEntity;
 import com.giving.entity.UserEntity;
 import lombok.Data;
 
@@ -23,7 +23,7 @@ public class BetContext {
 
     private LotteryEntity lottery;
 
-    private IssueInfoEntity issue;
+    private TempIssueInfoEntity issue;
 
     private Map<Integer, MethodEntity> methodMap = new HashMap<>();
 
