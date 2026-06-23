@@ -1,5 +1,6 @@
 package com.giving.mapper;
 
+import com.giving.entity.IssueInfoEntity;
 import com.giving.entity.TempIssueInfoEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.giving.req.ManualDistributionReq;
@@ -13,12 +14,19 @@ import org.apache.ibatis.annotations.Param;
 */
 public interface TempIssueInfoMapper extends BaseMapper<TempIssueInfoEntity> {
 
-    TempIssueInfoEntity selectByTitle(@Param("titles") String title,
-                                      @Param("lotteryId") Long lotteryId,
-                                      @Param("issue") String issue);
+    TempIssueInfoEntity selectByTitle(@Param("titles") String title, @Param("lotteryId") Long lotteryId, @Param("issue") String issue);
 
-    TempIssueInfoEntity selectCurrentByTitle(@Param("titles") String title,
-                                             @Param("lotteryId") Long lotteryId);
+    TempIssueInfoEntity selectCurrentByTitle(@Param("titles") String title, @Param("lotteryId") Long lotteryId);
+
+    default TempIssueInfoEntity insertTempIssueInfo(String title, IssueInfoEntity issueInfo) {
+        int rows = insertTempIssueInfoRecord(title, issueInfo);
+        if (rows <= 0) {
+            return null;
+        }
+        return selectByTitle(title, issueInfo.getLotteryId(), issueInfo.getIssue());
+    }
+
+    int insertTempIssueInfoRecord(@Param("titles") String title, @Param("IssueInfo") IssueInfoEntity issueInfo);
 
     int updateByTitleStatusDeduct(@Param("titles") String title,@Param("issueInfo") TempIssueInfoEntity issueInfo);
 

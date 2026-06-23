@@ -21,6 +21,9 @@ public interface IssueInfoMapper extends BaseMapper<IssueInfoEntity> {
 
     IssueInfoEntity selectByTitle(@Param("titles") String title,@Param("req")  ManualDistributionReq req);
 
+
+    IssueInfoEntity selectByLotteryIdAndIssue(@Param("lotteryId") Long lotteryId,@Param("issue") String issue);
+
     List<UserNoteListResp> selectUserNoteList(@Param("req") UserNoteListReq req,@Param("title") String title);
 
     /**

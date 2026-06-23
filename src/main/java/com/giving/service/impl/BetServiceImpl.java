@@ -3,24 +3,8 @@ package com.giving.service.impl;
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.giving.base.resp.ApiResp;
-import com.giving.entity.BetInfoEntity;
-import com.giving.entity.LotteryEntity;
-import com.giving.entity.MethodEntity;
-import com.giving.entity.OrdersEntity;
-import com.giving.entity.ProjectsTmpEntity;
-import com.giving.entity.RoomMasterEntity;
-import com.giving.entity.TempIssueInfoEntity;
-import com.giving.entity.UserEntity;
-import com.giving.entity.UserFundEntity;
-import com.giving.mapper.BetInfoMapper;
-import com.giving.mapper.LotteryMapper;
-import com.giving.mapper.MethodMapper;
-import com.giving.mapper.OrdersMapper;
-import com.giving.mapper.ProjectsTmpMapper;
-import com.giving.mapper.RoomMasterMapper;
-import com.giving.mapper.TempIssueInfoMapper;
-import com.giving.mapper.UserFundMapper;
-import com.giving.mapper.UserMapper;
+import com.giving.entity.*;
+import com.giving.mapper.*;
 import com.giving.req.BetOrderReq;
 import com.giving.req.LtProjectReq;
 import com.giving.resp.BetOrderResp;
@@ -33,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -64,6 +49,8 @@ public class BetServiceImpl implements BetService {
     @Autowired
     private TempIssueInfoMapper tempIssueInfoMapper;
     @Autowired
+    private IssueInfoMapper IssueInfoMapper;
+    @Autowired
     private MethodMapper methodMapper;
     @Autowired
     private BetInfoMapper betInfoMapper;
@@ -88,10 +75,11 @@ public class BetServiceImpl implements BetService {
         String title = null;
         String userId = req.getUserId();
         try {
-            if (Boolean.TRUE.equals(req.getOrderFuture())) {
-                return ApiResp.bussError("追号投注暂未实现");
-            }
+//            if (Boolean.TRUE.equals(req.getOrderFuture())) {
+//                return ApiResp.bussError("追号投注暂未实现");
+//            }
 
+            /* 创建投注上下文 --取到厅组title信息  */
             BetContext context = buildContext(req);
             title = context.getTitle();
             validateBasicOrder(req, context);
@@ -212,10 +200,20 @@ public class BetServiceImpl implements BetService {
      */
     private TempIssueInfoEntity findIssue(String title, BetOrderReq req) {
         Long lotteryId = Long.valueOf(req.getLotteryId());
+        String Issue =  req.getLtProject().get(0).getIssue();
         if ("now".equalsIgnoreCase(req.getLtIssueStart())) {
             return tempIssueInfoMapper.selectCurrentByTitle(title, lotteryId);
         }
-        return tempIssueInfoMapper.selectByTitle(title, lotteryId, req.getLtIssueStart());
+        //这里取得厅组奖期
+        TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(title, lotteryId, Issue);
+        if (ObjectUtils.isEmpty(issueInfo)){  //如果厅组奖期号不存在则 取主奖期--并写入厅组奖期
+            IssueInfoEntity issueInfoTemp = IssueInfoMapper.selectByLotteryIdAndIssue(lotteryId,Issue);
+            if (ObjectUtils.isEmpty(issueInfoTemp)){
+                return issueInfo;
+            }
+            issueInfo = tempIssueInfoMapper.insertTempIssueInfo(title,issueInfoTemp);
+        }
+        return issueInfo;
     }
 
     /**

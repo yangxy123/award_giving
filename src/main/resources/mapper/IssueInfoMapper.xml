@@ -131,6 +131,10 @@
         select * from ${titles}_issue_info
         where lottery_id = #{req.lotteryId} and issue = #{req.issue}
     </select>
+    <select id="selectByLotteryIdAndIssue" resultType="com.giving.entity.IssueInfoEntity">
+        select * from issue_info
+        where lottery_id = #{lotteryId} and issue = #{issue}
+    </select>
     <select id="selectUserNoteList" resultType="com.giving.resp.UserNoteListResp">
         select
         issue_id as issueId,
