@@ -18,11 +18,11 @@ public interface TempIssueInfoMapper extends BaseMapper<TempIssueInfoEntity> {
 
     TempIssueInfoEntity selectCurrentByTitle(@Param("titles") String title, @Param("lotteryId") Long lotteryId);
 
+
+
     default TempIssueInfoEntity insertTempIssueInfo(String title, IssueInfoEntity issueInfo) {
         int rows = insertTempIssueInfoRecord(title, issueInfo);
-        if (rows <= 0) {
-            return null;
-        }
+        if (rows <= 0) { return null; }
         return selectByTitle(title, issueInfo.getLotteryId(), issueInfo.getIssue());
     }
 

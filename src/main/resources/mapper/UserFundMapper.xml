@@ -73,6 +73,7 @@
           AND wallet_type = #{walletType}
     </select>
 
+<!--    投注修改投注钱包-001  wallet_type=1-->
     <update id="freezeBetAmount">
         UPDATE ${title}_user_fund
         SET availablebalance = availablebalance - #{amount},
@@ -81,7 +82,6 @@
         WHERE userid = #{userId}
           AND wallet_type = #{walletType}
           AND islocked = 1
-          AND availablebalance >= #{amount}
     </update>
 
     <!--    执行用户钱包解锁 批量1-->

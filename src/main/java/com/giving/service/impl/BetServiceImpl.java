@@ -8,6 +8,7 @@ import com.giving.mapper.*;
 import com.giving.req.BetOrderReq;
 import com.giving.req.LtProjectReq;
 import com.giving.resp.BetOrderResp;
+import com.giving.service.BetOrderTxService;
 import com.giving.service.BetService;
 import com.giving.service.UserFundLockTxService;
 import com.giving.service.context.BetContext;
@@ -15,8 +16,6 @@ import com.giving.util.TableNameUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -53,15 +52,11 @@ public class BetServiceImpl implements BetService {
     @Autowired
     private MethodMapper methodMapper;
     @Autowired
-    private BetInfoMapper betInfoMapper;
-    @Autowired
-    private ProjectsTmpMapper projectsTmpMapper;
-    @Autowired
-    private OrdersMapper ordersMapper;
-    @Autowired
     private UserFundMapper userFundMapper;
     @Autowired
     private UserFundLockTxService userFundLockTxService;
+    @Autowired
+    private BetOrderTxService betOrderTxService;
 
     /**
      * 投注
@@ -69,7 +64,6 @@ public class BetServiceImpl implements BetService {
      * @return 投注结果
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public ApiResp<BetOrderResp> order(BetOrderReq req) {
         boolean locked = false;
         String title = null;
@@ -89,46 +83,39 @@ public class BetServiceImpl implements BetService {
                 return ApiResp.bussError("用户资金上锁失败");
             }
 
-            UserFundEntity userFundSum = userFundMapper.selectByUserSum(title, userId);
-            UserFundEntity betWallet = userFundMapper.selectByUserAndType(title, userId, WALLET_TYPE_BET);
+            UserFundEntity userFundSum = userFundMapper.selectByUserSum(title, userId);  //取到钱包总计---前台显示01
+            UserFundEntity betWallet = userFundMapper.selectByUserAndType(title, userId, WALLET_TYPE_BET); //钱包操作实做--001  walltetype 1
             if (userFundSum == null || betWallet == null) {
                 throw new BetBusinessException("未查询到用户钱包");
             }
 
             BigDecimal totalAmount = req.getLtMoneyAmout();
-            if (nvl(betWallet.getAvailablebalance()).compareTo(totalAmount) < 0) {
+            if (nvl(userFundSum.getChannelbalance()).compareTo(totalAmount) < 0) {
                 throw new BetBusinessException("余额不足");
             }
 
+            //注单信息收集
             List<BetInfoEntity> projects = buildProjects(req, context);
             List<ProjectsTmpEntity> projectsTmp = buildProjectsTmp(context, projects);
+
+            //修改账变
             List<OrdersEntity> orders = buildOrders(context, projects, userFundSum);
 
-            if (betInfoMapper.insertProjects(title, projects) != projects.size()) {
-                throw new IllegalStateException("写入注单失败");
-            }
-            if (projectsTmpMapper.insertProjectsTmp(title, projectsTmp) != projectsTmp.size()) {
-                throw new IllegalStateException("写入注单临时表失败");
-            }
-            if (ordersMapper.addOrdersListAll(orders, title) != orders.size()) {
-                throw new IllegalStateException("写入账变失败");
-            }
-            if (userFundMapper.freezeBetAmount(title, userId, WALLET_TYPE_BET, totalAmount) <= 0) {
-                throw new BetBusinessException("余额不足");
-            }
+            betOrderTxService.createOrder(title, userId, WALLET_TYPE_BET, totalAmount,
+                    projects, projectsTmp, orders);
 
             context.setProjectList(projects);
             return ApiResp.sucess(buildResponse(req, context, userFundSum, totalAmount));
         } catch (BetBusinessException e) {
-            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             return ApiResp.bussError(e.getMessage());
         } catch (Exception e) {
-            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             log.error("普通投注失败，用户ID={}，彩种ID={}", userId, req.getLotteryId(), e);
             return ApiResp.bussError("投注失败");
         } finally {
             if (locked) {
-                userFundLockTxService.doLockUserFund(userId, false, WALLET_TYPE_BET, "BET_001", title);
+                if (!userFundLockTxService.doLockUserFund(userId, false, WALLET_TYPE_BET, "BET_001", title)) {
+                    log.error("投注流程结束后用户资金解锁失败，用户ID={}，厅主表名={}", userId, title);
+                }
             }
         }
     }
