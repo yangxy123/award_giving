@@ -95,6 +95,14 @@ public interface UserFundMapper extends BaseMapper<UserFundEntity> {
 						@Param("walletType") int walletType, @Param("amount") java.math.BigDecimal amount);
 
 	/**
+	 * 更新已锁定的单个钱包余额
+	 * @param title 厅主动态表前缀
+	 * @param userFund 钱包
+	 * @return 更新行数
+	 */
+	int updateLockedFund(@Param("title") String title, @Param("userFund") UserFundEntity userFund);
+
+	/**
 	 * 批量解锁--1
 	 * 
 	 * @param title

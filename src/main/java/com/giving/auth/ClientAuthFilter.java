@@ -23,6 +23,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * 客户端投注Token认证过滤器
@@ -32,6 +34,7 @@ public class ClientAuthFilter extends OncePerRequestFilter {
     private static final String JWT_COOKIE_NAME = "JWT";
     private static final String URL_COOKIE_MARK = "1.1.1";
     private static final String KICKED_TOKEN = "invalid-token-for-kicking-out-player";
+    private static final List<String> AUTH_PATHS = Arrays.asList("/game/order", "/game/cancelProject");
 
     @Value("${client.jwt.secret:GAME_CLIENT}")
     private String clientJwtSecret;
@@ -81,7 +84,12 @@ public class ClientAuthFilter extends OncePerRequestFilter {
             return true;
         }
         String path = normalizePath(request);
-        return !("/game/order".equals(path) || path.startsWith("/game/order/"));
+        for (String authPath : AUTH_PATHS) {
+            if (authPath.equals(path) || path.startsWith(authPath + "/")) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -158,12 +166,14 @@ public class ClientAuthFilter extends OncePerRequestFilter {
      */
     private String extractPathToken(HttpServletRequest request) {
         String path = normalizePath(request);
-        String prefix = "/game/order/";
-        if (!path.startsWith(prefix)) {
-            return null;
+        for (String authPath : AUTH_PATHS) {
+            String prefix = authPath + "/";
+            if (path.startsWith(prefix)) {
+                String token = path.substring(prefix.length());
+                return decodeToken(token, "URL JWT解析失败");
+            }
         }
-        String token = path.substring(prefix.length());
-        return decodeToken(token, "URL JWT解析失败");
+        return null;
     }
 
     /**

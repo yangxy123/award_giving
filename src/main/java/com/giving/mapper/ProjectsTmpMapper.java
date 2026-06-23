@@ -23,6 +23,14 @@ public interface ProjectsTmpMapper extends BaseMapper<ProjectsTmpEntity> {
      */
     int insertProjectsTmp(@Param("title") String title, @Param("projectsTmp") List<ProjectsTmpEntity> projectsTmp);
 
+    /**
+     * 删除指定注单临时记录
+     * @param title 厅主动态表前缀
+     * @param projectId 注单ID
+     * @return 删除行数
+     */
+    int deleteByProjectId(@Param("title") String title, @Param("projectId") String projectId);
+
     void createData(@Param("uuids") List<String> uuidList, @Param("issue")IssueInfoEntity issue,@Param("titles") List<String> titles);
 
     void createIssueData(@Param("issue") IssueInfoEntity issue,@Param("titles") List<String> titles);

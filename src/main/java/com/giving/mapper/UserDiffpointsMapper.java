@@ -16,6 +16,33 @@ import java.util.List;
 public interface UserDiffpointsMapper extends BaseMapper<UserDiffpointsEntity> {
 
     int updateThreshold(@Param("title") String title,@Param("projects") List<BetInfoEntity> projects);
+
+    /**
+     * 查询注单返点记录
+     * @param title 厅主动态表前缀
+     * @param projectId 注单ID
+     * @return 返点记录
+     */
+    List<UserDiffpointsEntity> selectByProjectId(@Param("title") String title, @Param("projectId") String projectId);
+
+    /**
+     * 更新已派返点为已撤销
+     * @param title 厅主动态表前缀
+     * @param projectId 注单ID
+     * @return 更新行数
+     */
+    int cancelPaidByProjectId(@Param("title") String title, @Param("projectId") String projectId);
+
+    /**
+     * 更新未派返点为已撤单
+     * @param title 厅主动态表前缀
+     * @param projectId 注单ID
+     * @param cancelStatus 撤单状态
+     * @return 更新行数
+     */
+    int cancelUnpaidByProjectId(@Param("title") String title,
+                                @Param("projectId") String projectId,
+                                @Param("cancelStatus") Integer cancelStatus);
 }
 
 

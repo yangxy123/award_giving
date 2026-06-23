@@ -125,6 +125,28 @@
         FOR UPDATE
     </select>
 
+    <update id="updateCancelStatus">
+        UPDATE ${title}_projects
+        SET is_cancel = #{cancelType},
+            cancel_time = now(),
+            update_time = now(),
+            updated_at = now()
+        WHERE project_id = #{projectId}
+          AND user_id = #{userId}
+          AND is_cancel = 0
+          AND prize_status = 0
+          AND is_deduct = #{isDeduct}
+    </update>
+
+    <update id="resetPointStatus">
+        UPDATE ${title}_projects
+        SET point_status = 0,
+            update_time = now(),
+            updated_at = now()
+        WHERE project_id = #{projectId}
+          AND point_status = 1
+    </update>
+
     <update id="updateWinResult">
         UPDATE ${title}_projects
         SET bonus =

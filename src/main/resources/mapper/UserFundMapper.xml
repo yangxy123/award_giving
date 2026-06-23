@@ -84,6 +84,17 @@
           AND islocked = 1
     </update>
 
+    <update id="updateLockedFund">
+        UPDATE ${title}_user_fund
+        SET channelbalance = #{userFund.channelbalance},
+            availablebalance = #{userFund.availablebalance},
+            holdbalance = #{userFund.holdbalance},
+            updated_at = now()
+        WHERE userid = #{userFund.userid}
+          AND wallet_type = #{userFund.walletType}
+          AND islocked = 1
+    </update>
+
     <!--    执行用户钱包解锁 批量1-->
     <update id="doLockUserFund">
         UPDATE ${title}_user_fund

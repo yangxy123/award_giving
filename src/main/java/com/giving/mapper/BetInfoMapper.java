@@ -54,6 +54,29 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	BetInfoEntity selectProjectByIdForUpdate(@Param("title") String title,
 											@Param("projectId") String projectId);
 
+	/**
+	 * 条件更新注单为已撤单
+	 * @param title 厅主动态表前缀
+	 * @param projectId 注单ID
+	 * @param userId 用户ID
+	 * @param isDeduct 真实扣款状态
+	 * @param cancelType 撤单类型
+	 * @return 更新行数
+	 */
+	int updateCancelStatus(@Param("title") String title,
+						   @Param("projectId") String projectId,
+						   @Param("userId") String userId,
+						   @Param("isDeduct") Integer isDeduct,
+						   @Param("cancelType") Integer cancelType);
+
+	/**
+	 * 还原注单返点状态
+	 * @param title 厅主动态表前缀
+	 * @param projectId 注单ID
+	 * @return 更新行数
+	 */
+	int resetPointStatus(@Param("title") String title, @Param("projectId") String projectId);
+
     @Select({
 		"<script>"
 		+ "select project_id projectId from ${table} "

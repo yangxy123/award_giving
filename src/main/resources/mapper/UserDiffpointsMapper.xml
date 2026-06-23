@@ -32,4 +32,29 @@
             #{project.projectId}
         </foreach>
     </update>
+
+    <select id="selectByProjectId" resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM ${title}_user_diffpoints
+        WHERE project_id = #{projectId}
+    </select>
+
+    <update id="cancelPaidByProjectId">
+        UPDATE ${title}_user_diffpoints
+        SET status = 2,
+            cancel_status = 3,
+            updated_at = now()
+        WHERE project_id = #{projectId}
+          AND status = 1
+    </update>
+
+    <update id="cancelUnpaidByProjectId">
+        UPDATE ${title}_user_diffpoints
+        SET status = 2,
+            cancel_status = #{cancelStatus},
+            updated_at = now()
+        WHERE project_id = #{projectId}
+          AND status = 0
+    </update>
 </mapper>
