@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.BlockedMethodMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.BlockedMethodEntity">
+        <id property="blockedMethodId" column="blocked_method_id" jdbcType="BIGINT"/>
+        <result property="roomMasterId" column="room_master_id" jdbcType="INTEGER"/>
+        <result property="operator" column="operator" jdbcType="VARCHAR"/>
+        <result property="blockedList" column="blocked_list" jdbcType="VARCHAR"/>
+        <result property="blockedPrizeSetKey" column="blocked_prize_set_key" jdbcType="VARCHAR"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <select id="selectByRoomMasterIdAndOperator" resultMap="BaseResultMap">
+        SELECT blocked_method_id, room_master_id, operator, blocked_list, blocked_prize_set_key,
+               created_at, updated_at
+        FROM blocked_method
+        WHERE room_master_id = #{roomMasterId}
+          AND operator = #{operator}
+        LIMIT 1
+    </select>
+</mapper>

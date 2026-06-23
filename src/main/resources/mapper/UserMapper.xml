@@ -17,6 +17,7 @@
         <result property="frozenType" column="frozen_type" jdbcType="VARCHAR"/>
         <result property="currency" column="currency" jdbcType="VARCHAR"/>
         <result property="isTester" column="is_tester" jdbcType="VARCHAR"/>
+        <result property="loginToken" column="login_token" jdbcType="VARCHAR"/>
         <result property="isBlockhistory" column="is_blockhistory" jdbcType="INTEGER"/>
         <result property="isDeleted" column="is_deleted" jdbcType="VARCHAR"/>
         <result property="keepPoint" column="keep_point" jdbcType="DECIMAL"/>
@@ -27,7 +28,7 @@
     <select id="selectByUserId" resultMap="BaseResultMap">
         SELECT user_id, lvtop_id, parenttree, operator, name, thirdparty_id,
                app_account, nick_name, is_frozen, frozen_type, currency,
-               is_tester, is_blockhistory, is_deleted, keep_point, created_at, updated_at
+               is_tester, login_token, is_blockhistory, is_deleted, keep_point, created_at, updated_at
         FROM ${title}_users
         WHERE user_id = #{userId}
     </select>

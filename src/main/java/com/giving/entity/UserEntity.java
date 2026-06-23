@@ -41,6 +41,8 @@ public class UserEntity implements Serializable {
 
     private String isTester;
 
+    private String loginToken;
+
     private Integer isBlockhistory;
 
     private String isDeleted;

@@ -1,7 +1,12 @@
 package com.giving.service.impl;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.giving.auth.ClientAuthException;
+import com.giving.auth.ClientUserSession;
+import com.giving.auth.ClientUserSessionHolder;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.*;
 import com.giving.mapper.*;
@@ -22,8 +27,10 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +45,28 @@ public class BetServiceImpl implements BetService {
     private static final int MAX_PROJECT_COUNT = 800;
     private static final String JOIN_GAME = "加入游戏";
     private static final BigDecimal ZERO = BigDecimal.ZERO;
+    private static final int BUSINESS_TYPE_B2B_MW_TEST = 25;
+    private static final int BUSINESS_TYPE_SINGLE_WALLET_TRIAL = 27;
+    private static final List<Integer> ONE_MIN_3D_LOTTERY_IDS = Arrays.asList(52, 108, 109, 110);
+    private static final List<Integer> ONE_MIN_3D_QZX3_METHOD_IDS = Arrays.asList(2899, 4308, 4334, 4360);
+    private static final List<Integer> ONE_MIN_3D_REPEAT_CHECK_METHOD_IDS = Arrays.asList(
+            3974, 4050, 4061, 4117, 4163, 4275, 4286, 4291, 4302, 4385, 4390, 4395,
+            4405, 4406, 4416, 4417, 4428, 4501, 4563, 4576, 4587, 4683, 5653, 6159,
+            6372, 6597, 6598, 6599, 6629, 6630, 6631, 7074, 7176
+    );
+    private static final Map<String, BigDecimal> TRIAL_LOBBY_LIMITS = new HashMap<>();
+
+    static {
+        TRIAL_LOBBY_LIMITS.put("CNY", new BigDecimal("2000"));
+        TRIAL_LOBBY_LIMITS.put("USD", new BigDecimal("300"));
+        TRIAL_LOBBY_LIMITS.put("JPY", new BigDecimal("30000"));
+        TRIAL_LOBBY_LIMITS.put("THB", new BigDecimal("8000"));
+        TRIAL_LOBBY_LIMITS.put("VND", new BigDecimal("6000"));
+        TRIAL_LOBBY_LIMITS.put("KRW", new BigDecimal("300000"));
+        TRIAL_LOBBY_LIMITS.put("IDR", new BigDecimal("4000"));
+        TRIAL_LOBBY_LIMITS.put("MYR", new BigDecimal("1000"));
+        TRIAL_LOBBY_LIMITS.put("INR", new BigDecimal("30000"));
+    }
 
     @Autowired
     private RoomMasterMapper roomMasterMapper;
@@ -48,11 +77,17 @@ public class BetServiceImpl implements BetService {
     @Autowired
     private TempIssueInfoMapper tempIssueInfoMapper;
     @Autowired
-    private IssueInfoMapper IssueInfoMapper;
+    private IssueInfoMapper issueInfoMapper;
     @Autowired
     private MethodMapper methodMapper;
     @Autowired
+    private BetInfoMapper betInfoMapper;
+    @Autowired
     private UserFundMapper userFundMapper;
+    @Autowired
+    private BlockedMethodMapper blockedMethodMapper;
+    @Autowired
+    private RoomMasterRelationMapper roomMasterRelationMapper;
     @Autowired
     private UserFundLockTxService userFundLockTxService;
     @Autowired
@@ -90,7 +125,7 @@ public class BetServiceImpl implements BetService {
             }
 
             BigDecimal totalAmount = req.getLtMoneyAmout();
-            if (nvl(userFundSum.getChannelbalance()).compareTo(totalAmount) < 0) {
+            if (nvl(betWallet.getAvailablebalance()).compareTo(totalAmount) < 0) {
                 throw new BetBusinessException("余额不足");
             }
 
@@ -107,6 +142,10 @@ public class BetServiceImpl implements BetService {
             context.setProjectList(projects);
             return ApiResp.sucess(buildResponse(req, context, userFundSum, totalAmount));
         } catch (BetBusinessException e) {
+            return ApiResp.bussError(e.getMessage());
+        } catch (ClientAuthException e) {
+            return ApiResp.jwtError(e.getMessage());
+        } catch (IllegalStateException e) {
             return ApiResp.bussError(e.getMessage());
         } catch (Exception e) {
             log.error("普通投注失败，用户ID={}，彩种ID={}", userId, req.getLotteryId(), e);
@@ -127,6 +166,8 @@ public class BetServiceImpl implements BetService {
      */
     private BetContext buildContext(BetOrderReq req) {
         BetContext context = new BetContext();
+        ClientUserSession session = ClientUserSessionHolder.getRequired();
+        validateRequestSession(req, session);
 
         RoomMasterEntity roomMaster = roomMasterMapper.selectOne(new LambdaQueryWrapper<RoomMasterEntity>()
                 .eq(RoomMasterEntity::getMasterId, Integer.valueOf(req.getRoomMasterId())));
@@ -134,12 +175,16 @@ public class BetServiceImpl implements BetService {
             throw new BetBusinessException("厅主不存在或未启用");
         }
         String title = TableNameUtil.safePrefix(roomMaster.getTitle());
+        if (!title.equals(session.getRoomMasterTitle())) {
+            throw new ClientAuthException("roomMasterTitle mismatch");
+        }
         if (!isLotteryInService(roomMaster.getLotteryInService(), req.getLotteryId())) {
             throw new BetBusinessException("彩种未开启");
         }
 
         UserEntity user = userMapper.selectByUserId(title, req.getUserId());
-        validateUser(user);
+        validateUser(user, session);
+        validateTrialLobbyLimit(roomMaster, user, title, req.getLtMoneyAmout());
 
         LotteryEntity lottery = lotteryMapper.selectById(Long.valueOf(req.getLotteryId()));
         if (lottery == null || Integer.valueOf(0).equals(lottery.getIsActive())) {
@@ -150,6 +195,9 @@ public class BetServiceImpl implements BetService {
         validateIssue(issue);
 
         Map<Integer, MethodEntity> methodMap = loadMethodMap(req);
+        validateBlockedMethods(roomMaster.getMasterId(), session.getOperator(), methodMap);
+        validateShaduizi(roomMaster.getMasterId(), user, methodMap, req);
+        validateSpecial3DRules(title, req, issue);
 
         context.setRoomMaster(roomMaster);
         context.setTitle(title);
@@ -163,10 +211,14 @@ public class BetServiceImpl implements BetService {
     /**
      * 校验用户投注资格
      * @param user 用户信息
+     * @param session Token上下文
      */
-    private void validateUser(UserEntity user) {
+    private void validateUser(UserEntity user, ClientUserSession session) {
         if (user == null) {
             throw new BetBusinessException("用户不存在");
+        }
+        if (!normalize(user.getOperator()).equals(normalize(session.getOperator()))) {
+            throw new ClientAuthException("用户Token校验失败");
         }
         if ("1".equals(user.getIsDeleted())) {
             throw new BetBusinessException("用户已删除");
@@ -180,6 +232,235 @@ public class BetServiceImpl implements BetService {
     }
 
     /**
+     * 校验请求用户与Token上下文一致
+     * @param req 投注请求
+     * @param session Token上下文
+     */
+    private void validateRequestSession(BetOrderReq req, ClientUserSession session) {
+        if (!normalize(req.getUserId()).equals(normalize(session.getUserId()))) {
+            throw new ClientAuthException("you can't access other user's data");
+        }
+        if (!normalize(req.getRoomMasterId()).equals(String.valueOf(session.getRoomMasterId()))) {
+            throw new ClientAuthException("you can't access other room master's data");
+        }
+    }
+
+    /**
+     * 校验测试厅单日投注限额
+     * @param roomMaster 厅主
+     * @param user 用户
+     * @param title 厅主动态表前缀
+     * @param currentAmount 本次投注金额
+     */
+    private void validateTrialLobbyLimit(RoomMasterEntity roomMaster, UserEntity user, String title, BigDecimal currentAmount) {
+        Integer businessType = roomMaster.getBusinessType();
+        if (!Integer.valueOf(BUSINESS_TYPE_B2B_MW_TEST).equals(businessType)
+                && !Integer.valueOf(BUSINESS_TYPE_SINGLE_WALLET_TRIAL).equals(businessType)) {
+            return;
+        }
+        String currency = normalize(user.getCurrency()).toUpperCase();
+        BigDecimal limit = TRIAL_LOBBY_LIMITS.get(currency);
+        if (limit == null) {
+            return;
+        }
+        BigDecimal todayAmount = betInfoMapper.sumTodayTotalPriceByUser(title, user.getUserId());
+        if (nvl(todayAmount).add(nvl(currentAmount)).compareTo(limit) > 0) {
+            throw new BetBusinessException("超过测试厅投注限额");
+        }
+    }
+
+    /**
+     * 校验玩法黑名单
+     * @param roomMasterId 厅主ID
+     * @param operator operator代码
+     * @param methodMap 投注玩法
+     */
+    private void validateBlockedMethods(Integer roomMasterId, String operator, Map<Integer, MethodEntity> methodMap) {
+        BlockedMethodEntity blockedMethod = findBlockedMethod(roomMasterId, operator);
+        if (blockedMethod == null || !StringUtils.hasText(blockedMethod.getBlockedList())) {
+            return;
+        }
+        JSONObject blockedList;
+        try {
+            blockedList = JSON.parseObject(blockedMethod.getBlockedList());
+        } catch (Exception e) {
+            throw new BetBusinessException("玩法黑名单配置错误");
+        }
+        for (MethodEntity method : methodMap.values()) {
+            JSONObject lotteryBlock = blockedList.getJSONObject(String.valueOf(method.getLotteryId()));
+            if (lotteryBlock == null) {
+                continue;
+            }
+            if (Boolean.TRUE.equals(lotteryBlock.getBoolean("is_all_close"))) {
+                throw new BetBusinessException("彩种已关闭");
+            }
+            JSONArray methodIds = lotteryBlock.getJSONArray("method_id");
+            if (containsJsonValue(methodIds, method.getMethodId())) {
+                throw new BetBusinessException("玩法已关闭");
+            }
+        }
+    }
+
+    /**
+     * 查询适用的玩法黑名单
+     * @param roomMasterId 厅主ID
+     * @param operator operator代码
+     * @return 黑名单配置
+     */
+    private BlockedMethodEntity findBlockedMethod(Integer roomMasterId, String operator) {
+        String op = normalize(operator);
+        if (StringUtils.hasText(op)) {
+            BlockedMethodEntity blockedMethod = blockedMethodMapper.selectByRoomMasterIdAndOperator(roomMasterId, op);
+            if (blockedMethod != null) {
+                return blockedMethod;
+            }
+        }
+        BlockedMethodEntity roomDefault = blockedMethodMapper.selectByRoomMasterIdAndOperator(roomMasterId, "");
+        if (roomDefault != null) {
+            return roomDefault;
+        }
+        return blockedMethodMapper.selectByRoomMasterIdAndOperator(0, "");
+    }
+
+    /**
+     * 校验杀对子白名单
+     * @param roomMasterId 厅主ID
+     * @param user 用户
+     * @param methodMap 玩法映射
+     * @param req 投注请求
+     */
+    private void validateShaduizi(Integer roomMasterId, UserEntity user, Map<Integer, MethodEntity> methodMap, BetOrderReq req) {
+        List<Integer> shaduiziMethodIds = new ArrayList<>();
+        for (LtProjectReq projectReq : req.getLtProject()) {
+            if ("shaduizi".equals(projectReq.getSelectType())) {
+                shaduiziMethodIds.add(projectReq.getMethodId());
+            }
+        }
+        if (shaduiziMethodIds.isEmpty()) {
+            return;
+        }
+        RoomMasterRelationEntity relation = roomMasterRelationMapper
+                .selectByMasterIdAndCategory(roomMasterId, "methodShaduizi");
+        if (relation == null || !StringUtils.hasText(relation.getValue())) {
+            throw new BetBusinessException("杀对子已关闭，请重新投注");
+        }
+        JSONObject config;
+        try {
+            config = JSON.parseObject(relation.getValue());
+        } catch (Exception e) {
+            throw new BetBusinessException("杀对子配置错误");
+        }
+        for (Integer methodId : shaduiziMethodIds) {
+            MethodEntity method = methodMap.get(methodId);
+            if (method == null) {
+                throw new BetBusinessException("杀对子已关闭，请重新投注");
+            }
+            JSONArray allowed = findShaduiziAllowedMethods(config, normalize(user.getOperator()), method.getLotteryId());
+            if (!containsJsonValue(allowed, methodId)) {
+                throw new BetBusinessException("杀对子已关闭，请重新投注");
+            }
+        }
+    }
+
+    /**
+     * 查询杀对子可用玩法
+     * @param config 配置JSON
+     * @param operator operator代码
+     * @param lotteryId 彩种ID
+     * @return 可用玩法列表
+     */
+    private JSONArray findShaduiziAllowedMethods(JSONObject config, String operator, Integer lotteryId) {
+        JSONArray operatorAllowed = null;
+        if (StringUtils.hasText(operator)) {
+            JSONObject operatorConfig = config.getJSONObject(operator);
+            if (operatorConfig != null) {
+                operatorAllowed = operatorConfig.getJSONArray(String.valueOf(lotteryId));
+            }
+        }
+        if (operatorAllowed != null && !operatorAllowed.isEmpty()) {
+            return operatorAllowed;
+        }
+        JSONObject defaultConfig = config.getJSONObject("default");
+        return defaultConfig == null ? null : defaultConfig.getJSONArray(String.valueOf(lotteryId));
+    }
+
+    /**
+     * 校验1分3D特殊规则
+     * @param title 厅主动态表前缀
+     * @param req 投注请求
+     * @param issue 奖期
+     */
+    private void validateSpecial3DRules(String title, BetOrderReq req, TempIssueInfoEntity issue) {
+        if (!ONE_MIN_3D_LOTTERY_IDS.contains(req.getLotteryId())) {
+            return;
+        }
+        validateOneMin3DRepeatCodes(req);
+        int index = ONE_MIN_3D_LOTTERY_IDS.indexOf(req.getLotteryId());
+        Integer qzx3MethodId = ONE_MIN_3D_QZX3_METHOD_IDS.get(index);
+        int currentCount = 0;
+        for (LtProjectReq projectReq : req.getLtProject()) {
+            if (qzx3MethodId.equals(projectReq.getMethodId())) {
+                currentCount++;
+            }
+        }
+        if (currentCount <= 0) {
+            return;
+        }
+        Integer existingCount = betInfoMapper.countByUserLotteryIssueMethods(
+                title,
+                req.getUserId(),
+                req.getLotteryId(),
+                issue.getIssue(),
+                Collections.singletonList(qzx3MethodId)
+        );
+        if ((existingCount == null ? 0 : existingCount) + currentCount > 5) {
+            throw new BetBusinessException("本玩法一期不能投注超过五单");
+        }
+    }
+
+    /**
+     * 校验1分3D部分玩法段内号码不可重复
+     * @param req 投注请求
+     */
+    private void validateOneMin3DRepeatCodes(BetOrderReq req) {
+        for (LtProjectReq projectReq : req.getLtProject()) {
+            if (!ONE_MIN_3D_REPEAT_CHECK_METHOD_IDS.contains(projectReq.getMethodId())
+                    || !StringUtils.hasText(projectReq.getCodes())) {
+                continue;
+            }
+            String codes = projectReq.getCodes().replaceAll("\\s+", "");
+            for (String segment : codes.split("\\|")) {
+                if (!StringUtils.hasText(segment)) {
+                    continue;
+                }
+                List<String> tokenList = Arrays.asList(segment.split("&"));
+                if (tokenList.size() != tokenList.stream().distinct().count()) {
+                    throw new BetBusinessException("投注内容有误");
+                }
+            }
+        }
+    }
+
+    /**
+     * 判断JSON数组是否包含指定值
+     * @param array JSON数组
+     * @param value 目标值
+     * @return 是否包含
+     */
+    private boolean containsJsonValue(JSONArray array, Integer value) {
+        if (array == null || value == null) {
+            return false;
+        }
+        String target = String.valueOf(value);
+        for (Object item : array) {
+            if (target.equals(String.valueOf(item))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * 查询投注奖期
      * @param title 厅主动态表前缀
      * @param req 投注请求
@@ -187,14 +468,16 @@ public class BetServiceImpl implements BetService {
      */
     private TempIssueInfoEntity findIssue(String title, BetOrderReq req) {
         Long lotteryId = Long.valueOf(req.getLotteryId());
-        String Issue =  req.getLtProject().get(0).getIssue();
+        String Issue = StringUtils.hasText(req.getLtProject().get(0).getIssue())
+                ? req.getLtProject().get(0).getIssue()
+                : req.getLtIssueStart();
         if ("now".equalsIgnoreCase(req.getLtIssueStart())) {
             return tempIssueInfoMapper.selectCurrentByTitle(title, lotteryId);
         }
         //这里取得厅组奖期
         TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(title, lotteryId, Issue);
         if (ObjectUtils.isEmpty(issueInfo)){  //如果厅组奖期号不存在则 取主奖期--并写入厅组奖期
-            IssueInfoEntity issueInfoTemp = IssueInfoMapper.selectByLotteryIdAndIssue(lotteryId,Issue);
+            IssueInfoEntity issueInfoTemp = issueInfoMapper.selectByLotteryIdAndIssue(lotteryId,Issue);
             if (ObjectUtils.isEmpty(issueInfoTemp)){
                 return issueInfo;
             }
@@ -560,6 +843,15 @@ public class BetServiceImpl implements BetService {
      */
     private BigDecimal nvl(BigDecimal value) {
         return value == null ? ZERO : value;
+    }
+
+    /**
+     * 空字符串归一化
+     * @param value 原始字符串
+     * @return 非空字符串
+     */
+    private String normalize(String value) {
+        return value == null ? "" : value;
     }
 
     /**

@@ -69,6 +69,28 @@
         </foreach>
     </insert>
 
+    <select id="sumTodayTotalPriceByUser" resultType="java.math.BigDecimal">
+        SELECT IFNULL(SUM(total_price), 0)
+        FROM ${title}_projects
+        WHERE user_id = #{userId}
+          AND is_cancel = 0
+          AND write_time &gt;= CURDATE()
+          AND write_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+    </select>
+
+    <select id="countByUserLotteryIssueMethods" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM ${title}_projects
+        WHERE user_id = #{userId}
+          AND lottery_id = #{lotteryId}
+          AND issue = #{issue}
+          AND is_cancel = 0
+          AND method_id IN
+        <foreach collection="methodIds" item="methodId" open="(" close=")" separator=",">
+            #{methodId}
+        </foreach>
+    </select>
+
     <select id="selectListByNoticeReq" resultType="com.giving.entity.BetInfoEntity">
         SELECT pr.*, me.`code` as methodCode
         FROM ${noticeReq.title}_projects pr

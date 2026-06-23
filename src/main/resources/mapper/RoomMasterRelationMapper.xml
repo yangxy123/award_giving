@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.RoomMasterRelationMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.RoomMasterRelationEntity">
+        <id property="id" column="id" jdbcType="BIGINT"/>
+        <result property="masterId" column="master_id" jdbcType="INTEGER"/>
+        <result property="category" column="category" jdbcType="VARCHAR"/>
+        <result property="value" column="value" jdbcType="VARCHAR"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <select id="selectByMasterIdAndCategory" resultMap="BaseResultMap">
+        SELECT id, master_id, category, value, created_at, updated_at
+        FROM room_master_relation
+        WHERE master_id = #{masterId}
+          AND category = #{category}
+        LIMIT 1
+    </select>
+</mapper>

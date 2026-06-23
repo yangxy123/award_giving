@@ -21,7 +21,7 @@ public class BetController {
     @Autowired
     private BetService betService;
 
-    @PostMapping("/order")
+    @PostMapping({"/order", "/order/{jwtToken}"})
     @ApiOperation("投注")
     public ApiResp<BetOrderResp> order(@RequestBody @Valid BetOrderReq req) {
         return betService.order(req);

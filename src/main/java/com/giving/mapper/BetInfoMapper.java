@@ -1,6 +1,7 @@
 package com.giving.mapper;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -23,6 +24,29 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 * @return 写入行数
 	 */
 	int insertProjects(@Param("title") String title, @Param("projects") List<BetInfoEntity> projects);
+
+	/**
+	 * 查询用户今日有效投注总额
+	 * @param title 厅主动态表前缀
+	 * @param userId 用户ID
+	 * @return 今日投注总额
+	 */
+	BigDecimal sumTodayTotalPriceByUser(@Param("title") String title, @Param("userId") String userId);
+
+	/**
+	 * 查询用户指定彩种奖期玩法的有效投注数量
+	 * @param title 厅主动态表前缀
+	 * @param userId 用户ID
+	 * @param lotteryId 彩种ID
+	 * @param issue 奖期
+	 * @param methodIds 玩法ID列表
+	 * @return 投注数量
+	 */
+	Integer countByUserLotteryIssueMethods(@Param("title") String title,
+										   @Param("userId") String userId,
+										   @Param("lotteryId") Integer lotteryId,
+										   @Param("issue") String issue,
+										   @Param("methodIds") List<Integer> methodIds);
 
 	/**
 	 * 锁定并读取订单最新状态，避免并发任务使用过期状态重复操作钱包。
