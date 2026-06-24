@@ -117,7 +117,7 @@
 	</dependencies>
 	
 	<build>
-		<finalName>award_giving</finalName>
+		<finalName>award_giving_bet</finalName>
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
