@@ -31,6 +31,8 @@ public class MethodEntity implements Serializable {
 
     private String jscode;
 
+    private String prizeSetKey;
+
     private Integer isSpecial;
 
     private String functionName;

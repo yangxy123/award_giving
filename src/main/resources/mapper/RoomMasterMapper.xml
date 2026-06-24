@@ -85,4 +85,13 @@
     <select id="selectTitleById" resultType="java.lang.String">
         select title from room_master where master_id = #{masterId}
     </select>
+
+    <select id="selectHandicapPrizeJson" resultType="java.lang.String">
+        SELECT prize_json
+        FROM room_master_handicap
+        WHERE master_id = #{masterId}
+          AND (op_code = #{operator} OR op_code = '')
+        ORDER BY CASE WHEN op_code = #{operator} THEN 0 ELSE 1 END
+        LIMIT 1
+    </select>
 </mapper>

@@ -56,8 +56,7 @@ public class BetCancelServiceImpl implements BetCancelService {
                 throw new ClientAuthException("roomMasterTitle mismatch");
             }
 
-            locked = userFundLockTxService.doLockUserFund(
-                    req.getUserId(), true, WALLET_TYPE_CANCEL, "Cancel_01", title);
+            locked = userFundLockTxService.doLockUserFund( req.getUserId(), true, WALLET_TYPE_CANCEL, "Cancel_01", title);
             if (!locked) {
                 throw new CancelBusinessException("资金帐户因为其他操作被锁定，请稍后重试");
             }
@@ -89,9 +88,11 @@ public class BetCancelServiceImpl implements BetCancelService {
      */
     private void validateRequestSession(BetCancelProjectReq req, ClientUserSession session) {
         if (!normalize(req.getUserId()).equals(normalize(session.getUserId()))) {
+            //您无法访问其他用户的数据
             throw new ClientAuthException("you can't access other user's data");
         }
         if (!normalize(req.getRoomMasterId()).equals(String.valueOf(session.getRoomMasterId()))) {
+            //您无法访问其他房间管理员的数据
             throw new ClientAuthException("you can't access other room master's data");
         }
     }

@@ -130,14 +130,15 @@ public class BetServiceImpl implements BetService {
             }
 
             //注单信息收集
-            List<BetInfoEntity> projects = buildProjects(req, context);
+            List<TempUserDiffpointsEntity> userDiffpoints = new ArrayList<>();
+            List<BetInfoEntity> projects = buildProjects(req, context, userDiffpoints);
             List<ProjectsTmpEntity> projectsTmp = buildProjectsTmp(context, projects);
 
             //修改账变
             List<OrdersEntity> orders = buildOrders(context, projects, userFundSum);
 
             betOrderTxService.createOrder(title, userId, WALLET_TYPE_BET, totalAmount,
-                    projects, projectsTmp, orders);
+                    projects, projectsTmp, orders, userDiffpoints);
 
             context.setProjectList(projects);
             return ApiResp.sucess(buildResponse(req, context, userFundSum, totalAmount));
@@ -588,16 +589,28 @@ public class BetServiceImpl implements BetService {
      * @param context 投注上下文
      * @return 注单列表
      */
-    private List<BetInfoEntity> buildProjects(BetOrderReq req, BetContext context) {
+    private List<BetInfoEntity> buildProjects(BetOrderReq req, BetContext context,
+                                               List<TempUserDiffpointsEntity> userDiffpoints) {
         Date now = new Date();
+        JSONObject handicapPrizeJson = loadHandicapPrizeJson(context);
         List<BetInfoEntity> projects = new ArrayList<>();
         for (LtProjectReq projectReq : req.getLtProject()) {
+            MethodEntity method = context.getMethodMap().get(projectReq.getMethodId());
             BigDecimal modeRate = modesRate(projectReq.getMode());
             BigDecimal singlePrice = projectReq.getOnePrice()
                     .multiply(BigDecimal.valueOf(projectReq.getNums()))
                     .multiply(modeRate);
-            BigDecimal point = projectReq.getKeepPoint() == null ? ZERO : projectReq.getKeepPoint();
-            String hprize = StringUtils.hasText(projectReq.getHprize()) ? projectReq.getHprize() : "0";
+            HandicapPrizeSource handicapPrize = resolveHandicapPrizeSource(context, method, handicapPrizeJson);
+            BigDecimal point;
+            PrizeSource prizeSource;
+            if (handicapPrize == null) {
+                point = resolveProjectPoint(context, projectReq);
+                prizeSource = new PrizeSource(parsePrizeList(resolveRequestPrize(projectReq)), 1);
+            } else {
+                point = handicapPrize.commissionRate;
+                prizeSource = handicapPrize.prizeSource;
+            }
+            BetPrizeCalc prizeCalc = buildPrizeCalc(projectReq, prizeSource, modeRate, context.getCurrencyRate());
 
             BetInfoEntity project = new BetInfoEntity();
             project.setProjectId(newBizId(context.getRoomMaster().getMasterId()));
@@ -608,14 +621,14 @@ public class BetServiceImpl implements BetService {
             project.setMethodId(projectReq.getMethodId());
             project.setIssue(context.getIssue().getIssue());
             project.setBonus(0D);
-            project.setWinbonus(hprize);
+            project.setWinbonus(prizeCalc.winbonus);
             project.setCode(projectReq.getCodes());
             project.setCodeType(StringUtils.hasText(projectReq.getType()) ? projectReq.getType() : "digital");
             project.setSinglePrice(singlePrice.doubleValue());
             project.setMultiple(String.valueOf(projectReq.getTimes()));
             project.setTotalPrice(projectReq.getMoney().doubleValue());
             project.setWriteTime(now);
-            project.setScode(buildScode(projectReq, hprize));
+            project.setScode(buildScode(projectReq, prizeCalc));
             project.setUpdateTime(now);
             project.setDeductTime(now);
             project.setBonusTime(now);
@@ -638,8 +651,22 @@ public class BetServiceImpl implements BetService {
             project.setWriteMicrotime(String.valueOf(System.currentTimeMillis() / 1000D));
             project.setCreatedAt(now);
             project.setUpdatedAt(now);
-            project.setPointinfo(buildPointInfo(point, projectReq.getMoney(), hprize));
+            project.setPointinfo(buildPointInfo(point, projectReq.getMoney(), prizeCalc));
             projects.add(project);
+
+            TempUserDiffpointsEntity userDiffpoint = new TempUserDiffpointsEntity();
+            userDiffpoint.setLotteryId(project.getLotteryId());
+            userDiffpoint.setIssue(project.getIssue());
+            userDiffpoint.setUserId(project.getUserId());
+            userDiffpoint.setProjectId(project.getProjectId());
+            userDiffpoint.setDiffpoint(new BigDecimal(formatMoney(point)));
+            userDiffpoint.setDiffmoney(new BigDecimal(formatMoney(point.multiply(projectReq.getMoney()))));
+            userDiffpoint.setStatus(0);
+            userDiffpoint.setCancelStatus(0);
+            userDiffpoint.setSendtime(null);
+            userDiffpoint.setCreatedAt(now);
+            userDiffpoint.setUpdatedAt(now);
+            userDiffpoints.add(userDiffpoint);
         }
         return projects;
     }
@@ -744,10 +771,10 @@ public class BetServiceImpl implements BetService {
     /**
      * 组装scode JSON
      * @param projectReq 投注项
-     * @param hprize 前端奖金
+     * @param prizeCalc 奖金计算结果
      * @return scode JSON
      */
-    private String buildScode(LtProjectReq projectReq, String hprize) {
+    private String buildScode(LtProjectReq projectReq, BetPrizeCalc prizeCalc) {
         Map<String, Object> scode = new LinkedHashMap<>();
         scode.put("scode", projectReq.getCodes());
         scode.put("scode_key", projectReq.getScodeKey() == null ? "" : projectReq.getScodeKey());
@@ -757,8 +784,8 @@ public class BetServiceImpl implements BetService {
         scode.put("method_id", projectReq.getMethodId());
         scode.put("selectType", projectReq.getSelectType() == null ? "" : projectReq.getSelectType());
         scode.put("onePrice", projectReq.getOnePrice().toPlainString());
-        scode.put("total_bonus", ZERO);
-        scode.put("hprize", hprize);
+        scode.put("total_bonus", prizeCalc.totalBonusValue());
+        scode.put("hprize", prizeCalc.singlePrize);
         scode.put("nums", projectReq.getNums());
         scode.put("codeType", projectReq.getCodeType() == null ? "" : projectReq.getCodeType());
         return JSON.toJSONString(scode);
@@ -768,17 +795,187 @@ public class BetServiceImpl implements BetService {
      * 组装返点信息 JSON
      * @param point 返点
      * @param money 投注金额
-     * @param hprize 前端奖金
+     * @param prizeCalc 奖金计算结果
      * @return pointinfo JSON
      */
-    private String buildPointInfo(BigDecimal point, BigDecimal money, String hprize) {
+    private String buildPointInfo(BigDecimal point, BigDecimal money, BetPrizeCalc prizeCalc) {
         Map<String, Object> pointInfo = new LinkedHashMap<>();
-        pointInfo.put("level", "1");
-        pointInfo.put("single_prize", hprize);
-        pointInfo.put("point", point);
+        pointInfo.put("level", prizeCalc.level);
+        pointInfo.put("single_prize", prizeCalc.singlePrize);
+        pointInfo.put("point", formatMoney(point));
         pointInfo.put("point_price", formatMoney(point.multiply(money)));
-        pointInfo.put("prize", Collections.singletonList(hprize));
+        pointInfo.put("prize", prizeCalc.prizeList);
         return JSON.toJSONString(pointInfo);
+    }
+
+    /**
+     * Calculate project prize fields with the same write-time shape as PHP.
+     */
+    private BetPrizeCalc buildPrizeCalc(LtProjectReq projectReq, PrizeSource prizeSource, BigDecimal modeRate, BigDecimal currencyRate) {
+        List<String> prizeList = prizeSource.prizeList;
+        List<String> winbonusList = new ArrayList<>();
+        List<String> totalBonusList = new ArrayList<>();
+        BigDecimal bonusRate = modeRate
+                .multiply(nvl(currencyRate))
+                .multiply(projectReq.getOnePrice())
+                .multiply(BigDecimal.valueOf(projectReq.getTimes()));
+        BigDecimal nums = BigDecimal.valueOf(projectReq.getNums());
+        for (String prize : prizeList) {
+            BigDecimal winbonus = new BigDecimal(prize).multiply(bonusRate);
+            winbonusList.add(formatMoney(winbonus));
+            totalBonusList.add(formatMoney(winbonus.multiply(nums)));
+        }
+        return new BetPrizeCalc(prizeList, prizeSource.level, String.join(",", prizeList),
+                String.join(",", winbonusList), totalBonusList);
+    }
+
+    private JSONObject loadHandicapPrizeJson(BetContext context) {
+        Integer masterId = context.getRoomMaster() == null ? null : context.getRoomMaster().getMasterId();
+        String operator = context.getUser() == null ? "" : normalize(context.getUser().getOperator());
+        String prizeJson = roomMasterMapper.selectHandicapPrizeJson(masterId, operator);
+        if (!StringUtils.hasText(prizeJson)) {
+            return null;
+        }
+        try {
+            return JSON.parseObject(prizeJson);
+        } catch (Exception e) {
+            throw new BetBusinessException("盘口奖金配置错误");
+        }
+    }
+
+    private HandicapPrizeSource resolveHandicapPrizeSource(BetContext context,
+                                                           MethodEntity method,
+                                                           JSONObject handicapPrizeJson) {
+        if (!isHandicapMethod(context, method)) {
+            return null;
+        }
+        if (method == null || !StringUtils.hasText(method.getPrizeSetKey())) {
+            throw new BetBusinessException("盘口玩法配置错误");
+        }
+        String handicapKey = buildHandicapKey(method.getPrizeSetKey());
+        if (handicapPrizeJson == null) {
+            throw new BetBusinessException("盘口奖金配置错误");
+        }
+        JSONObject handicapPrize = handicapPrizeJson.getJSONObject(handicapKey);
+        if (handicapPrize == null) {
+            throw new BetBusinessException("盘口奖金配置错误");
+        }
+        String prize = handicapPrize.getString("prize");
+        BigDecimal commissionRate = handicapPrize.getBigDecimal("commission_rate");
+        if (!StringUtils.hasText(prize) || commissionRate == null) {
+            throw new BetBusinessException("盘口奖金配置错误");
+        }
+        return new HandicapPrizeSource(
+                new PrizeSource(parsePrizeList(prize), 1),
+                commissionRate.setScale(3, RoundingMode.HALF_UP)
+        );
+    }
+
+    private String buildHandicapKey(String prizeSetKey) {
+        List<String> stack = new ArrayList<>(Arrays.asList(prizeSetKey.split("\\.")));
+        if (!stack.isEmpty() && stack.get(0).contains("VN") && stack.size() > 1) {
+            stack.remove(stack.size() - 1);
+        }
+        return String.join(".", stack);
+    }
+
+    private String resolveRequestPrize(LtProjectReq projectReq) {
+        return StringUtils.hasText(projectReq.getHprize()) ? projectReq.getHprize() : "0";
+    }
+
+    /**
+     * Normal methods store user base point minus selected point.
+     */
+    private BigDecimal resolveProjectPoint(BetContext context, LtProjectReq projectReq) {
+        BigDecimal selectedPoint = nvl(projectReq.getKeepPoint());
+        if (context.getUser() == null || context.getUser().getKeepPoint() == null) {
+            return selectedPoint;
+        }
+        BigDecimal point = context.getUser().getKeepPoint().subtract(selectedPoint);
+        return point.compareTo(ZERO) < 0 ? selectedPoint : point;
+    }
+
+    private boolean isHandicapMethod(BetContext context, MethodEntity method) {
+        if (method != null && isHandicapFunction(method.getPrizeSetKey())) {
+            return true;
+        }
+        if (context == null || context.getLottery() == null) {
+            return false;
+        }
+        return isHandicapFunction(context.getLottery().getFunctionType());
+    }
+
+    private boolean isHandicapFunction(String value) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        String upper = value.toUpperCase();
+        return upper.startsWith("VN_")
+                || upper.startsWith("TH")
+                || upper.startsWith("STOCK")
+                || upper.startsWith("LA")
+                || upper.startsWith("MY");
+    }
+
+    private List<String> parsePrizeList(String hprize) {
+        if (!StringUtils.hasText(hprize)) {
+            return Collections.singletonList("0");
+        }
+        List<String> result = new ArrayList<>();
+        for (String item : hprize.split(",")) {
+            if (!StringUtils.hasText(item)) {
+                continue;
+            }
+            try {
+                result.add(formatMoney(new BigDecimal(item.trim())));
+            } catch (NumberFormatException e) {
+                throw new BetBusinessException("奖金格式错误");
+            }
+        }
+        return result.isEmpty() ? Collections.singletonList("0") : result;
+    }
+
+    private static class PrizeSource {
+        private final List<String> prizeList;
+        private final Object level;
+
+        private PrizeSource(List<String> prizeList, Object level) {
+            this.prizeList = prizeList;
+            this.level = level;
+        }
+    }
+
+    private static class HandicapPrizeSource {
+        private final PrizeSource prizeSource;
+        private final BigDecimal commissionRate;
+
+        private HandicapPrizeSource(PrizeSource prizeSource, BigDecimal commissionRate) {
+            this.prizeSource = prizeSource;
+            this.commissionRate = commissionRate;
+        }
+    }
+
+    private static class BetPrizeCalc {
+        private final List<String> prizeList;
+        private final Object level;
+        private final String singlePrize;
+        private final String winbonus;
+        private final List<String> totalBonusList;
+
+        private BetPrizeCalc(List<String> prizeList, Object level, String singlePrize, String winbonus, List<String> totalBonusList) {
+            this.prizeList = prizeList;
+            this.level = level;
+            this.singlePrize = singlePrize;
+            this.winbonus = winbonus;
+            this.totalBonusList = totalBonusList;
+        }
+
+        private Object totalBonusValue() {
+            if (totalBonusList.size() == 1) {
+                return new BigDecimal(totalBonusList.get(0));
+            }
+            return String.join(",", totalBonusList);
+        }
     }
 
     /**

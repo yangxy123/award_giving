@@ -47,6 +47,15 @@ public class UserFundLockTxServiceImpl implements UserFundLockTxService {
     private RedisUtils redisUtils;
 
 
+    /**
+     *
+     * @param userId    用户ID
+     * @param bIsLocked   TRUE : 上鎖 ； FALSE : 解鎖
+     * @param sWalletType
+     * @param lockAction
+     * @param title
+     * @return
+     */
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public Boolean doLockUserFund(String userId, Boolean bIsLocked, Integer sWalletType, String lockAction, String title) {

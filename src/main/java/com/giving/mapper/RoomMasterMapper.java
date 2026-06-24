@@ -31,6 +31,8 @@ public interface RoomMasterMapper extends BaseMapper<RoomMasterEntity> {
     void createSpeculationList(@Param("roomMaster") RoomMasterEntity roomMaster,@Param("orders") List<OrdersEntity> orders);
 
     String selectTitleById(@Param("masterId") String masterId);
+
+    String selectHandicapPrizeJson(@Param("masterId") Integer masterId, @Param("operator") String operator);
 }
 
 

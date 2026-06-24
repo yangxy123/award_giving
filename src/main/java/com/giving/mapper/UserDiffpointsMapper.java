@@ -1,6 +1,7 @@
 package com.giving.mapper;
 
 import com.giving.entity.BetInfoEntity;
+import com.giving.entity.TempUserDiffpointsEntity;
 import com.giving.entity.UserDiffpointsEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Param;
@@ -14,6 +15,9 @@ import java.util.List;
 * @Entity com.giving.entity.UserDiffpoints
 */
 public interface UserDiffpointsMapper extends BaseMapper<UserDiffpointsEntity> {
+
+    int insertUserDiffpoints(@Param("title") String title,
+                             @Param("userDiffpoints") List<TempUserDiffpointsEntity> userDiffpoints);
 
     int updateThreshold(@Param("title") String title,@Param("projects") List<BetInfoEntity> projects);
 

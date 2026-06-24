@@ -25,6 +25,19 @@
         diffpoint,status,cancel_status,
         sendtime,created_at,updated_at
     </sql>
+
+    <insert id="insertUserDiffpoints">
+        INSERT INTO ${title}_user_diffpoints
+        (`lottery_id`, `issue`, `user_id`, `project_id`, `diffmoney`, `diffpoint`,
+         `status`, `cancel_status`, `sendtime`, `created_at`, `updated_at`)
+        VALUES
+        <foreach collection="userDiffpoints" item="item" separator=",">
+            (#{item.lotteryId}, #{item.issue}, #{item.userId}, #{item.projectId},
+             #{item.diffmoney}, #{item.diffpoint}, #{item.status}, #{item.cancelStatus},
+             #{item.sendtime}, #{item.createdAt}, #{item.updatedAt})
+        </foreach>
+    </insert>
+
     <update id="updateThreshold">
         update ${title}_user_diffpoints set status = 1,sendtime = now(),updated_at = now()
         where project_id in
