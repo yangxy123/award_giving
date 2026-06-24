@@ -17,9 +17,12 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DeadlockLoserDataAccessException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -57,6 +60,9 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Transactional
 public class AwardGivingServiceImpl implements AwardGivingService {
+    private static final int DATA_HANDLE_DEADLOCK_MAX_ATTEMPTS = 3;
+    private static final long DATA_HANDLE_DEADLOCK_RETRY_INTERVAL_MS = 200L;
+
     @Autowired
     private BetInfoMapper betInfoMapper;
     @Autowired
@@ -73,6 +79,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private TempIssueInfoMapper tempIssueInfoMapper;
     @Autowired
     private RoomMasterMapper roomMasterMapper;
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @Override
     public void notice(NoticeReq noticeReq) {
@@ -98,6 +106,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         }
         ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();//用户对应订单列表
         List<BetInfoEntity> betAllWinList = Lists.newArrayList();//总中奖订单列表
+        //每次执行一次分页
         for (List<BetInfoEntity> list : allBetList) {
                 List<BetInfoEntity> allWinList = Collections.synchronizedList(Lists.newArrayList());
                 List<Integer> endList = Collections.synchronizedList(Lists.newArrayList());
@@ -432,6 +441,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 List<BetInfoEntity> sumList = getSumList(allWinList);
                 betAllWinList.addAll(sumList);
                 
+                //设置中奖状态is_getprize 为 1中奖
                 list.forEach(item -> {
                 	for(BetInfoEntity bet : sumList) {
                 		if(item.getProjectId().equals(bet.getProjectId())) {
@@ -454,7 +464,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 //              updateValidationResult(sumList, noticeReq, list);
                 
         }
-        this.dataHandle(betRecordMap, betAllWinList, noticeReq);
+        this.executeDataHandleWithRetry(betRecordMap, betAllWinList, noticeReq);
     }
 
     @Override
@@ -729,7 +739,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 Thread.sleep(100);
             }
 
-            this.dataHandle(betRecordMap, betAllWinList, noticeReq);
+            this.executeDataHandleWithRetry(betRecordMap, betAllWinList, noticeReq);
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -893,7 +903,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             }
         }
         
-        this.dataHandle(betRecordMap, betAllWinList, noticeReq);
+        this.executeDataHandleWithRetry(betRecordMap, betAllWinList, noticeReq);
     }
 
     @Override
@@ -967,7 +977,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     })
                 );
         }
-        this.dataHandle(betRecordMap, betAllWinList, noticeReq);
+        this.executeDataHandleWithRetry(betRecordMap, betAllWinList, noticeReq);
     
     }
 
@@ -1062,9 +1072,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                     })
                 );
         }
-        this.dataHandle(betRecordMap, betAllWinList, noticeReq);
+        this.executeDataHandleWithRetry(betRecordMap, betAllWinList, noticeReq);
     }
-
 
     private List<BetInfoEntity> getSumList(List<BetInfoEntity> allWinList) {
         return allWinList.stream()
@@ -1103,80 +1112,47 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
 
     /**
-     * 更新注单数据
-     *
-     * @param sumList
+     * @param betRecordMap
+     * @param betAllWinList
      * @param noticeReq
-     * @param list
      */
-    public void updateDataAll(List<BetInfoEntity> sumList, NoticeReq noticeReq, List<BetInfoEntity> list, Date bonusTime) {
+    private void executeDataHandleWithRetry(ConcurrentMap<String, List<BetInfoEntity>> betRecordMap, List<BetInfoEntity> betAllWinList,  NoticeReq noticeReq) {
+        for (int attempt = 1; attempt <= DATA_HANDLE_DEADLOCK_MAX_ATTEMPTS; attempt++) {
+            try {
+                TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+                transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+                transactionTemplate.execute(status -> {
+                    dataHandle(betRecordMap, betAllWinList, noticeReq);
+                    return null;
+                });
+                if (attempt > 1) {
+                    log.info("数据处理死锁重试成功, title={}, lotteryId={}, issue={}, attempt={}",
+                            noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), attempt);
+                }
+                return;
+            } catch (DeadlockLoserDataAccessException e) {
+                if (attempt >= DATA_HANDLE_DEADLOCK_MAX_ATTEMPTS) {
+                    log.error("数据处理死锁重试次数耗尽, title={}, lotteryId={}, issue={}, attempts={}",
+                            noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), attempt, e);
+                    throw e;
+                }
+                long sleepMillis = DATA_HANDLE_DEADLOCK_RETRY_INTERVAL_MS * attempt;
+                log.warn("数据处理死锁，正在重试：{}, title={}, lotteryId={}, issue={}, 重试=, nextDelayMs={}" ,
+                        attempt, noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), sleepMillis, e);
+                sleepBeforeDeadlockRetry(sleepMillis);
+            }
+        }
+    }
+
+    private void sleepBeforeDeadlockRetry(long sleepMillis) {
         try {
-            String title = noticeReq.getTitle();
-            //中奖订单-新增order 5 并加钱
-            Boolean awardSuccess = ordersToolService.getOrdersListAll(
-                    sumList, noticeReq.getTitle(), 5, noticeReq.getRoomMaster());
-            if (!Boolean.TRUE.equals(awardSuccess)) {
-                throw new IllegalStateException("奖金派发失败，奖期：" + noticeReq.getIssue());
-            }
-            List<String> winIdList = sumList.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-            //未中奖订单ID
-            List<BetInfoEntity> notWinList = list.stream().filter(vo -> !winIdList.contains(vo.getProjectId()))
-                    .collect(Collectors.toList());
-            //批量修改未中奖订单
-            if (!notWinList.isEmpty()) {
-                betInfoMapper.updateIsGetprize2(notWinList, title);
-            }
-
-            //删除临时注单记录 1
-            List<String> projectIds = list.stream().map(BetInfoEntity::getProjectId).collect(Collectors.toList());
-            projectsTmpMapper.deleteBatchIds(projectIds);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            Thread.sleep(sleepMillis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting to retry dataHandle deadlock", e);
         }
     }
 
-
-    /**
-     * 生成数据-测试
-     */
-    public ApiResp<String> createData(Integer count) {
-        List<String> uuidList = new ArrayList<>();
-
-        Date currentDate = new Date();
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(currentDate);
-        calendar.add(Calendar.SECOND, 20); // 加20秒
-        Date newDate = calendar.getTime();
-        LambdaQueryWrapper<IssueInfoEntity> IssuequeryWrapper = new LambdaQueryWrapper<>();
-        IssuequeryWrapper.eq(IssueInfoEntity::getLotteryId, count)
-                .le(IssueInfoEntity::getSaleStart, newDate)  // sale_start <= now
-                .gt(IssueInfoEntity::getSaleEnd, newDate);   // sale_end   > now;
-        IssueInfoEntity issue = issueInfoMapper.selectOne(IssuequeryWrapper);
-
-        for (int i = 1000; i < 3000; i++) {
-            uuidList.add(uniqId().substring(0, 10) + i);
-        }
-
-        List<String> titles = new ArrayList<>();
-//        titles.add("cn0003");
-        titles.add("cn0160");
-        projectsTmpMapper.createData(uuidList, issue, titles);
-        projectsTmpMapper.createIssueData(issue, titles);
-        return ApiResp.sucess();
-    }
-
-    // ---------- 小工具 ----------
-    static String uniqId() {
-        // 类似 uniqid：时间 + 随机
-        return Long.toHexString(System.nanoTime()) + Long.toHexString(ThreadLocalRandom.current().nextLong());
-    }
-
-    static String sortChars(String s) {
-        char[] arr = s.toCharArray();
-        Arrays.sort(arr);
-        return new String(arr);
-    }
-    
     private void dataHandle(ConcurrentMap<String, List<BetInfoEntity>> betRecordMap,List<BetInfoEntity> betAllWinList, NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         if(betRecordMap.isEmpty()) {
@@ -1630,4 +1606,45 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 		}
 		return false;
 	}
+
+    /**
+     * 生成数据-测试
+     */
+    public ApiResp<String> createData(Integer count) {
+        List<String> uuidList = new ArrayList<>();
+
+        Date currentDate = new Date();
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(currentDate);
+        calendar.add(Calendar.SECOND, 20); // 加20秒
+        Date newDate = calendar.getTime();
+        LambdaQueryWrapper<IssueInfoEntity> IssuequeryWrapper = new LambdaQueryWrapper<>();
+        IssuequeryWrapper.eq(IssueInfoEntity::getLotteryId, count)
+                .le(IssueInfoEntity::getSaleStart, newDate)  // sale_start <= now
+                .gt(IssueInfoEntity::getSaleEnd, newDate);   // sale_end   > now;
+        IssueInfoEntity issue = issueInfoMapper.selectOne(IssuequeryWrapper);
+
+        for (int i = 1000; i < 3000; i++) {
+            uuidList.add(uniqId().substring(0, 10) + i);
+        }
+
+        List<String> titles = new ArrayList<>();
+//        titles.add("cn0003");
+        titles.add("cn0160");
+        projectsTmpMapper.createData(uuidList, issue, titles);
+        projectsTmpMapper.createIssueData(issue, titles);
+        return ApiResp.sucess();
+    }
+
+    // ---------- 小工具 ----------
+    static String uniqId() {
+        // 类似 uniqid：时间 + 随机
+        return Long.toHexString(System.nanoTime()) + Long.toHexString(ThreadLocalRandom.current().nextLong());
+    }
+
+    static String sortChars(String s) {
+        char[] arr = s.toCharArray();
+        Arrays.sort(arr);
+        return new String(arr);
+    }
 }
