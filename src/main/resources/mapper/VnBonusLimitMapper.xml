@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.VnBonusLimitMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.VnBonusLimitEntity">
+        <id property="id" column="id"/>
+        <result property="opCode" column="op_code"/>
+        <result property="lotteryId" column="lottery_id"/>
+        <result property="issue" column="issue"/>
+        <result property="methodId" column="method_id"/>
+        <result property="codeNumber" column="code_number"/>
+        <result property="totalBonus" column="total_bonus"/>
+        <result property="totalAmount" column="total_amount"/>
+        <result property="totalCount" column="total_count"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="selectByOpLotteryIssue" resultMap="BaseResultMap">
+        SELECT id, op_code, lottery_id, issue, method_id, code_number,
+               total_bonus, total_amount, total_count, created_at, updated_at
+        FROM ${title}_vn_bonus_limit
+        WHERE op_code = #{opCode}
+          AND lottery_id = #{lotteryId}
+          AND issue = #{issue}
+    </select>
+
+    <insert id="upsertSummary">
+        INSERT INTO ${title}_vn_bonus_limit
+        (`op_code`, `lottery_id`, `issue`, `method_id`, `code_number`,
+         `total_bonus`, `total_amount`, `total_count`, `created_at`, `updated_at`)
+        VALUES
+        <foreach collection="records" item="item" separator=",">
+            (#{item.opCode}, #{item.lotteryId}, #{item.issue}, #{item.methodId},
+             #{item.codeNumber}, #{item.totalBonus}, #{item.totalAmount}, #{item.totalCount},
+             now(), now())
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            `total_bonus` = `total_bonus` + VALUES(`total_bonus`),
+            `total_amount` = `total_amount` + VALUES(`total_amount`),
+            `total_count` = `total_count` + VALUES(`total_count`),
+            `updated_at` = now()
+    </insert>
+</mapper>

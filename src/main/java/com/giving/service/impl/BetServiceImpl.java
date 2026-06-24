@@ -13,9 +13,11 @@ import com.giving.mapper.*;
 import com.giving.req.BetOrderReq;
 import com.giving.req.LtProjectReq;
 import com.giving.resp.BetOrderResp;
+import com.giving.service.BetBonusLimitService;
 import com.giving.service.BetOrderTxService;
 import com.giving.service.BetService;
 import com.giving.service.UserFundLockTxService;
+import com.giving.service.context.BetBonusLimitCheckResult;
 import com.giving.service.context.BetContext;
 import com.giving.util.TableNameUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -92,6 +94,8 @@ public class BetServiceImpl implements BetService {
     private UserFundLockTxService userFundLockTxService;
     @Autowired
     private BetOrderTxService betOrderTxService;
+    @Autowired
+    private BetBonusLimitService betBonusLimitService;
 
     /**
      * 投注
@@ -133,12 +137,14 @@ public class BetServiceImpl implements BetService {
             List<TempUserDiffpointsEntity> userDiffpoints = new ArrayList<>();
             List<BetInfoEntity> projects = buildProjects(req, context, userDiffpoints);
             List<ProjectsTmpEntity> projectsTmp = buildProjectsTmp(context, projects);
+            BetBonusLimitCheckResult bonusLimitResult = betBonusLimitService.checkAndBuild(context, req, projects);
 
             //修改账变
             List<OrdersEntity> orders = buildOrders(context, projects, userFundSum);
 
             betOrderTxService.createOrder(title, userId, WALLET_TYPE_BET, totalAmount,
-                    projects, projectsTmp, orders, userDiffpoints);
+                    projects, projectsTmp, orders, userDiffpoints,
+                    bonusLimitResult.getUserIssueLimits(), bonusLimitResult.getVnBonusLimits());
 
             context.setProjectList(projects);
             return ApiResp.sucess(buildResponse(req, context, userFundSum, totalAmount));

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.BonusLimitMapper">
+
+    <resultMap id="UserInfoResultMap" type="com.giving.entity.BonusLimitUserInfoEntity">
+        <id property="bonusUserId" column="bonus_user_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="lotteryId" column="lottery_id"/>
+        <result property="methodId" column="method_id"/>
+        <result property="codeName" column="code_name"/>
+        <result property="priceLimitUser" column="price_limit_user"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="selectLotteryBonusLimit" resultType="java.math.BigDecimal">
+        SELECT bonus_limit
+        FROM ${title}_bonus_limit_info
+        WHERE lottery_id = #{lotteryId}
+        LIMIT 1
+    </select>
+
+    <select id="selectUserLimitConfigs" resultMap="UserInfoResultMap">
+        SELECT bonus_user_id, user_id, lottery_id, method_id, code_name, price_limit_user, updated_at
+        FROM ${title}_bonus_limit_user_info
+        WHERE user_id = #{userId}
+        <if test="methodIds != null and methodIds.size() > 0">
+            AND method_id IN
+            <foreach collection="methodIds" item="methodId" open="(" close=")" separator=",">
+                #{methodId}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="selectUserIssuePrice" resultType="java.math.BigDecimal">
+        SELECT price_user
+        FROM ${title}_bonus_limit_user_issue_info
+        WHERE user_id = #{userId}
+          AND lottery_id = #{lotteryId}
+          AND method_id = #{methodId}
+          AND code_name = #{codeName}
+          AND issue = #{issue}
+        LIMIT 1
+    </select>
+
+    <insert id="upsertUserIssuePrices">
+        INSERT INTO ${title}_bonus_limit_user_issue_info
+        (`user_id`, `lottery_id`, `method_id`, `code_name`, `issue`, `price_user`)
+        VALUES
+        <foreach collection="records" item="item" separator=",">
+            (#{item.userId}, #{item.lotteryId}, #{item.methodId}, #{item.codeName},
+             #{item.issue}, #{item.priceUser})
+        </foreach>
+        ON DUPLICATE KEY UPDATE `price_user` = `price_user` + VALUES(`price_user`)
+    </insert>
+
+    <update id="subtractUserIssuePrice">
+        UPDATE ${title}_bonus_limit_user_issue_info
+        SET price_user = price_user - #{priceUser}
+        WHERE method_id = #{methodId}
+          AND issue = #{issue}
+        <if test="codeName != null and codeName != ''">
+            AND code_name = #{codeName}
+        </if>
+    </update>
+</mapper>
