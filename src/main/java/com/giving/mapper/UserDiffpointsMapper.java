@@ -35,7 +35,9 @@ public interface UserDiffpointsMapper extends BaseMapper<UserDiffpointsEntity> {
      * @param projectId 注单ID
      * @return 更新行数
      */
-    int cancelPaidByProjectId(@Param("title") String title, @Param("projectId") String projectId);
+    int cancelPaidByProjectId(@Param("title") String title,
+                              @Param("projectId") String projectId,
+                              @Param("cancelStatus") Integer cancelStatus);
 
     /**
      * 更新未派返点为已撤单

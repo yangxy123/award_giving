@@ -196,7 +196,7 @@ public class BetCancelTxServiceImpl implements BetCancelTxService {
                                   BalanceSnapshot balance, List<UserDiffpointsEntity> diffpoints,
                                   List<OrdersEntity> orders) {
         int paidStatusCount = 0;
-        boolean hasUnpaid = false;
+        int unpaidStatusCount = 0;
         for (UserDiffpointsEntity diffpoint : diffpoints) {
             Integer status = diffpoint.getStatus();
             if (Integer.valueOf(1).equals(status)) {
@@ -210,17 +210,21 @@ public class BetCancelTxServiceImpl implements BetCancelTxService {
                     orders.add(buildOrder(req, project, ORDER_TYPE_CANCEL_POINT, amount, "撤销返点", now, balance));
                 }
             } else if (Integer.valueOf(0).equals(status)) {
-                hasUnpaid = true;
+                unpaidStatusCount++;
             }
         }
         if (paidStatusCount > 0) {
-            if (userDiffpointsMapper.cancelPaidByProjectId(title, project.getProjectId()) < paidStatusCount) {
+            if (userDiffpointsMapper.cancelPaidByProjectId(
+                    title, project.getProjectId(), CANCEL_STATUS_USER) < paidStatusCount) {
                 throw new IllegalStateException("更新已派返点撤销状态失败");
             }
             betInfoMapper.resetPointStatus(title, project.getProjectId());
         }
-        if (hasUnpaid) {
-            userDiffpointsMapper.cancelUnpaidByProjectId(title, project.getProjectId(), CANCEL_STATUS_USER);
+        if (unpaidStatusCount > 0) {
+            if (userDiffpointsMapper.cancelUnpaidByProjectId(
+                    title, project.getProjectId(), CANCEL_STATUS_USER) < unpaidStatusCount) {
+                throw new IllegalStateException("更新未派返点撤单状态失败");
+            }
         }
     }
 

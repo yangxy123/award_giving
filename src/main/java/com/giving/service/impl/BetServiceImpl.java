@@ -185,6 +185,10 @@ public class BetServiceImpl implements BetService {
         if (!title.equals(session.getRoomMasterTitle())) {
             throw new ClientAuthException("roomMasterTitle mismatch");
         }
+        Map<Integer, MethodEntity> methodMap = loadMethodMap(req);
+        Integer lotteryId = resolveLotteryId(req, methodMap);
+        req.setLotteryId(lotteryId);
+
         if (!isLotteryInService(roomMaster.getLotteryInService(), req.getLotteryId())) {
             throw new BetBusinessException("彩种未开启");
         }
@@ -201,7 +205,6 @@ public class BetServiceImpl implements BetService {
         TempIssueInfoEntity issue = findIssue(title, req);
         validateIssue(issue);
 
-        Map<Integer, MethodEntity> methodMap = loadMethodMap(req);
         validateBlockedMethods(roomMaster.getMasterId(), session.getOperator(), methodMap);
         validateShaduizi(roomMaster.getMasterId(), user, methodMap, req);
         validateSpecial3DRules(title, req, issue);
@@ -526,12 +529,33 @@ public class BetServiceImpl implements BetService {
             if (Integer.valueOf(1).equals(method.getIsClose())) {
                 throw new BetBusinessException("玩法已关闭");
             }
-            if (!req.getLotteryId().equals(method.getLotteryId())) {
-                throw new BetBusinessException("玩法和彩种不匹配");
-            }
             methodMap.put(method.getMethodId(), method);
         }
         return methodMap;
+    }
+
+    /**
+     * Resolve lottery id from request or the selected methods.
+     */
+    private Integer resolveLotteryId(BetOrderReq req, Map<Integer, MethodEntity> methodMap) {
+        Integer lotteryId = req.getLotteryId();
+        for (LtProjectReq projectReq : req.getLtProject()) {
+            MethodEntity method = methodMap.get(projectReq.getMethodId());
+            if (method == null || method.getLotteryId() == null) {
+                throw new BetBusinessException("玩法彩种配置错误");
+            }
+            if (lotteryId == null) {
+                lotteryId = method.getLotteryId();
+                continue;
+            }
+            if (!lotteryId.equals(method.getLotteryId())) {
+                throw new BetBusinessException("玩法和彩种不匹配");
+            }
+        }
+        if (lotteryId == null) {
+            throw new BetBusinessException("彩种ID不能为空");
+        }
+        return lotteryId;
     }
 
     /**

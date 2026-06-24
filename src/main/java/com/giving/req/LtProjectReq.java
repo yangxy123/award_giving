@@ -13,10 +13,12 @@ import java.math.BigDecimal;
 public class LtProjectReq {
 
     @ApiModelProperty(value = "彩种ID")
+    @JsonAlias("lottery_id")
     private Integer lotteryId;
 
     @NotNull(message = "玩法ID不能为空")
     @ApiModelProperty(value = "玩法ID", required = true)
+    @JsonAlias("method_id")
     private Integer methodId;
 
     @ApiModelProperty(value = "投注号码code")
@@ -29,6 +31,7 @@ public class LtProjectReq {
     @NotNull(message = "onePrice不能为空")
     @DecimalMin(value = "0", inclusive = false, message = "onePrice必须大于0")
     @ApiModelProperty(value = "单价", required = true)
+    @JsonAlias("one_price")
     private BigDecimal onePrice;
 
     @NotNull(message = "times不能为空")
@@ -60,18 +63,22 @@ public class LtProjectReq {
     private BigDecimal money;
 
     @ApiModelProperty(value = "号码类型")
+    @JsonAlias("code_type")
     private String codeType;
 
     @ApiModelProperty(value = "选择类型")
+    @JsonAlias("select_type")
     private String selectType;
 
     @ApiModelProperty(value = "保留返点")
+    @JsonAlias("keep_point")
     private BigDecimal keepPoint;
 
     @ApiModelProperty(value = "前端传入奖金")
     private String hprize;
 
     @ApiModelProperty(value = "控赔或特殊玩法使用的上层名称")
+    @JsonAlias("upper_name")
     private String upperName;
 
     @ApiModelProperty(value = "奖金模式")

@@ -56,7 +56,7 @@
     <update id="cancelPaidByProjectId">
         UPDATE ${title}_user_diffpoints
         SET status = 2,
-            cancel_status = 3,
+            cancel_status = #{cancelStatus},
             updated_at = now()
         WHERE project_id = #{projectId}
           AND status = 1
