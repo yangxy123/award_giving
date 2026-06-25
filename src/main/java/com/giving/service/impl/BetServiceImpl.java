@@ -14,6 +14,7 @@ import com.giving.req.BetOrderReq;
 import com.giving.req.LtProjectReq;
 import com.giving.resp.BetOrderResp;
 import com.giving.service.BetBonusLimitService;
+import com.giving.service.BetContentValidationService;
 import com.giving.service.BetOrderTxService;
 import com.giving.service.BetService;
 import com.giving.service.UserFundLockTxService;
@@ -96,6 +97,8 @@ public class BetServiceImpl implements BetService {
     private BetOrderTxService betOrderTxService;
     @Autowired
     private BetBonusLimitService betBonusLimitService;
+    @Autowired
+    private BetContentValidationService betContentValidationService;
 
     /**
      * 投注
@@ -564,32 +567,7 @@ public class BetServiceImpl implements BetService {
      * @param context 投注上下文
      */
     private void validateBasicOrder(BetOrderReq req, BetContext context) {
-        if (req.getLtProject().size() >= MAX_PROJECT_COUNT) {
-            throw new BetBusinessException("单次投注不能达到或超过800单");
-        }
-
-        BigDecimal totalMoney = ZERO;
-        int totalNums = 0;
-        for (LtProjectReq projectReq : req.getLtProject()) {
-            MethodEntity method = context.getMethodMap().get(projectReq.getMethodId());
-            validateMode(method, projectReq.getMode());
-            BigDecimal modeRate = modesRate(projectReq.getMode());
-            BigDecimal expectedMoney = projectReq.getOnePrice()
-                    .multiply(BigDecimal.valueOf(projectReq.getNums()))
-                    .multiply(modeRate)
-                    .multiply(BigDecimal.valueOf(projectReq.getTimes()));
-            if (expectedMoney.compareTo(projectReq.getMoney()) != 0) {
-                throw new BetBusinessException("投注金额与单价、注数、模式或倍数不一致");
-            }
-            totalMoney = totalMoney.add(projectReq.getMoney());
-            totalNums += projectReq.getNums();
-        }
-        if (totalMoney.compareTo(req.getLtMoneyAmout()) != 0) {
-            throw new BetBusinessException("投注总金额不一致");
-        }
-        if (req.getLtProjectNum() != null && req.getLtProjectNum() != totalNums) {
-            throw new BetBusinessException("投注总注数不一致");
-        }
+        betContentValidationService.validate(req, context);
     }
 
     /**
