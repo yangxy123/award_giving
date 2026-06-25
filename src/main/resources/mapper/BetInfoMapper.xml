@@ -125,6 +125,74 @@
         FOR UPDATE
     </select>
 
+    <select id="selectAwardedProjectsForCancel" resultMap="BaseResultMap">
+        SELECT *
+        FROM ${title}_projects
+        WHERE lottery_id = #{lotteryId}
+          AND issue = #{issue}
+          AND is_cancel = 0
+          AND is_getprize = 1
+          AND prize_status = 1
+        <if test="projectId != null and projectId != ''">
+          AND project_id = #{projectId}
+        </if>
+        ORDER BY user_id, project_id
+    </select>
+
+    <select id="selectIssueProjectsForCancel" resultMap="BaseResultMap">
+        SELECT *
+        FROM ${title}_projects
+        WHERE lottery_id = #{lotteryId}
+          AND issue = #{issue}
+          AND is_cancel = 0
+          AND (
+              is_getprize != 0
+              OR prize_status != 0
+              OR is_deduct != 0
+              OR IFNULL(bonus, 0) != 0
+          )
+        ORDER BY user_id, project_id
+    </select>
+
+    <select id="selectAwardedProjectsByIdsForUpdate" resultMap="BaseResultMap">
+        SELECT *
+        FROM ${title}_projects
+        WHERE lottery_id = #{lotteryId}
+          AND issue = #{issue}
+          AND is_cancel = 0
+          AND (
+              is_getprize != 0
+              OR prize_status != 0
+              OR is_deduct != 0
+              OR IFNULL(bonus, 0) != 0
+          )
+          AND project_id IN
+        <foreach collection="projectIds" item="projectId" open="(" close=")" separator=",">
+            #{projectId}
+        </foreach>
+        ORDER BY user_id, project_id
+        FOR UPDATE
+    </select>
+
+    <update id="resetCancelAwardProject">
+        UPDATE ${title}_projects
+        SET bonus = 0,
+            is_getprize = 0,
+            prize_status = 0,
+            is_deduct = 0,
+            game_cancel_count = IFNULL(game_cancel_count, 0) + 1,
+            update_time = now(),
+            updated_at = now()
+        WHERE project_id = #{projectId}
+          AND is_cancel = 0
+          AND (
+              is_getprize != 0
+              OR prize_status != 0
+              OR is_deduct != 0
+              OR IFNULL(bonus, 0) != 0
+          )
+    </update>
+
     <update id="updateCancelStatus">
         UPDATE ${title}_projects
         SET is_cancel = #{cancelType},

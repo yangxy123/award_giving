@@ -55,6 +55,35 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 											@Param("projectId") String projectId);
 
 	/**
+	 * 查询可撤销派奖的已派奖中奖注单。
+	 */
+	List<BetInfoEntity> selectAwardedProjectsForCancel(@Param("title") String title,
+													   @Param("lotteryId") Long lotteryId,
+													   @Param("issue") String issue,
+													   @Param("projectId") String projectId);
+
+	/**
+	 * 查询整期需要还原到未开奖状态的有效注单。
+	 */
+	List<BetInfoEntity> selectIssueProjectsForCancel(@Param("title") String title,
+													 @Param("lotteryId") Long lotteryId,
+													 @Param("issue") String issue);
+
+	/**
+	 * 按本次目标注单锁定并读取可撤销派奖的最新状态。
+	 */
+	List<BetInfoEntity> selectAwardedProjectsByIdsForUpdate(@Param("title") String title,
+															@Param("lotteryId") Long lotteryId,
+															@Param("issue") String issue,
+															@Param("projectIds") List<String> projectIds);
+
+	/**
+	 * 重置注单为未验奖、未派奖。
+	 */
+	int resetCancelAwardProject(@Param("title") String title,
+								@Param("projectId") String projectId);
+
+	/**
 	 * 条件更新注单为已撤单
 	 * @param title 厅主动态表前缀
 	 * @param projectId 注单ID

@@ -1153,6 +1153,12 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         }
     }
 
+    /**
+     * 派奖 -结算实际做
+     * @param betRecordMap
+     * @param betAllWinList
+     * @param noticeReq
+     */
     private void dataHandle(ConcurrentMap<String, List<BetInfoEntity>> betRecordMap,List<BetInfoEntity> betAllWinList, NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         if(betRecordMap.isEmpty()) {

@@ -86,4 +86,51 @@
         0, #{order.uniqueKey}, #{order.modes}, '', 1, IFNULL(#{order.platform}, 'web'), #{order.createdAt},  #{order.updatedAt}, IFNULL(#{order.thirdPartyTrxId}, '0'))
         </foreach>
     </insert>
+
+    <select id="selectUncancelledPrizeOrderForUpdate" resultMap="BaseResultMap">
+        SELECT o1.*
+        FROM ${title}_orders o1
+        WHERE o1.project_id = #{projectId}
+          AND o1.order_type_id = 5
+          AND NOT EXISTS (
+              SELECT 1
+              FROM ${title}_orders o2
+              WHERE o2.project_id = o1.project_id
+                AND o2.transfer_order_id = o1.entry
+                AND o2.order_type_id = 12
+          )
+        ORDER BY o1.created_at ASC, o1.entry ASC
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
+    <select id="selectUncancelledDeductOrderForUpdate" resultMap="BaseResultMap">
+        SELECT o1.*
+        FROM ${title}_orders o1
+        WHERE o1.project_id = #{projectId}
+          AND o1.order_type_id = 8
+        ORDER BY o1.created_at ASC, o1.entry ASC
+        LIMIT 1
+        FOR UPDATE
+    </select>
+
+    <delete id="deleteOrderByEntryAndType">
+        DELETE FROM ${title}_orders
+        WHERE entry = #{entry}
+          AND order_type_id = #{orderTypeId}
+    </delete>
+
+    <insert id="addCancelAwardOrder">
+        INSERT INTO ${title}_orders (`entry`, `lottery_id`, `method_id`, `task_id`, `project_id`, `fromuser_id`,
+                                     `touser_id`, `agent_id`, `admin_id`, `order_type_id`, `admin_name`, `issue`, `title`, `amount`, `description`,
+                                     `pre_balance`, `pre_available`, `pre_hold`, `channel_balance`, `hold_balance`, `available_balance`,
+                                     `client_ip`, `proxy_ip`, `times`, `action_time`, `transfer_user_id`, `transfer_channel_id`, `transfer_order_id`,
+                                     `transfer_status`, `unique_key`, `modes`, `cardnotice`, `send_money_to_platform`, `platform`, `created_at`, `updated_at`, `third_party_trx_id`)
+        VALUES
+            (#{order.entry}, #{order.lotteryId}, #{order.methodId}, #{order.taskId}, #{order.projectId}, #{order.fromuserId},
+             '0', '0', 0, #{order.orderTypeId}, '', #{order.issue}, #{order.title}, #{order.amount}, #{order.description},
+             #{order.preBalance}, #{order.preAvailable}, #{order.preHold}, #{order.channelBalance}, #{order.holdBalance}, #{order.availableBalance},
+             IFNULL(#{order.clientIp}, '0.0.0.0'), IFNULL(#{order.proxyIp}, '0.0.0.0'), #{order.actionTime}, #{order.actionTime}, '0', 0, #{order.transferOrderId},
+             0, #{order.uniqueKey}, #{order.modes}, '', 1, IFNULL(#{order.platform}, 'web'), #{order.createdAt}, #{order.updatedAt}, IFNULL(#{order.thirdPartyTrxId}, '0'))
+    </insert>
 </mapper>

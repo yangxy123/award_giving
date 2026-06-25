@@ -31,6 +31,13 @@ public interface TempIssueInfoMapper extends BaseMapper<TempIssueInfoEntity> {
     int updateByTitleStatusDeduct(@Param("titles") String title,@Param("issueInfo") TempIssueInfoEntity issueInfo);
 
     int updateByTitleStatusPoint(@Param("titles") String title,@Param("issueInfo") TempIssueInfoEntity issueInfo);
+
+    /**
+     * 整期撤销派奖后重置厅主奖期验奖/派奖状态。
+     */
+    int resetAwardStatus(@Param("titles") String title,
+                         @Param("lotteryId") Long lotteryId,
+                         @Param("issue") String issue);
 }
 
 

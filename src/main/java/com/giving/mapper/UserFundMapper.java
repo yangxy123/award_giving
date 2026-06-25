@@ -103,6 +103,14 @@ public interface UserFundMapper extends BaseMapper<UserFundEntity> {
 	int updateLockedFund(@Param("title") String title, @Param("userFund") UserFundEntity userFund);
 
 	/**
+	 * 更新撤销派奖使用的撤单钱包余额。
+	 * @param title 厅主动态表前缀
+	 * @param userFund 钱包
+	 * @return 更新行数
+	 */
+	int updateCancelAwardFund(@Param("title") String title, @Param("userFund") UserFundEntity userFund);
+
+	/**
 	 * 批量解锁--1
 	 * 
 	 * @param title
