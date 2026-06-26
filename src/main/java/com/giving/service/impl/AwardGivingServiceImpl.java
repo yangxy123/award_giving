@@ -1157,14 +1157,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     private List<BetInfoEntity> selectNoticeReqPage(NoticeReq noticeReq, int pageSize) {
-        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-        transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-        transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
-        transactionTemplate.setReadOnly(true);
-        return transactionTemplate.execute(status -> {
-            PageHelper.startPage(1, pageSize);
-            return betInfoMapper.selectListByNoticeReq(noticeReq);
-        });
+        PageHelper.startPage(1, pageSize);
+        return betInfoMapper.selectListByNoticeReq(noticeReq);
     }
 
 
@@ -1176,6 +1170,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private boolean executeDataHandleWithRetry(ConcurrentMap<String, List<BetInfoEntity>> betRecordMap, List<BetInfoEntity> betAllWinList,  NoticeReq noticeReq, boolean finishIssueDeduct) {
         for (int attempt = 1; attempt <= DATA_HANDLE_DEADLOCK_MAX_ATTEMPTS; attempt++) {
             try {
+                //事务开启
                 TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
                 transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
                 Boolean handled = transactionTemplate.execute(status ->
@@ -1200,6 +1195,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         return false;
     }
 
+    /**
+     * 修改 厅组奖期为已经结算
+     * @param noticeReq
+     */
     private void finishIssueDeduct(NoticeReq noticeReq) {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
