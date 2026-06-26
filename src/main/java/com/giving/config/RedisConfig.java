@@ -1,5 +1,7 @@
 package com.giving.config;
 
+import io.lettuce.core.ClientOptions;
+import io.lettuce.core.SocketOptions;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -39,6 +41,9 @@ public class RedisConfig {
     @Value("${spring.redis.timeout}")
     private int timeout;
 
+    @Value("${spring.redis.lettuce.shutdown-timeout:${spring.redis.lettuce.pool.shutdown-timeout:100}}")
+    private long shutdownTimeoutMillis;
+
     @Value("${spring.redis.lettuce.pool.max-idle}")
     private int maxIdle;
 
@@ -74,17 +79,33 @@ public class RedisConfig {
         poolConfig.setMinIdle(minIdle);
         poolConfig.setMaxTotal(maxActive);
         poolConfig.setMaxWaitMillis(maxWaitMillis);
+        poolConfig.setTestOnBorrow(true);
+        poolConfig.setTestWhileIdle(true);
+        poolConfig.setTimeBetweenEvictionRunsMillis(30000L);
+        poolConfig.setMinEvictableIdleTimeMillis(60000L);
 
-        LettucePoolingClientConfiguration.LettucePoolingClientConfigurationBuilder builder
-                = LettucePoolingClientConfiguration.builder()
-                .commandTimeout(Duration.ofMillis(timeout));
+        SocketOptions socketOptions = SocketOptions.builder()
+                .connectTimeout(Duration.ofMillis(timeout))
+                .keepAlive(true)
+                .build();
 
-        LettucePoolingClientConfiguration lettucePoolingClientConfiguration = builder.build();
+        ClientOptions clientOptions = ClientOptions.builder()
+                .autoReconnect(true)
+                .pingBeforeActivateConnection(true)
+                .socketOptions(socketOptions)
+                .build();
 
-        builder.poolConfig(poolConfig);
+        LettucePoolingClientConfiguration lettucePoolingClientConfiguration = LettucePoolingClientConfiguration.builder()
+                .commandTimeout(Duration.ofMillis(timeout))
+                .shutdownTimeout(Duration.ofMillis(shutdownTimeoutMillis))
+                .clientOptions(clientOptions)
+                .poolConfig(poolConfig)
+                .build();
 
         // 根据配置和客户端配置创建连接
         LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfiguration, lettucePoolingClientConfiguration);
+        factory.setValidateConnection(true);
+        factory.setShareNativeConnection(false);
         return factory;
     }
 

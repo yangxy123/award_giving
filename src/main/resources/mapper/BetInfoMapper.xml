@@ -54,7 +54,7 @@
 		  and pr.lottery_id = #{noticeReq.lotteryId}
 		  and is_getprize = 0
 		  and is_cancel = 0
-        order by pr.project_id
+        order by pr.user_id, pr.project_id
     </select>
     <select id="countListByNoticeReq" resultType="java.lang.Integer">
         SELECT count(1) as methodCode FROM ${noticeReq.title}_projects pr LEFT JOIN method me ON pr.method_id = me.method_id
@@ -79,6 +79,19 @@
         WHERE project_id = #{projectId}
         FOR UPDATE
     </select>
+
+    <update id="updatePrizeByProjects">
+        UPDATE ${title}_projects
+        SET prize_status = 1,
+            bonus_time = now(),
+            is_deduct = 1,
+            deduct_time = now()
+        WHERE project_id IN
+        <foreach collection="projects" item="project" open="(" close=")" separator=",">
+            #{project.projectId}
+        </foreach>
+        AND is_cancel = 0
+    </update>
 
     <update id="updateWinResult">
         UPDATE ${title}_projects
@@ -234,6 +247,19 @@
             AND is_cancel = 0
             AND is_getprize = 0
         </foreach>
+    </update>
+
+    <update id="updateIsGetprizeTo2ByProjects">
+        UPDATE ${title}_projects
+        SET is_getprize = 2,
+            prize_status = 0,
+            updated_at = now()
+        WHERE project_id IN
+        <foreach collection="projects" item="project" open="(" close=")" separator=",">
+            #{project.projectId}
+        </foreach>
+        AND is_cancel = 0
+        AND is_getprize = 0
     </update>
 
 </mapper>

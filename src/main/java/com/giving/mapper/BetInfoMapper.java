@@ -45,6 +45,11 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
      */
     public void updatePrize(@Param("title")String title,@Param("issue")String issue,@Param("lotteryId") Long lotteryId);
 
+    /**
+     * 淇敼褰撳墠鎵规璁㈠崟娲惧鐘舵€佸拰娲惧鏃堕棿
+     */
+    int updatePrizeByProjects(@Param("title") String title, @Param("projects") List<BetInfoEntity> projects);
+
 	/**
 	 * 取得未派奖订单
 	 * @param noticeReq
@@ -146,4 +151,9 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
     		+ "            and issue = #{issue}"
     		+ "            and lottery_id = #{lotteryId}")
     int updateIsGetprizeTo2(@Param("issue") String issue,@Param("title") String title,@Param("lotteryId") Long lotteryId);
+
+    /**
+     * 淇敼鎸囧畾鎵规鏈獙濂栫殑璁㈠崟涓烘湭涓
+     */
+    int updateIsGetprizeTo2ByProjects(@Param("title") String title, @Param("projects") List<BetInfoEntity> projects);
 }
