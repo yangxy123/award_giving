@@ -87,7 +87,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     public void notice(NoticeReq noticeReq) {
         Long startTime = System.currentTimeMillis();
         int pageSize = 3000;
-        int pageNo = 1;
         int batchCount = 0;
         int betNum = 0;
         int winNum = 0;
@@ -102,7 +101,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 //log.info("===========订单查询完毕 page:{}",pageNo);
                 break;
             }
-            pageNo += 1;
+            if (!retainPendingProjects(noticeReq, list)) {
+                break;
+            }
             batchCount += 1;
             betNum += list.size();
             ConcurrentMap<String, List<BetInfoEntity>> betRecordMap = Maps.newConcurrentMap();
@@ -465,6 +466,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 if (!this.executeDataHandleWithRetry(betRecordMap, betAllWinList, noticeReq, false)) {
                     break;
                 }
+                if (list.size() < pageSize) {
+                    break;
+                }
                 
         }
         if (batchCount > 0) {
@@ -504,6 +508,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 // 获取对应奖期对应彩种未撤单且未派奖的所有订单
                 List<BetInfoEntity> list = selectNoticeReqPage(noticeReq, pageSize);
                 if (list.isEmpty()) {
+                    break;
+                }
+                if (!retainPendingProjects(noticeReq, list)) {
                     break;
                 }
                 pageNo += 1;
@@ -752,6 +759,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 if (!handled) {
                     break;
                 }
+                if (list.size() < pageSize) {
+                    break;
+                }
             }
 
             while (true) {
@@ -789,6 +799,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = selectNoticeReqPage(noticeReq, pageSize);
             if (list.isEmpty()) {
+                break;
+            }
+            if (!retainPendingProjects(noticeReq, list)) {
                 break;
             }
             pageNo += 1;
@@ -921,6 +934,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             if (!handled) {
                 break;
             }
+            if (list.size() < pageSize) {
+                break;
+            }
         }
         while (true) {
             if (waitList.size() == (pageNo - 1)) {
@@ -957,6 +973,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = selectNoticeReqPage(noticeReq, pageSize);
             if (list.isEmpty()) {
+                break;
+            }
+            if (!retainPendingProjects(noticeReq, list)) {
                 break;
             }
             pageNo += 1;
@@ -1013,6 +1032,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             }
             betRecordMap.clear();
             betAllWinList.clear();
+            if (list.size() < pageSize) {
+                break;
+            }
         }
         if (pageNo > 1) {
             this.finishIssueDeduct(noticeReq);
@@ -1048,6 +1070,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = selectNoticeReqPage(noticeReq, pageSize);
             if (list.isEmpty()) {
+                break;
+            }
+            if (!retainPendingProjects(noticeReq, list)) {
                 break;
             }
             pageNo += 1;
@@ -1115,6 +1140,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             }
             betRecordMap.clear();
             betAllWinList.clear();
+            if (list.size() < pageSize) {
+                break;
+            }
         }
         if (pageNo > 1) {
             this.finishIssueDeduct(noticeReq);
@@ -1157,8 +1185,28 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     private List<BetInfoEntity> selectNoticeReqPage(NoticeReq noticeReq, int pageSize) {
-        PageHelper.startPage(1, pageSize);
+        PageHelper.startPage(1, pageSize, false);
         return betInfoMapper.selectListByNoticeReq(noticeReq);
+    }
+
+    private boolean retainPendingProjects(NoticeReq noticeReq, List<BetInfoEntity> projects) {
+        if (projects == null || projects.isEmpty()) {
+            return false;
+        }
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        transactionTemplate.setReadOnly(true);
+        List<String> pendingProjectIds = transactionTemplate.execute(status ->
+                betInfoMapper.selectPendingProjectIdsByProjects(noticeReq.getTitle(), projects));
+        if (pendingProjectIds == null || pendingProjectIds.isEmpty()) {
+            log.info("当前页订单已处理，跳过验奖计算, issue={}, title={}",
+                    noticeReq.getIssue(), noticeReq.getTitle());
+            return false;
+        }
+        Set<String> pendingProjectIdSet = new HashSet<>(pendingProjectIds);
+        projects.removeIf(project -> !pendingProjectIdSet.contains(project.getProjectId()));
+        return !projects.isEmpty();
     }
 
 

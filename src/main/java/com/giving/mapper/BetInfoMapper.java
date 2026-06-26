@@ -59,6 +59,8 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 
 	Integer countListByNoticeReq(@Param("noticeReq") NoticeReq noticeReq);
 
+	List<String> selectPendingProjectIdsByProjects(@Param("title") String title, @Param("projects") List<BetInfoEntity> projects);
+
 	/**
 	 * 获取已中奖但尚未派奖的订单
 	 * @param noticeReq
