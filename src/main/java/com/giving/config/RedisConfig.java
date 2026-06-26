@@ -79,10 +79,13 @@ public class RedisConfig {
         poolConfig.setMinIdle(minIdle);
         poolConfig.setMaxTotal(maxActive);
         poolConfig.setMaxWaitMillis(maxWaitMillis);
+        poolConfig.setTestOnCreate(true);
         poolConfig.setTestOnBorrow(true);
+        poolConfig.setTestOnReturn(true);
         poolConfig.setTestWhileIdle(true);
-        poolConfig.setTimeBetweenEvictionRunsMillis(30000L);
-        poolConfig.setMinEvictableIdleTimeMillis(60000L);
+        poolConfig.setNumTestsPerEvictionRun(-1);
+        poolConfig.setTimeBetweenEvictionRunsMillis(10000L);
+        poolConfig.setMinEvictableIdleTimeMillis(30000L);
 
         SocketOptions socketOptions = SocketOptions.builder()
                 .connectTimeout(Duration.ofMillis(timeout))

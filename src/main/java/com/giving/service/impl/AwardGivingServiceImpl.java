@@ -1185,8 +1185,15 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     }
 
     private List<BetInfoEntity> selectNoticeReqPage(NoticeReq noticeReq, int pageSize) {
-        PageHelper.startPage(1, pageSize, false);
-        return betInfoMapper.selectListByNoticeReq(noticeReq);
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        transactionTemplate.setReadOnly(true);
+        List<BetInfoEntity> projects = transactionTemplate.execute(status -> {
+            PageHelper.startPage(1, pageSize, false);
+            return betInfoMapper.selectListByNoticeReq(noticeReq);
+        });
+        return projects == null ? Collections.emptyList() : projects;
     }
 
     private boolean retainPendingProjects(NoticeReq noticeReq, List<BetInfoEntity> projects) {
@@ -1282,6 +1289,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         if (pageBetList.isEmpty()) {
             return false;
         }
+        pageBetList.sort(Comparator.comparing(BetInfoEntity::getUserId)
+                .thenComparing(BetInfoEntity::getProjectId));
         Set<String> activeProjectIds = new HashSet<>();
         for (BetInfoEntity project : pageBetList) {
             BetInfoEntity latestProject = betInfoMapper.selectProjectByIdForUpdate(noticeReq.getTitle(), project.getProjectId());
