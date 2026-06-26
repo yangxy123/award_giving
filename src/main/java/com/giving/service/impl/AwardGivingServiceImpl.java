@@ -25,23 +25,29 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.ObjectUtils;
 import com.github.pagehelper.PageHelper;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.BetInfoEntity;
 import com.giving.entity.IssueInfoEntity;
+import com.giving.entity.MethodEntity;
 import com.giving.entity.OrdersEntity;
 import com.giving.entity.RoomMasterEntity;
 import com.giving.entity.TempIssueInfoEntity;
+import com.giving.entity.UserEntity;
 import com.giving.entity.UserFundEntity;
 import com.giving.mapper.BetInfoMapper;
 import com.giving.mapper.IssueInfoMapper;
+import com.giving.mapper.MethodMapper;
 import com.giving.mapper.OrdersMapper;
 import com.giving.mapper.ProjectsTmpMapper;
 import com.giving.mapper.RoomMasterMapper;
 import com.giving.mapper.TempIssueInfoMapper;
 import com.giving.mapper.UserFundMapper;
+import com.giving.mapper.UserMapper;
+import com.giving.req.AwardTestDataReq;
 import com.giving.req.NoticeReq;
 import com.giving.service.AwardGivingService;
 import com.giving.service.OPissueToolService;
@@ -62,6 +68,10 @@ import lombok.extern.slf4j.Slf4j;
 public class AwardGivingServiceImpl implements AwardGivingService {
     private static final int DATA_HANDLE_DEADLOCK_MAX_ATTEMPTS = 3;
     private static final long DATA_HANDLE_DEADLOCK_RETRY_INTERVAL_MS = 200L;
+    private static final int TEST_USER_COUNT = 5000;
+    private static final int TEST_BET_COUNT = 20000;
+    private static final int TEST_INSERT_BATCH_SIZE = 1000;
+    private static final BigDecimal TEST_WALLET_BALANCE = new BigDecimal("1000000");
 
     @Autowired
     private BetInfoMapper betInfoMapper;
@@ -81,6 +91,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private RoomMasterMapper roomMasterMapper;
     @Autowired
     private PlatformTransactionManager transactionManager;
+    @Autowired
+    private UserMapper userMapper;
+    @Autowired
+    private MethodMapper methodMapper;
 
     @Override
     public void notice(NoticeReq noticeReq) {
@@ -1616,6 +1630,273 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     /**
      * 生成数据-测试
      */
+    @Override
+    public ApiResp<String> createData(AwardTestDataReq req) {
+        if (req == null) {
+            return ApiResp.paramError("请求参数不能为空");
+        }
+        if (req.getRoomMasterId() == null || req.getLotteryId() == null) {
+            return ApiResp.paramError("厅组ID和彩种ID不能为空");
+        }
+        String issueNo = req.getIssue() == null ? "" : req.getIssue().trim();
+        if (issueNo.isEmpty()) {
+            return ApiResp.paramError("奖期不能为空");
+        }
+
+        LambdaQueryWrapper<RoomMasterEntity> roomWrapper = new LambdaQueryWrapper<>();
+        roomWrapper.eq(RoomMasterEntity::getMasterId, req.getRoomMasterId());
+        RoomMasterEntity roomMaster = roomMasterMapper.selectOne(roomWrapper);
+        if (ObjectUtils.isEmpty(roomMaster) || roomMaster.getTitle() == null || roomMaster.getTitle().trim().isEmpty()) {
+            return ApiResp.paramError("厅组不存在或未配置动态表前缀");
+        }
+
+        IssueInfoEntity issue = issueInfoMapper.selectByLotteryIdAndIssue(req.getLotteryId(), issueNo);
+        if (ObjectUtils.isEmpty(issue)) {
+            return ApiResp.paramError("奖期不存在");
+        }
+
+        List<MethodEntity> methods = selectTestMethods(req.getLotteryId());
+        if (methods.isEmpty()) {
+            return ApiResp.paramError("彩种未配置可用玩法");
+        }
+
+        ensureRoomIssue(roomMaster.getTitle(), issue);
+
+        List<UserEntity> users = buildTestUsers(roomMaster, TEST_USER_COUNT);
+        insertUsers(roomMaster.getTitle(), users);
+        insertUserFunds(roomMaster.getTitle(), buildTestUserFunds(users));
+
+        List<BetInfoEntity> projects = buildTestProjects(req.getLotteryId().intValue(), issueNo, users, methods);
+        insertProjects(roomMaster.getTitle(), projects);
+
+        String message = "生成完成：厅组ID=" + req.getRoomMasterId()
+                + "，表前缀=" + roomMaster.getTitle()
+                + "，彩种ID=" + req.getLotteryId()
+                + "，奖期=" + issueNo
+                + "，用户数=" + users.size()
+                + "，玩法数=" + methods.size()
+                + "，投注数=" + projects.size();
+        return ApiResp.sucess(message);
+    }
+
+    private List<MethodEntity> selectTestMethods(Long lotteryId) {
+        LambdaQueryWrapper<MethodEntity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(MethodEntity::getLotteryId, lotteryId.intValue())
+                .and(w -> w.ne(MethodEntity::getIsClose, 1).or().isNull(MethodEntity::getIsClose))
+                .orderByAsc(MethodEntity::getMethodId);
+        List<MethodEntity> methods = methodMapper.selectList(wrapper);
+        List<MethodEntity> codeMethods = methods.stream()
+                .filter(method -> method.getCode() != null && !method.getCode().trim().isEmpty())
+                .collect(Collectors.toList());
+        return codeMethods.isEmpty() ? methods : codeMethods;
+    }
+
+    private void ensureRoomIssue(String title, IssueInfoEntity issue) {
+        TempIssueInfoEntity tempIssue = tempIssueInfoMapper.selectByTitle(title, issue.getLotteryId(), issue.getIssue());
+        if (ObjectUtils.isEmpty(tempIssue)) {
+            tempIssueInfoMapper.insertTempIssueInfo(title, issue);
+            return;
+        }
+        tempIssueInfoMapper.resetAwardStatus(title, issue.getLotteryId(), issue.getIssue());
+    }
+
+    private List<UserEntity> buildTestUsers(RoomMasterEntity roomMaster, int userCount) {
+        List<UserEntity> users = new ArrayList<>(userCount);
+        Date now = new Date();
+        String currency = roomMaster.getCurrency() == null || roomMaster.getCurrency().trim().isEmpty()
+                ? "CNY" : roomMaster.getCurrency();
+        for (int i = 0; i < userCount; i++) {
+            String userId = OrdersToolServiceImpl.uniqId16();
+            UserEntity user = new UserEntity();
+            user.setUserId(userId);
+            user.setLvtopId(userId);
+            user.setParenttree("");
+            user.setOperator("");
+            user.setName("test_user_" + i);
+            user.setThirdpartyId(userId);
+            user.setAppAccount("test_user_" + i);
+            user.setNickName("test_user_" + i);
+            user.setIsFrozen("0");
+            user.setFrozenType("");
+            user.setCurrency(currency);
+            user.setIsTester("1");
+            user.setLoginToken("");
+            user.setIsBlockhistory(0);
+            user.setIsDeleted("0");
+            user.setKeepPoint(BigDecimal.ZERO);
+            user.setCreatedAt(now);
+            user.setUpdatedAt(now);
+            users.add(user);
+        }
+        return users;
+    }
+
+    private List<UserFundEntity> buildTestUserFunds(List<UserEntity> users) {
+        List<UserFundEntity> funds = new ArrayList<>(users.size() * 6);
+        Date now = new Date();
+        for (UserEntity user : users) {
+            for (int walletType = 0; walletType < 6; walletType++) {
+                UserFundEntity fund = new UserFundEntity();
+                fund.setEntry(OrdersToolServiceImpl.uniqId16());
+                fund.setUserid(user.getUserId());
+                fund.setWalletType(walletType);
+                fund.setChannelid(0);
+                fund.setChannelbalance(TEST_WALLET_BALANCE);
+                fund.setAvailablebalance(TEST_WALLET_BALANCE);
+                fund.setHoldbalance(TEST_WALLET_BALANCE);
+                fund.setIslocked(0);
+                fund.setLockAction("test_data");
+                fund.setLastupdatetime(now);
+                fund.setLastactivetime(now);
+                fund.setCreatedAt(now);
+                fund.setUpdatedAt(now);
+                funds.add(fund);
+            }
+        }
+        return funds;
+    }
+
+    private List<BetInfoEntity> buildTestProjects(Integer lotteryId, String issue,
+                                                  List<UserEntity> users, List<MethodEntity> methods) {
+        List<BetInfoEntity> projects = new ArrayList<>(TEST_BET_COUNT);
+        Date now = new Date();
+        for (int i = 0; i < TEST_BET_COUNT; i++) {
+            int userIndex = i % users.size();
+            int round = i / users.size();
+            MethodEntity method = methods.get((userIndex + round) % methods.size());
+            String code = buildTestCode(method, i);
+            String winbonus = buildTestWinbonus(method);
+
+            BetInfoEntity project = new BetInfoEntity();
+            project.setProjectId(OrdersToolServiceImpl.uniqId16());
+            project.setUserId(users.get(userIndex).getUserId());
+            project.setPackageId("1");
+            project.setTaskId("");
+            project.setLotteryId(lotteryId);
+            project.setMethodId(method.getMethodId());
+            project.setIssue(issue);
+            project.setBonus(0D);
+            project.setWinbonus(winbonus);
+            project.setCode(code);
+            project.setCodeType("digital");
+            project.setSinglePrice(1D);
+            project.setMultiple("1");
+            project.setTotalPrice(1D);
+            project.setWriteTime(now);
+            project.setScode(buildTestScode(method, code, winbonus));
+            project.setUpdateTime(now);
+            project.setDeductTime(now);
+            project.setBonusTime(now);
+            project.setCancelTime(null);
+            project.setIsDeduct(0);
+            project.setIsCancel(0);
+            project.setIsGetprize(0);
+            project.setPrizeStatus(0);
+            project.setGameCancelCount(0);
+            project.setUserIp("0.0.0.0");
+            project.setModes("1");
+            project.setHashvar("");
+            project.setUserPoint("0");
+            project.setIsNew("1");
+            project.setComefrom("");
+            project.setPointStatus(0);
+            project.setThirdPartyTrxId(null);
+            project.setPlatform("web");
+            project.setLog(null);
+            project.setWriteMicrotime(String.valueOf(System.currentTimeMillis() / 1000D));
+            project.setCreatedAt(now);
+            project.setUpdatedAt(now);
+            project.setPointinfo(buildTestPointInfo(winbonus));
+            projects.add(project);
+        }
+        return projects;
+    }
+
+    private String buildTestCode(MethodEntity method, int index) {
+        String methodCode = method.getCode() == null ? "" : method.getCode().toUpperCase();
+        if (methodCode.contains("4D")) {
+            return "1234";
+        }
+        if (methodCode.contains("3D") || methodCode.contains("PL3")) {
+            return "123";
+        }
+        if (methodCode.contains("2D") || methodCode.contains("PL2")) {
+            return "12";
+        }
+        if ("STH".equals(methodCode)) {
+            return "111";
+        }
+        if ("SBTH".equals(methodCode)) {
+            return "1,2,3";
+        }
+        if ("DX".equals(methodCode)) {
+            return "123";
+        }
+        if ("FX".equals(methodCode)) {
+            return "12";
+        }
+        return String.valueOf(index % 10);
+    }
+
+    private String buildTestWinbonus(MethodEntity method) {
+        if (method.getTotalMoney() != null && method.getTotalMoney().compareTo(BigDecimal.ZERO) > 0) {
+            return method.getTotalMoney().stripTrailingZeros().toPlainString();
+        }
+        return "1";
+    }
+
+    private String buildTestScode(MethodEntity method, String code, String winbonus) {
+        JSONObject scode = new JSONObject();
+        scode.put("scode", code);
+        scode.put("scode_key", code);
+        scode.put("digitstr", "");
+        scode.put("oldcode", "");
+        scode.put("code_name", "");
+        scode.put("method_id", String.valueOf(method.getMethodId()));
+        scode.put("selectType", "");
+        scode.put("onePrice", "1");
+        scode.put("total_bonus", winbonus);
+        scode.put("hprize", winbonus);
+        scode.put("nums", 1);
+        scode.put("codeType", "");
+        return scode.toJSONString();
+    }
+
+    private String buildTestPointInfo(String winbonus) {
+        JSONObject pointInfo = new JSONObject();
+        pointInfo.put("level", "1");
+        pointInfo.put("single_prize", winbonus);
+        pointInfo.put("point", "0.000");
+        pointInfo.put("point_price", "0");
+        pointInfo.put("prize", Collections.singletonList(winbonus));
+        return pointInfo.toJSONString();
+    }
+
+    private void insertUsers(String title, List<UserEntity> users) {
+        for (int from = 0; from < users.size(); from += TEST_INSERT_BATCH_SIZE) {
+            int to = Math.min(from + TEST_INSERT_BATCH_SIZE, users.size());
+            userMapper.insertUsers(title, users.subList(from, to));
+        }
+    }
+
+    private void insertUserFunds(String title, List<UserFundEntity> funds) {
+        for (int from = 0; from < funds.size(); from += TEST_INSERT_BATCH_SIZE) {
+            int to = Math.min(from + TEST_INSERT_BATCH_SIZE, funds.size());
+            userFundMapper.insertUserFunds(title, funds.subList(from, to));
+        }
+    }
+
+    private void insertProjects(String title, List<BetInfoEntity> projects) {
+        for (int from = 0; from < projects.size(); from += TEST_INSERT_BATCH_SIZE) {
+            int to = Math.min(from + TEST_INSERT_BATCH_SIZE, projects.size());
+            int inserted = betInfoMapper.insertProjects(title, projects.subList(from, to));
+            if (inserted != to - from) {
+                throw new RuntimeException("生成测试投注数据失败，应插入：" + (to - from) + "，实际插入：" + inserted);
+            }
+        }
+    }
+
+    @Override
     public ApiResp<String> createData(Integer count) {
         List<String> uuidList = new ArrayList<>();
 

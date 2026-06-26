@@ -32,4 +32,23 @@
         FROM ${title}_users
         WHERE user_id = #{userId}
     </select>
+
+    <insert id="insertUsers">
+        INSERT INTO `${title}_users`
+        (`user_id`, `lvtop_id`, `parenttree`, `operator`, `name`, `thirdparty_id`,
+         `app_account`, `nick_name`, `is_frozen`, `frozen_type`, `currency`,
+         `is_tester`, `login_token`, `is_blockhistory`, `is_deleted`, `keep_point`,
+         `created_at`, `updated_at`)
+        VALUES
+        <foreach collection="users" item="user" separator=",">
+            (#{user.userId}, #{user.lvtopId}, #{user.parenttree}, #{user.operator},
+             #{user.name}, #{user.thirdpartyId}, #{user.appAccount}, #{user.nickName},
+             #{user.isFrozen}, #{user.frozenType}, #{user.currency}, #{user.isTester},
+             #{user.loginToken}, #{user.isBlockhistory}, #{user.isDeleted}, #{user.keepPoint},
+             #{user.createdAt}, #{user.updatedAt})
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            updated_at = VALUES(updated_at),
+            is_deleted = VALUES(is_deleted)
+    </insert>
 </mapper>

@@ -27,6 +27,27 @@
         lastupdatetime,lastactivetime,created_at,
         updated_at
     </sql>
+    <insert id="insertUserFunds">
+        INSERT INTO `${title}_user_fund`
+        (`entry`, `userid`, `wallet_type`, `channelid`, `channelbalance`, `availablebalance`,
+         `holdbalance`, `islocked`, `lock_action`, `lastupdatetime`, `lastactivetime`,
+         `created_at`, `updated_at`)
+        VALUES
+        <foreach collection="userFunds" item="fund" separator=",">
+            (#{fund.entry}, #{fund.userid}, #{fund.walletType}, #{fund.channelid},
+             #{fund.channelbalance}, #{fund.availablebalance}, #{fund.holdbalance},
+             #{fund.islocked}, #{fund.lockAction}, #{fund.lastupdatetime},
+             #{fund.lastactivetime}, #{fund.createdAt}, #{fund.updatedAt})
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            channelbalance = VALUES(channelbalance),
+            availablebalance = VALUES(availablebalance),
+            holdbalance = VALUES(holdbalance),
+            islocked = VALUES(islocked),
+            lock_action = VALUES(lock_action),
+            updated_at = VALUES(updated_at)
+    </insert>
+
     <update id="updateAddOrdersList">
         update ${title}_user_fund
         SET channelbalance = #{updateFund.channelbalance},

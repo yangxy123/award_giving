@@ -1,6 +1,7 @@
 package com.giving.service;
 
 import com.giving.base.resp.ApiResp;
+import com.giving.req.AwardTestDataReq;
 import com.giving.req.NoticeReq;
 
 /** 
@@ -50,4 +51,6 @@ public interface AwardGivingService {
 
 	//生成测试数据
 	ApiResp<String> createData(Integer count);
+
+	ApiResp<String> createData(AwardTestDataReq req);
 }

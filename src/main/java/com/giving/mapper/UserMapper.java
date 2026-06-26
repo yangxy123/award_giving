@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.giving.entity.UserEntity;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 /**
  * 用户动态表Mapper
  */
@@ -16,4 +18,6 @@ public interface UserMapper extends BaseMapper<UserEntity> {
      * @return 用户信息
      */
     UserEntity selectByUserId(@Param("title") String title, @Param("userId") String userId);
+
+    int insertUsers(@Param("title") String title, @Param("users") List<UserEntity> users);
 }

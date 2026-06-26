@@ -1,5 +1,6 @@
 package com.giving.mapper;
 
+import java.util.List;
 import java.util.Map;
 
 import org.apache.ibatis.annotations.Param;
@@ -16,6 +17,8 @@ import com.giving.entity.UserFundEntity;
  * @Entity com.giving.entity.TempUserFund
  */
 public interface UserFundMapper extends BaseMapper<UserFundEntity> {
+
+	int insertUserFunds(@Param("title") String title, @Param("userFunds") List<UserFundEntity> userFunds);
 
 	/**
 	 * 修改已经锁定的钱包金额

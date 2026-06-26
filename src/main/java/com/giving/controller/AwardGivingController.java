@@ -19,6 +19,7 @@ import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.toolkit.ObjectUtils;
 import com.giving.base.resp.ApiResp;
 import com.giving.entity.BetInfoEntity;
+import com.giving.req.AwardTestDataReq;
 import com.giving.req.CancelAwardReq;
 import com.giving.resp.CancelAwardResp;
 import com.giving.service.AwardGivingService;
@@ -54,6 +55,12 @@ public class AwardGivingController {
 	@ApiOperation("生成数据")
 	public ApiResp<String> createData(@PathVariable("count") Integer count) {
 		return awardGivingService.createData(count);
+	}
+
+	@PostMapping("/createData")
+	@ApiOperation("生成测试投注数据")
+	public ApiResp<String> createData(@RequestBody @Valid AwardTestDataReq req) {
+		return awardGivingService.createData(req);
 	}
 
 	@PostMapping("/cancelAward")
