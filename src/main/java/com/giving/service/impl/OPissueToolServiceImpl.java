@@ -4,16 +4,13 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.ObjectUtils;
 
-import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.github.pagehelper.PageHelper;
@@ -256,15 +253,14 @@ public class OPissueToolServiceImpl implements OPissueToolService {
         try{
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
             String nowString = sdf.format(new Date());
-            Map<String, Object> map = new HashMap<>();
-            Object o = redisUtils.get(RedisKeyEnums.C_PROFIT_DATA.key);
-            if(o == null){
+            String priceValue = redisUtils.rawHget(RedisKeyEnums.C_PROFIT_DATA.key, nowString+"_price");
+            String bonusValue = redisUtils.rawHget(RedisKeyEnums.C_PROFIT_DATA.key, nowString+"_bonus");
+            if(priceValue == null || bonusValue == null){
                 return;
             }
-            map = JSON.parseObject(o.toString(),Map.class);
             //（总投注-总派奖+总反点）/总投注
-            BigDecimal price = new BigDecimal(map.get(nowString+"_price").toString());
-            BigDecimal bonus = new BigDecimal(map.get(nowString+"_bonus").toString());
+            BigDecimal price = new BigDecimal(priceValue);
+            BigDecimal bonus = new BigDecimal(bonusValue);
             BigDecimal t = (price.subtract(bonus)).divide(price,2);
             log.info("\n平台盈亏:( {} - {} ) / {} = {}",price,bonus,price,t);
             //设置当前平台盈亏

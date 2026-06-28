@@ -9,6 +9,7 @@ import com.giving.mapper.*;
 import com.giving.service.AwardGivingService;
 import com.giving.service.AwardingProcessService;
 import com.giving.service.OrdersToolService;
+import com.giving.service.ProfitDataService;
 import com.giving.service.UserFundLockTxService;
 import com.giving.util.RedisUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +65,8 @@ public class OrdersToolServiceImpl implements OrdersToolService {
     private UserDiffpointsMapper userDiffpointsMapper;
     @Autowired
     private TempIssueInfoMapper tempIssueInfoMapper;
+    @Autowired
+    private ProfitDataService profitDataService;
 
     //执行钱包操作 type5--0001
     @Override
@@ -113,6 +116,8 @@ public class OrdersToolServiceImpl implements OrdersToolService {
             int i = 0;
             int redisLockDeferredOrderCount = 0;
             Set<String> redisLockFailedUserIds = new HashSet<>();
+            List<BetInfoEntity> profitPriceProjects = new ArrayList<>();
+            List<BetInfoEntity> profitBonusProjects = new ArrayList<>();
             while(i < 5){
                 List<OrdersEntity> ordersList = new ArrayList<>();  //需要新增的orders
                 List<BetInfoEntity> betInfos = new ArrayList<>();   //需要修改的project
@@ -299,6 +304,11 @@ public class OrdersToolServiceImpl implements OrdersToolService {
 
                     ordersList.add(order);
                     betInfos.add(project);
+                    if (orderType == 8) {
+                        profitPriceProjects.add(project);
+                    } else if (orderType == 5) {
+                        profitBonusProjects.add(project);
+                    }
                     userFundMap.put(userId, os);
                     userFundSunMap.put(userId, userFundSum);
 
@@ -381,6 +391,8 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                     break;
                 }
             }
+            profitDataService.addPriceAfterCommit(roomMaster, profitPriceProjects);
+            profitDataService.addBonusAfterCommit(roomMaster, profitBonusProjects);
             if (redisLockDeferredOrderCount > 0) {
                 log.warn("用户钱包Redis锁连续尝试{}次仍未获取，本次订单保持原状态，厅主表名={}，账变类型={}，跳过用户数={}，跳过订单数={}",
                         WALLET_REDIS_LOCK_RETRY_TIMES, title, orderType,

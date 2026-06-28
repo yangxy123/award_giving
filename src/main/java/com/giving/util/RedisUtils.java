@@ -17,10 +17,12 @@ import org.springframework.util.StringUtils;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @Component
@@ -459,6 +461,34 @@ public class RedisUtils {
 	 */
 	public Map<Object, Object> hmget(String key) {
 		return redisTemplate.opsForHash().entries(key);
+	}
+
+	public String rawHget(String key, String item) {
+		return redisTemplate.execute((RedisCallback<String>) connection -> {
+			byte[] value = connection.hGet(key.getBytes(StandardCharsets.UTF_8),
+					item.getBytes(StandardCharsets.UTF_8));
+			return value == null ? null : new String(value, StandardCharsets.UTF_8);
+		});
+	}
+
+	public Map<String, String> rawHgetAll(String key) {
+		Map<byte[], byte[]> rawMap = redisTemplate.execute((RedisCallback<Map<byte[], byte[]>>) connection ->
+				connection.hGetAll(key.getBytes(StandardCharsets.UTF_8)));
+		Map<String, String> result = new HashMap<>();
+		if (rawMap == null) {
+			return result;
+		}
+		rawMap.forEach((field, value) -> result.put(
+				new String(field, StandardCharsets.UTF_8),
+				value == null ? null : new String(value, StandardCharsets.UTF_8)));
+		return result;
+	}
+
+	public Boolean rawHset(String key, String item, String value) {
+		return redisTemplate.execute((RedisCallback<Boolean>) connection ->
+				connection.hSet(key.getBytes(StandardCharsets.UTF_8),
+						item.getBytes(StandardCharsets.UTF_8),
+						value.getBytes(StandardCharsets.UTF_8)));
 	}
 
 	/**

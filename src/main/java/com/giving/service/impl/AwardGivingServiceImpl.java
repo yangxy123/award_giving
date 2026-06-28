@@ -47,6 +47,7 @@ import com.giving.req.NoticeReq;
 import com.giving.service.AwardGivingService;
 import com.giving.service.OPissueToolService;
 import com.giving.service.OrdersToolService;
+import com.giving.service.ProfitDataService;
 import com.giving.util.JdbcCreateSqlUtil;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -81,6 +82,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private RoomMasterMapper roomMasterMapper;
     @Autowired
     private PlatformTransactionManager transactionManager;
+    @Autowired
+    private ProfitDataService profitDataService;
 
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -1355,6 +1358,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         Map<String,List<OrdersEntity>> prizeMap = Maps.newConcurrentMap();//派奖账变集合
         Map<String, Double> betMap = Maps.newConcurrentMap();// 用户对应扣款总额
         Map<String, Double> winMap = Maps.newConcurrentMap();// 用户对应中奖总额
+        List<BetInfoEntity> profitBonusProjects = new ArrayList<>();
         //组装扣款账变集合和派奖账变集合
         for(String userId : userIds) {
             // 钱包汇总
@@ -1454,6 +1458,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 order.setUpdatedAt(new Date(date.getTime() + 1000));
                 order.setActionTime(new Date(date.getTime() + 1000));
                 prizeList.add(order);
+                profitBonusProjects.add(project);
                 amt1 += project.getBonus();
             }
             winMap.put(userId, amt1);
@@ -1540,6 +1545,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 }
             };
         }
+
+        profitDataService.addPriceAfterCommit(roomMaster, pageBetList);
+        profitDataService.addBonusAfterCommit(roomMaster, profitBonusProjects);
 
         if (finishIssueDeduct) {
             tempIssueInfoEntity.setStatusDeduct(2);

@@ -1,6 +1,5 @@
 package com.giving.controller;
 
-import com.alibaba.fastjson.JSON;
 import com.giving.base.resp.ApiResp;
 import com.giving.enums.RedisKeyEnums;
 import com.giving.req.BillOpenReq;
@@ -16,8 +15,6 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * @author zzby
@@ -60,16 +57,15 @@ public class BillOtherController {
     @GetMapping("/test")
     @ApiOperation("test")
     public ApiResp<String> test() {
-        Map<String, Object> map = new HashMap<>();
         String nowString = "20260130";
-        Object o = redisUtils.get(RedisKeyEnums.C_PROFIT_DATA.key);
-        if(o == null){
+        String priceValue = redisUtils.rawHget(RedisKeyEnums.C_PROFIT_DATA.key, nowString+"_price");
+        String bonusValue = redisUtils.rawHget(RedisKeyEnums.C_PROFIT_DATA.key, nowString+"_bonus");
+        if(priceValue == null || bonusValue == null){
             return ApiResp.paramError("d");
         }
-        map = JSON.parseObject(o.toString(),Map.class);
         //（总投注-总派奖+总反点）/总投注
-        BigDecimal price = new BigDecimal(map.get(nowString+"_price").toString());
-        BigDecimal bonus = new BigDecimal(map.get(nowString+"_bonus").toString());
+        BigDecimal price = new BigDecimal(priceValue);
+        BigDecimal bonus = new BigDecimal(bonusValue);
         BigDecimal t = (price.subtract(bonus)).divide(price,2);
         log.info("\n平台盈亏:( {} - {} ) / {} = {}",price,bonus,price,t);
         return ApiResp.sucess();

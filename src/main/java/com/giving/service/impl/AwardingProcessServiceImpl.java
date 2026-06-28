@@ -34,8 +34,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class AwardingProcessServiceImpl implements AwardingProcessService {
-    private static final String AWARD_PROCESS_LOCK_PREFIX = "award:process:";
-    private static final long AWARD_PROCESS_LOCK_EXPIRE_SECONDS = 3600L;
+    private static final String AWARD_TITLE_LOCK_PREFIX = "award:process:title:";
+    private static final long AWARD_TITLE_LOCK_EXPIRE_SECONDS = 3600L;
+    private static final long AWARD_TITLE_LOCK_RETRY_INTERVAL_MS = 100L;
 
     @Autowired
     IssueInfoMapper issueInfoMapper;
@@ -74,9 +75,9 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
             return ApiResp.paramError("奖期不存在"+req.getIssue());
         }
         if(!StringUtils.isEmpty(issueInfo.getCode())) {
-            log.info("彩种{}========开奖号码已存在，已经录号直接退出==========={}",req.getLotteryId(),req.getIssue());
-//            ordersToolService.updateRoomsIssueInfo(issueInfo);
-            return ApiResp.paramError("开奖号码已存在，已经录号"+req.getIssue());
+            log.info("彩种{}========开奖号码已存在，进行厅组验派==========={}",req.getLotteryId(),req.getIssue());
+            ordersToolService.updateRoomsIssueInfo(issueInfo);
+//            return ApiResp.paramError("开奖号码已存在，已经录号"+req.getIssue());
         }
         //修改奖期
         issueInfo.setCode(req.getWinCode());
@@ -119,14 +120,13 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                 roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
         LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
         new Thread(() -> {
-            String processLockKey = getAwardProcessLockKey(roomMaster, issueInfo);
-            String processLockToken = UUID.randomUUID().toString();
-            if (!redisUtils.setLock(processLockKey, processLockToken, AWARD_PROCESS_LOCK_EXPIRE_SECONDS)) {
-                log.warn("相同厅主、彩种和奖期的后台验派任务正在执行，本次重复任务跳过，厅主ID={}，彩种ID={}，奖期={}",
-                        roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
-                return;
-            }
+            String titleLockKey = getAwardTitleLockKey(roomMaster);
+            String titleLockToken = UUID.randomUUID().toString();
+            boolean titleLockAcquired = false;
             try {
+                waitForAwardTitleLock(titleLockKey, titleLockToken, roomMaster, issueInfo);
+                titleLockAcquired = true;
+
                 NoticeReq n = new NoticeReq();
                 n.setRoomMaster(roomMaster);
                 n.setTableName(roomMaster.getTitle()+"_issue_info");
@@ -161,27 +161,49 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                 log.error("后台验奖派奖失败，厅主ID={}，彩种ID={}，奖期={}",
                         roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue(), e);
             } finally {
-                if (!redisUtils.unlock(processLockKey, processLockToken)) {
-                    log.warn("后台验派任务锁未释放或已过期，厅主ID={}，彩种ID={}，奖期={}",
-                            roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
+                if (titleLockAcquired && !redisUtils.unlock(titleLockKey, titleLockToken)) {
+                    log.warn("后台验派title锁未释放或已过期，title={}，厅主ID={}，彩种ID={}，奖期={}",
+                            roomMaster.getTitle(), roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
                 }
             }
         }).start();
     }
 
-    private String getAwardProcessLockKey(RoomMasterEntity roomMaster, IssueInfoEntity issueInfo) {
-        return AWARD_PROCESS_LOCK_PREFIX
-                + roomMaster.getTitle() + ":"
-                + issueInfo.getLotteryId() + ":"
-                + issueInfo.getIssue();
+    private void waitForAwardTitleLock(String titleLockKey, String titleLockToken,
+                                       RoomMasterEntity roomMaster, IssueInfoEntity issueInfo) {
+        long startTime = System.currentTimeMillis();
+        boolean waitLogged = false;
+        while (true) {
+            if (redisUtils.setLock(titleLockKey, titleLockToken, AWARD_TITLE_LOCK_EXPIRE_SECONDS)) {
+                long waitMs = System.currentTimeMillis() - startTime;
+                if (waitLogged) {
+                    log.info("后台验派title锁等待完成，title={}，厅主ID={}，彩种ID={}，奖期={}，waitMs={}",
+                            roomMaster.getTitle(), roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue(), waitMs);
+                }
+                return;
+            }
+            if (!waitLogged) {
+                waitLogged = true;
+                log.info("后台验派title锁被占用，进入排队等待，title={}，厅主ID={}，彩种ID={}，奖期={}",
+                        roomMaster.getTitle(), roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
+            }
+            try {
+                Thread.sleep(AWARD_TITLE_LOCK_RETRY_INTERVAL_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while waiting for award title lock", e);
+            }
+        }
     }
 
-    //测试数据生成
-    private void FakeIssue(IssueInfoEntity issueInfo){
+    private String getAwardTitleLockKey(RoomMasterEntity roomMaster) {
+        return AWARD_TITLE_LOCK_PREFIX + roomMaster.getTitle();
+    }
 
-        new Thread(() ->{
+    private void FakeIssue(IssueInfoEntity issueInfo) {
+        new Thread(() -> {
             LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
-            if(!lottery.getFunctionType().equals("K3")) {
+            if (!lottery.getFunctionType().equals("K3")) {
                 awardService.createData(Integer.parseInt(issueInfo.getLotteryId().toString()));
             }
         }).start();
