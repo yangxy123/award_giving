@@ -1,7 +1,11 @@
 package com.giving.service.impl;
 
 import java.util.Date;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -37,6 +41,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
     private static final String AWARD_TITLE_LOCK_PREFIX = "award:process:title:";
     private static final long AWARD_TITLE_LOCK_EXPIRE_SECONDS = 3600L;
     private static final long AWARD_TITLE_LOCK_RETRY_INTERVAL_MS = 100L;
+    private static final Map<String, ExecutorService> AWARD_TITLE_EXECUTORS = new ConcurrentHashMap<>();
 
     @Autowired
     IssueInfoMapper issueInfoMapper;
@@ -99,9 +104,6 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         //存入历史奖期
         issueHistoryMapper.updateOrInsert(req,issueInfo);
 
-        //测试时自动向数据库插入下一期数据
-//        this.FakeIssue(issueInfo);
-
         ordersToolService.updateRoomsIssueInfo(issueInfo);
 
         return ApiResp.sucess();
@@ -119,13 +121,20 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         log.info("后台验奖派奖开始，厅主ID={}，彩种ID={}，奖期={}",
                 roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
         LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
-        new Thread(() -> {
-            String titleLockKey = getAwardTitleLockKey(roomMaster);
-            String titleLockToken = UUID.randomUUID().toString();
-            boolean titleLockAcquired = false;
-            try {
-                waitForAwardTitleLock(titleLockKey, titleLockToken, roomMaster, issueInfo);
-                titleLockAcquired = true;
+        getAwardTitleExecutor(roomMaster.getTitle()).submit(() -> executeLotteryDraw(roomMaster, issueInfo, lottery));
+        log.info("后台验奖派奖已进入title队列，title={}，厅主ID={}，彩种ID={}，奖期={}",
+                roomMaster.getTitle(), roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
+    }
+
+    private void executeLotteryDraw(RoomMasterEntity roomMaster, IssueInfoEntity issueInfo, LotteryEntity lottery) {
+        String titleLockKey = getAwardTitleLockKey(roomMaster);
+        String titleLockToken = UUID.randomUUID().toString();
+        boolean titleLockAcquired = false;
+        try {
+            waitForAwardTitleLock(titleLockKey, titleLockToken, roomMaster, issueInfo);
+            titleLockAcquired = true;
+            log.info("后台验奖派奖开始，title={}，厅主ID={}，彩种ID={}，奖期={}",
+                    roomMaster.getTitle(), roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
 
                 NoticeReq n = new NoticeReq();
                 n.setRoomMaster(roomMaster);
@@ -154,19 +163,32 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                     case "K3":  //亚洲30秒快3 亚洲1分快3  澳洲5分快3
                         awardGivingService.noticeKs(n);
                         break;
-                }
-                log.info("后台验奖派奖完成，厅主ID={}，彩种ID={}，奖期={}",
-                        roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
-            } catch (Exception e) {
-                log.error("后台验奖派奖失败，厅主ID={}，彩种ID={}，奖期={}",
-                        roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue(), e);
-            } finally {
-                if (titleLockAcquired && !redisUtils.unlock(titleLockKey, titleLockToken)) {
-                    log.warn("后台验派title锁未释放或已过期，title={}，厅主ID={}，彩种ID={}，奖期={}",
-                            roomMaster.getTitle(), roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
-                }
+                default:
+                    log.warn("unsupported lottery function type, title={}，厅主ID={}，彩种ID={}，奖期={}，functionType={}",
+                            roomMaster.getTitle(), roomMaster.getMasterId(), issueInfo.getLotteryId(),
+                            issueInfo.getIssue(), lottery.getFunctionType());
+                    break;
             }
-        }).start();
+            log.info("后台验奖派奖完成，title={}，厅主ID={}，彩种ID={}，奖期={}",
+                    roomMaster.getTitle(), roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
+        } catch (Exception e) {
+            log.error("后台验奖派奖失败，title={}，厅主ID={}，彩种ID={}，奖期={}",
+                    roomMaster.getTitle(), roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue(), e);
+        } finally {
+            if (titleLockAcquired && !redisUtils.unlock(titleLockKey, titleLockToken)) {
+                log.warn("后台验派title锁未释放或已过期，title={}，厅主ID={}，彩种ID={}，奖期={}",
+                        roomMaster.getTitle(), roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
+            }
+        }
+    }
+
+    private ExecutorService getAwardTitleExecutor(String title) {
+        return AWARD_TITLE_EXECUTORS.computeIfAbsent(title, key ->
+                Executors.newSingleThreadExecutor(runnable -> {
+                    Thread thread = new Thread(runnable);
+                    thread.setName("award-title-" + key);
+                    return thread;
+                }));
     }
 
     private void waitForAwardTitleLock(String titleLockKey, String titleLockToken,
@@ -200,6 +222,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         return AWARD_TITLE_LOCK_PREFIX + roomMaster.getTitle();
     }
 
+    //测试数据生成
     private void FakeIssue(IssueInfoEntity issueInfo) {
         new Thread(() -> {
             LotteryEntity lottery = lotteryMapper.selectById(issueInfo.getLotteryId());
