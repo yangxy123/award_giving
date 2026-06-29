@@ -1,17 +1,24 @@
 package com.giving.service.impl;
 
+import com.giving.entity.CurrencyStakeEntity;
 import com.giving.entity.MethodEntity;
+import com.giving.mapper.CurrencyStakeMapper;
 import com.giving.req.BetOrderReq;
 import com.giving.req.LtProjectReq;
 import com.giving.service.BetContentValidationService;
 import com.giving.service.checker.LotteryBetChecker;
 import com.giving.service.context.BetContext;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -22,6 +29,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class BetContentValidationServiceImpl implements BetContentValidationService, LotteryBetChecker {
@@ -29,18 +37,15 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
     private static final BigDecimal ZERO = BigDecimal.ZERO;
     private static final int MAX_PROJECT_COUNT = 800;
 
-    private static final Set<String> SIMPLE_AMOUNT_FUNCTIONS = set(
-            "SSC_SIN", "HL_SSC_SIN", "HL_4D_SIN", "K3_SIN", "PK10_SIN", "HL_PK10_SIN",
-            "N115_SIN", "HL_N115_SIN", "MARK6_SIN", "KLSF_SIN", "K3_SB", "SSC_LHD",
-            "HL_SSC_LHD", "SSC_FT", "PK10_FT", "HL_PK10_FT", "KL_FT", "XY28_FT",
-            "KLSF_FT", "K3_YXX", "PK10_BJL"
-    );
-
     private static final Set<String> VN_FUNCTIONS = set("VN_S", "VN_C", "VN_N");
     private static final Set<String> TH_FUNCTIONS = set("TH", "TH_30S", "STOCK", "LA", "MY");
     private static final Set<String> SSC_FUNCTIONS = set("SSC", "HL_SSC", "FC3D", "HL_4D");
     private static final Set<String> N115_FUNCTIONS = set("N115", "HL_N115");
     private static final Set<String> PK10_FUNCTIONS = set("PK10", "HL_PK10");
+    private static final Set<String> SIMPLE_AMOUNT_SUFFIXES = set("_SIN", "_LHD", "_SB", "_YXX", "_FT", "_BJL");
+
+    @Autowired
+    private CurrencyStakeMapper currencyStakeMapper;
 
     private static final Map<Integer, Integer> ZX3_SUM_TABLE = mapOf(
             0, 1, 1, 3, 2, 6, 3, 10, 4, 15, 5, 21, 6, 28, 7, 36, 8, 45,
@@ -138,7 +143,7 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
             throw new IllegalStateException("投注内容有误");
         }
         if ("input".equalsIgnoreCase(project.getType()) && !isVnFunction(functionType(context))) {
-            project.setCodes(tryDecodePlainBase64(project.getCodes()));
+            project.setCodes(decodeInputCodes(project.getCodes()));
         }
     }
 
@@ -220,24 +225,31 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
      * @param serverNums 服务端注数
      */
     private void validateAmount(BetContext context, LtProjectReq project, long serverNums) {
-        if (project.getMode() == null || modeRate(project.getMode()) == null) {
+        BigDecimal modeRate = modeRate(project.getMode());
+        if (project.getMode() == null || modeRate == null) {
             throw new IllegalStateException("投注模式错误");
         }
         if (project.getOnePrice() == null || project.getOnePrice().compareTo(ZERO) <= 0
                 || project.getMoney() == null || project.getMoney().compareTo(ZERO) <= 0) {
             throw new IllegalStateException("投注金额有误");
         }
-        if (project.getOnePrice().scale() > 6) {
+        CurrencyStakeEntity currencyStake = findCurrencyStake(context);
+        BigDecimal stake = currencyStake.getStake();
+        Integer pow = currencyStake.getPow() == null ? 0 : currencyStake.getPow();
+        if (stake == null || stake.compareTo(ZERO) <= 0
+                || project.getOnePrice().compareTo(stake) < 0
+                || !isValidCurrencyUnit(project.getOnePrice(), pow)) {
             throw new IllegalStateException("投注金额有误");
         }
         BigDecimal expected;
-        if (isSimpleAmountFunction(functionType(context))) {
+        String functionType = functionType(context);
+        if (isSimpleAmountProject(functionType, project)) {
             expected = project.getOnePrice().multiply(BigDecimal.valueOf(serverNums));
         } else {
-            expected = project.getOnePrice()
+            expected = stake
                     .multiply(BigDecimal.valueOf(serverNums))
                     .multiply(BigDecimal.valueOf(project.getTimes()))
-                    .multiply(modeRate(project.getMode()));
+                    .multiply(modeRate);
         }
         if (expected.compareTo(project.getMoney()) != 0) {
             throw new IllegalStateException("投注金额有误");
@@ -1577,10 +1589,40 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
         }
     }
 
-    private boolean isSimpleAmountFunction(String functionType) {
-        return SIMPLE_AMOUNT_FUNCTIONS.contains(functionType)
-                || isVnFunction(functionType)
-                || TH_FUNCTIONS.contains(functionType);
+    private CurrencyStakeEntity findCurrencyStake(BetContext context) {
+        String functionType = functionType(context);
+        String currency = context == null || context.getUser() == null
+                ? ""
+                : normalize(context.getUser().getCurrency()).toUpperCase();
+        CurrencyStakeEntity currencyStake = currencyStakeMapper.selectByFunctionTypeAndCurrency(functionType, currency);
+        if (currencyStake == null) {
+            throw new IllegalStateException("投注金额有误");
+        }
+        return currencyStake;
+    }
+
+    private boolean isValidCurrencyUnit(BigDecimal onePrice, int pow) {
+        if (pow < 0) {
+            return false;
+        }
+        return onePrice.movePointRight(pow).stripTrailingZeros().scale() <= 0;
+    }
+
+    private boolean isSimpleAmountProject(String functionType, LtProjectReq project) {
+        for (String suffix : SIMPLE_AMOUNT_SUFFIXES) {
+            if (functionType.endsWith(suffix)) {
+                return true;
+            }
+        }
+        return isVnThStockLike(functionType) && !isInput(project);
+    }
+
+    private boolean isVnThStockLike(String functionType) {
+        return functionType.startsWith("VN_")
+                || functionType.startsWith("TH")
+                || functionType.startsWith("STOCK")
+                || functionType.startsWith("LA")
+                || functionType.startsWith("MY");
     }
 
     private boolean isVnFunction(String functionType) {
@@ -1595,14 +1637,93 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
         return context == null || context.getLottery() == null ? "" : normalize(context.getLottery().getFunctionType()).toUpperCase();
     }
 
-    private String tryDecodePlainBase64(String codes) {
+    private String decodeInputCodes(String codes) {
         try {
-            byte[] decoded = Base64.getDecoder().decode(codes);
-            String value = new String(decoded, StandardCharsets.UTF_8);
-            return value.chars().allMatch(ch -> ch == '\n' || ch == '\r' || ch == '\t' || ch >= 32) ? value : codes;
+            byte[] decoded = Base64.getMimeDecoder().decode(codes);
+            String lzmaValue = tryDecodeLzma(decoded);
+            if (StringUtils.hasText(lzmaValue)) {
+                return lzmaValue;
+            }
+            String plainValue = new String(decoded, StandardCharsets.UTF_8);
+            if (isPrintableText(plainValue)) {
+                return plainValue;
+            }
         } catch (Exception e) {
-            return codes;
+            throw new IllegalStateException("投注内容有误");
         }
+        throw new IllegalStateException("投注内容有误");
+    }
+
+    private String tryDecodeLzma(byte[] decoded) {
+        Path input = null;
+        try {
+            input = Files.createTempFile("bet-codes-", ".lzma");
+            Files.write(input, decoded);
+            for (String command : Arrays.asList("7z", "7za")) {
+                String value = runLzma(command, input);
+                if (StringUtils.hasText(value)) {
+                    return value;
+                }
+            }
+            return null;
+        } catch (IOException e) {
+            return null;
+        } finally {
+            if (input != null) {
+                try {
+                    Files.deleteIfExists(input);
+                } catch (IOException ignored) {
+                }
+            }
+        }
+    }
+
+    private String runLzma(String command, Path input) {
+        Process process = null;
+        try {
+            process = new ProcessBuilder(command, "x", "-so", input.toFile().getAbsolutePath()).start();
+            drainAsync(process.getErrorStream());
+            byte[] output = readAll(process.getInputStream());
+            if (!process.waitFor(10, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                return null;
+            }
+            if (process.exitValue() != 0 || output.length == 0) {
+                return null;
+            }
+            String value = new String(output, StandardCharsets.UTF_8);
+            return isPrintableText(value) ? value : null;
+        } catch (Exception e) {
+            if (process != null) {
+                process.destroyForcibly();
+            }
+            return null;
+        }
+    }
+
+    private void drainAsync(InputStream stream) {
+        Thread thread = new Thread(() -> {
+            try {
+                readAll(stream);
+            } catch (IOException ignored) {
+            }
+        });
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private byte[] readAll(InputStream stream) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[4096];
+        int length;
+        while ((length = stream.read(buffer)) != -1) {
+            output.write(buffer, 0, length);
+        }
+        return output.toByteArray();
+    }
+
+    private boolean isPrintableText(String value) {
+        return value != null && value.chars().allMatch(ch -> ch == '\n' || ch == '\r' || ch == '\t' || ch >= 32);
     }
 
     private String clean(String codes) {

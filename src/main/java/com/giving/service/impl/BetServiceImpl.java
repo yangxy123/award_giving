@@ -13,6 +13,7 @@ import com.giving.mapper.*;
 import com.giving.req.BetOrderReq;
 import com.giving.req.LtProjectReq;
 import com.giving.resp.BetOrderResp;
+import com.giving.service.BetAutooddsService;
 import com.giving.service.BetBonusLimitService;
 import com.giving.service.BetContentValidationService;
 import com.giving.service.BetOrderTxService;
@@ -99,6 +100,8 @@ public class BetServiceImpl implements BetService {
     private BetBonusLimitService betBonusLimitService;
     @Autowired
     private BetContentValidationService betContentValidationService;
+    @Autowired
+    private BetAutooddsService betAutooddsService;
 
     /**
      * 投注
@@ -119,6 +122,7 @@ public class BetServiceImpl implements BetService {
             BetContext context = buildContext(req);
             title = context.getTitle();
             validateBasicOrder(req, context);
+            betAutooddsService.validate(context, req);
 
             locked = userFundLockTxService.doLockUserFund(userId, true, WALLET_TYPE_BET, "BET_001", title);
             if (!locked) {
@@ -206,7 +210,7 @@ public class BetServiceImpl implements BetService {
         }
 
         TempIssueInfoEntity issue = findIssue(title, req);
-        validateIssue(issue);
+        validateIssue(issue, Long.valueOf(req.getLotteryId()));
 
         validateBlockedMethods(roomMaster.getMasterId(), session.getOperator(), methodMap);
         validateShaduizi(roomMaster.getMasterId(), user, methodMap, req);
@@ -503,9 +507,13 @@ public class BetServiceImpl implements BetService {
      * 校验奖期销售时间
      * @param issue 奖期信息
      */
-    private void validateIssue(TempIssueInfoEntity issue) {
+    private void validateIssue(TempIssueInfoEntity issue, Long lotteryId) {
         if (issue == null) {
             throw new BetBusinessException("奖期不存在");
+        }
+        IssueInfoEntity issueInfo = issueInfoMapper.selectByLotteryIdAndIssue(lotteryId, issue.getIssue());
+        if (issueInfo != null && Integer.valueOf(1).equals(issueInfo.getIsClose())) {
+            throw new BetBusinessException("当前奖期已关闭");
         }
         Date now = new Date();
         if (issue.getSaleStart() == null || issue.getSaleEnd() == null

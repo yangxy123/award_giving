@@ -33,7 +33,7 @@ public class BetController {
     }
 
     @PostMapping({"/cancelProject", "/cancelProject/{jwtToken}"})
-    @ApiOperation("撤单--")
+    @ApiOperation("撤单--会员自行撤单")
     public ApiResp<BetCancelProjectResp> cancelProject(@RequestBody @Valid BetCancelProjectReq req) {
         return betCancelService.cancelProject(req);
     }
