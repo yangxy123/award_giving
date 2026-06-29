@@ -38,7 +38,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -51,6 +50,9 @@ public class BetServiceImpl implements BetService {
     private static final BigDecimal ZERO = BigDecimal.ZERO;
     private static final int BUSINESS_TYPE_B2B_MW_TEST = 25;
     private static final int BUSINESS_TYPE_SINGLE_WALLET_TRIAL = 27;
+    private static final Object BIZ_ID_LOCK = new Object();
+    private static long lastBizIdMillis = -1L;
+    private static int bizIdSequence = 0;
     private static final List<Integer> ONE_MIN_3D_LOTTERY_IDS = Arrays.asList(52, 108, 109, 110);
     private static final List<Integer> ONE_MIN_3D_QZX3_METHOD_IDS = Arrays.asList(2899, 4308, 4334, 4360);
     private static final List<Integer> ONE_MIN_3D_REPEAT_CHECK_METHOD_IDS = Arrays.asList(
@@ -1041,12 +1043,27 @@ public class BetServiceImpl implements BetService {
     private String newBizId(Integer roomMasterId) {
         int master = roomMasterId == null ? 0 : Math.abs(roomMasterId % 1000);
         String prefix = String.format("%03d", master);
-        String millis = Long.toHexString(System.currentTimeMillis());
-        if (millis.length() > 11) {
-            millis = millis.substring(millis.length() - 11);
+        synchronized (BIZ_ID_LOCK) {
+            long currentMillis = System.currentTimeMillis();
+            if (currentMillis == lastBizIdMillis) {
+                if (bizIdSequence >= 256) {
+                    do {
+                        currentMillis = System.currentTimeMillis();
+                    } while (currentMillis == lastBizIdMillis);
+                    bizIdSequence = 0;
+                    lastBizIdMillis = currentMillis;
+                }
+            } else {
+                bizIdSequence = 0;
+                lastBizIdMillis = currentMillis;
+            }
+            String millis = Long.toHexString(currentMillis);
+            if (millis.length() > 11) {
+                millis = millis.substring(millis.length() - 11);
+            }
+            String sequence = String.format("%02x", bizIdSequence++);
+            return prefix + millis + sequence;
         }
-        String random = Integer.toHexString(ThreadLocalRandom.current().nextInt(16, 256));
-        return (prefix + millis + random).substring(0, 16);
     }
 
     /**
