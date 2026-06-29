@@ -20,4 +20,8 @@ public interface UserMapper extends BaseMapper<UserEntity> {
     UserEntity selectByUserId(@Param("title") String title, @Param("userId") String userId);
 
     int insertUsers(@Param("title") String title, @Param("users") List<UserEntity> users);
+
+    int countAvailableUsers(@Param("title") String title);
+
+    List<UserEntity> selectAvailableUsers(@Param("title") String title, @Param("limit") Integer limit);
 }

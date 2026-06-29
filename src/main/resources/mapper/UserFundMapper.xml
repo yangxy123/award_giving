@@ -32,20 +32,19 @@
         (`entry`, `userid`, `wallet_type`, `channelid`, `channelbalance`, `availablebalance`,
          `holdbalance`, `islocked`, `lock_action`, `lastupdatetime`, `lastactivetime`,
          `created_at`, `updated_at`)
-        VALUES
-        <foreach collection="userFunds" item="fund" separator=",">
-            (#{fund.entry}, #{fund.userid}, #{fund.walletType}, #{fund.channelid},
-             #{fund.channelbalance}, #{fund.availablebalance}, #{fund.holdbalance},
-             #{fund.islocked}, #{fund.lockAction}, #{fund.lastupdatetime},
-             #{fund.lastactivetime}, #{fund.createdAt}, #{fund.updatedAt})
+        <foreach collection="userFunds" item="fund" separator=" UNION ALL ">
+            SELECT #{fund.entry}, #{fund.userid}, #{fund.walletType}, #{fund.channelid},
+                   #{fund.channelbalance}, #{fund.availablebalance}, #{fund.holdbalance},
+                   #{fund.islocked}, #{fund.lockAction}, #{fund.lastupdatetime},
+                   #{fund.lastactivetime}, #{fund.createdAt}, #{fund.updatedAt}
+            FROM DUAL
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM `${title}_user_fund`
+                WHERE userid = #{fund.userid}
+                  AND wallet_type = #{fund.walletType}
+            )
         </foreach>
-        ON DUPLICATE KEY UPDATE
-            channelbalance = VALUES(channelbalance),
-            availablebalance = VALUES(availablebalance),
-            holdbalance = VALUES(holdbalance),
-            islocked = VALUES(islocked),
-            lock_action = VALUES(lock_action),
-            updated_at = VALUES(updated_at)
     </insert>
 
     <update id="updateAddOrdersList">

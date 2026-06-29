@@ -33,6 +33,22 @@
         WHERE user_id = #{userId}
     </select>
 
+    <select id="countAvailableUsers" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM `${title}_users`
+        WHERE is_deleted IS NULL OR is_deleted = '0'
+    </select>
+
+    <select id="selectAvailableUsers" resultMap="BaseResultMap">
+        SELECT user_id, lvtop_id, parenttree, operator, name, thirdparty_id,
+               app_account, nick_name, is_frozen, frozen_type, currency,
+               is_tester, login_token, is_blockhistory, is_deleted, keep_point, created_at, updated_at
+        FROM `${title}_users`
+        WHERE is_deleted IS NULL OR is_deleted = '0'
+        ORDER BY created_at ASC, user_id ASC
+        LIMIT #{limit}
+    </select>
+
     <insert id="insertUsers">
         INSERT INTO `${title}_users`
         (`user_id`, `lvtop_id`, `parenttree`, `operator`, `name`, `thirdparty_id`,

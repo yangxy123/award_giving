@@ -1662,8 +1662,17 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
         ensureRoomIssue(roomMaster.getTitle(), issue);
 
-        List<UserEntity> users = buildTestUsers(roomMaster, TEST_USER_COUNT);
-        insertUsers(roomMaster.getTitle(), users);
+        int existingUserCount = userMapper.countAvailableUsers(roomMaster.getTitle());
+        int createdUserCount = 0;
+        if (existingUserCount < TEST_USER_COUNT) {
+            createdUserCount = TEST_USER_COUNT - existingUserCount;
+            insertUsers(roomMaster.getTitle(), buildTestUsers(roomMaster, existingUserCount, createdUserCount));
+        }
+
+        List<UserEntity> users = userMapper.selectAvailableUsers(roomMaster.getTitle(), TEST_USER_COUNT);
+        if (users.size() < TEST_USER_COUNT) {
+            return ApiResp.paramError("可用用户不足5000");
+        }
         insertUserFunds(roomMaster.getTitle(), buildTestUserFunds(users));
 
         List<BetInfoEntity> projects = buildTestProjects(req.getLotteryId().intValue(), issueNo, users, methods);
@@ -1674,6 +1683,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 + "，彩种ID=" + req.getLotteryId()
                 + "，奖期=" + issueNo
                 + "，用户数=" + users.size()
+                + "，新增用户数=" + createdUserCount
                 + "，玩法数=" + methods.size()
                 + "，投注数=" + projects.size();
         return ApiResp.sucess(message);
@@ -1700,22 +1710,23 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         tempIssueInfoMapper.resetAwardStatus(title, issue.getLotteryId(), issue.getIssue());
     }
 
-    private List<UserEntity> buildTestUsers(RoomMasterEntity roomMaster, int userCount) {
+    private List<UserEntity> buildTestUsers(RoomMasterEntity roomMaster, int startIndex, int userCount) {
         List<UserEntity> users = new ArrayList<>(userCount);
         Date now = new Date();
         String currency = roomMaster.getCurrency() == null || roomMaster.getCurrency().trim().isEmpty()
                 ? "CNY" : roomMaster.getCurrency();
         for (int i = 0; i < userCount; i++) {
+            int userIndex = startIndex + i;
             String userId = OrdersToolServiceImpl.uniqId16();
             UserEntity user = new UserEntity();
             user.setUserId(userId);
             user.setLvtopId(userId);
             user.setParenttree("");
             user.setOperator("");
-            user.setName("test_user_" + i);
+            user.setName("test_user_" + userIndex);
             user.setThirdpartyId(userId);
-            user.setAppAccount("test_user_" + i);
-            user.setNickName("test_user_" + i);
+            user.setAppAccount("test_user_" + userIndex);
+            user.setNickName("test_user_" + userIndex);
             user.setIsFrozen("0");
             user.setFrozenType("");
             user.setCurrency(currency);
@@ -1758,58 +1769,69 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
     private List<BetInfoEntity> buildTestProjects(Integer lotteryId, String issue,
                                                   List<UserEntity> users, List<MethodEntity> methods) {
-        List<BetInfoEntity> projects = new ArrayList<>(TEST_BET_COUNT);
-        Date now = new Date();
-        for (int i = 0; i < TEST_BET_COUNT; i++) {
-            int userIndex = i % users.size();
-            int round = i / users.size();
-            MethodEntity method = methods.get((userIndex + round) % methods.size());
-            String code = buildTestCode(method, i);
-            String winbonus = buildTestWinbonus(method);
-
-            BetInfoEntity project = new BetInfoEntity();
-            project.setProjectId(OrdersToolServiceImpl.uniqId16());
-            project.setUserId(users.get(userIndex).getUserId());
-            project.setPackageId("1");
-            project.setTaskId("");
-            project.setLotteryId(lotteryId);
-            project.setMethodId(method.getMethodId());
-            project.setIssue(issue);
-            project.setBonus(0D);
-            project.setWinbonus(winbonus);
-            project.setCode(code);
-            project.setCodeType("digital");
-            project.setSinglePrice(1D);
-            project.setMultiple("1");
-            project.setTotalPrice(1D);
-            project.setWriteTime(now);
-            project.setScode(buildTestScode(method, code, winbonus));
-            project.setUpdateTime(now);
-            project.setDeductTime(now);
-            project.setBonusTime(now);
-            project.setCancelTime(null);
-            project.setIsDeduct(0);
-            project.setIsCancel(0);
-            project.setIsGetprize(0);
-            project.setPrizeStatus(0);
-            project.setGameCancelCount(0);
-            project.setUserIp("0.0.0.0");
-            project.setModes("1");
-            project.setHashvar("");
-            project.setUserPoint("0");
-            project.setIsNew("1");
-            project.setComefrom("");
-            project.setPointStatus(0);
-            project.setThirdPartyTrxId(null);
-            project.setPlatform("web");
-            project.setLog(null);
-            project.setWriteMicrotime(String.valueOf(System.currentTimeMillis() / 1000D));
-            project.setCreatedAt(now);
-            project.setUpdatedAt(now);
-            project.setPointinfo(buildTestPointInfo(winbonus));
-            projects.add(project);
+        int targetCount = Math.max(TEST_BET_COUNT, users.size() * methods.size());
+        List<BetInfoEntity> projects = new ArrayList<>(targetCount);
+        int index = 0;
+        for (UserEntity user : users) {
+            for (MethodEntity method : methods) {
+                projects.add(buildTestProject(lotteryId, issue, user, method, index++));
+            }
+        }
+        while (projects.size() < TEST_BET_COUNT) {
+            int userIndex = projects.size() % users.size();
+            int methodIndex = (projects.size() / users.size()) % methods.size();
+            projects.add(buildTestProject(lotteryId, issue, users.get(userIndex), methods.get(methodIndex), index++));
         }
         return projects;
+    }
+
+    private BetInfoEntity buildTestProject(Integer lotteryId, String issue,
+                                           UserEntity user, MethodEntity method, int index) {
+        Date now = new Date();
+        String code = buildTestCode(method, index);
+        String winbonus = buildTestWinbonus(method);
+
+        BetInfoEntity project = new BetInfoEntity();
+        project.setProjectId(OrdersToolServiceImpl.uniqId16());
+        project.setUserId(user.getUserId());
+        project.setPackageId("1");
+        project.setTaskId("");
+        project.setLotteryId(lotteryId);
+        project.setMethodId(method.getMethodId());
+        project.setIssue(issue);
+        project.setBonus(0D);
+        project.setWinbonus(winbonus);
+        project.setCode(code);
+        project.setCodeType("digital");
+        project.setSinglePrice(1D);
+        project.setMultiple("1");
+        project.setTotalPrice(1D);
+        project.setWriteTime(now);
+        project.setScode(buildTestScode(method, code, winbonus));
+        project.setUpdateTime(now);
+        project.setDeductTime(now);
+        project.setBonusTime(now);
+        project.setCancelTime(null);
+        project.setIsDeduct(0);
+        project.setIsCancel(0);
+        project.setIsGetprize(0);
+        project.setPrizeStatus(0);
+        project.setGameCancelCount(0);
+        project.setUserIp("0.0.0.0");
+        project.setModes("1");
+        project.setHashvar("");
+        project.setUserPoint("0");
+        project.setIsNew("1");
+        project.setComefrom("");
+        project.setPointStatus(0);
+        project.setThirdPartyTrxId(null);
+        project.setPlatform("web");
+        project.setLog(null);
+        project.setWriteMicrotime(String.valueOf(System.currentTimeMillis() / 1000D));
+        project.setCreatedAt(now);
+        project.setUpdatedAt(now);
+        project.setPointinfo(buildTestPointInfo(winbonus));
+        return project;
     }
 
     private String buildTestCode(MethodEntity method, int index) {
