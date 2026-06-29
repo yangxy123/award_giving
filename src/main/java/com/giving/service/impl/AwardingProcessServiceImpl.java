@@ -925,7 +925,8 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
     private void sleepBeforeAwardTitleQueueRetry(String title) {
         long sleptMillis = 0L;
         while (sleptMillis < AWARD_TITLE_QUEUE_RETRY_DELAY_MS) {
-            if (redisUtils.lGetListSize(getAwardTitlePriorityQueueKey(title)) > 0) {
+            if (redisUtils.lGetListSize(getAwardTitlePriorityQueueKey(title)) > 0
+                    && canProcessAwardTitlePriorityQueue(title)) {
                 return;
             }
             long sleepMillis = Math.min(AWARD_TITLE_PRIORITY_CHECK_INTERVAL_MS,
