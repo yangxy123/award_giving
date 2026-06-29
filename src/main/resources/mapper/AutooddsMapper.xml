@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.AutooddsMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.AutooddsEntity">
+        <id property="autooddsId" column="autoodds_id" jdbcType="BIGINT"/>
+        <result property="lotteryId" column="lottery_id" jdbcType="INTEGER"/>
+        <result property="methodId" column="method_id" jdbcType="INTEGER"/>
+        <result property="codeName" column="code_name" jdbcType="VARCHAR"/>
+        <result property="defaultodds" column="defaultodds" jdbcType="DECIMAL"/>
+        <result property="lowestodds" column="lowestodds" jdbcType="DECIMAL"/>
+        <result property="highestodds" column="highestodds" jdbcType="DECIMAL"/>
+        <result property="stage" column="stage" jdbcType="VARCHAR"/>
+        <result property="trays" column="trays" jdbcType="VARCHAR"/>
+        <result property="isCountoddsStage" column="is_countodds_stage" jdbcType="TINYINT"/>
+        <result property="isCountoddsTrays" column="is_countodds_trays" jdbcType="TINYINT"/>
+        <result property="isDeleteoddsStage" column="is_deleteodds_stage" jdbcType="TINYINT"/>
+        <result property="isDeleteoddsTrays" column="is_deleteodds_trays" jdbcType="TINYINT"/>
+        <result property="blockadevalue" column="blockadevalue" jdbcType="DECIMAL"/>
+        <result property="broadenvalue" column="broadenvalue" jdbcType="DECIMAL"/>
+        <result property="stopbet" column="stopbet" jdbcType="TINYINT"/>
+    </resultMap>
+
+    <select id="selectByMethodAndCode" resultMap="BaseResultMap">
+        SELECT autoodds_id,
+               lottery_id,
+               method_id,
+               code_name,
+               truncate(defaultodds, 3) as defaultodds,
+               truncate(lowestodds, 3) as lowestodds,
+               truncate(highestodds, 3) as highestodds,
+               stage,
+               trays,
+               is_countodds_stage,
+               is_countodds_trays,
+               is_deleteodds_stage,
+               is_deleteodds_trays,
+               truncate(blockadevalue, 3) as blockadevalue,
+               truncate(broadenvalue, 3) as broadenvalue,
+               stopbet
+        FROM autoodds_info
+        WHERE lottery_id = #{lotteryId}
+          AND method_id = #{methodId}
+          AND p_id &lt;&gt; 0
+          AND code_id &lt;&gt; 0
+        <choose>
+            <when test="codeName == null">
+                AND code_name IS NULL
+            </when>
+            <when test="likeCode">
+                AND code_name LIKE concat('%', #{codeName})
+            </when>
+            <otherwise>
+                AND code_name = #{codeName}
+            </otherwise>
+        </choose>
+        ORDER BY autoodds_id ASC
+    </select>
+
+    <select id="selectIssueTotalPrice" resultType="java.math.BigDecimal">
+        SELECT IFNULL(total_price, 0)
+        FROM ${title}_autoodds_issue_info
+        WHERE ao_id = #{aoId}
+          AND issue = #{issue}
+          AND op_code = #{operator}
+        LIMIT 1
+    </select>
+
+    <select id="selectLatestCodeCount" resultType="java.lang.Integer">
+        SELECT code_count
+        FROM autoodds_issue_info
+        WHERE autoodds_id = #{aoId}
+          AND autoodds_time &lt; #{saleStart}
+        ORDER BY autoodds_time DESC
+        LIMIT 1
+    </select>
+</mapper>

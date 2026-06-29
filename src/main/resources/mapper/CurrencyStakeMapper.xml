@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.giving.mapper.CurrencyStakeMapper">
+
+    <resultMap id="BaseResultMap" type="com.giving.entity.CurrencyStakeEntity">
+        <result property="currency" column="currency" jdbcType="VARCHAR"/>
+        <result property="functionType" column="function_type" jdbcType="VARCHAR"/>
+        <result property="stake" column="stake" jdbcType="DECIMAL"/>
+        <result property="toCny" column="to_cny" jdbcType="DECIMAL"/>
+        <result property="base" column="base" jdbcType="VARCHAR"/>
+        <result property="pow" column="pow" jdbcType="INTEGER"/>
+        <result property="oneToCny" column="one_to_cny" jdbcType="DECIMAL"/>
+    </resultMap>
+
+    <select id="selectByFunctionTypeAndCurrency" resultMap="BaseResultMap">
+        SELECT currency,
+               function_type,
+               stake,
+               to_cny,
+               base,
+               pow,
+               one_to_cny
+        FROM currency_stake
+        WHERE function_type = #{functionType}
+          AND currency = #{currency}
+        LIMIT 1
+    </select>
+</mapper>
