@@ -469,6 +469,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 if (!this.executeDataHandleWithRetry(betRecordMap, betAllWinList, noticeReq, false)) {
                     break;
                 }
+                runAwardTitlePriorityCallback();
                 if (list.size() < pageSize) {
                     break;
                 }
@@ -762,6 +763,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 if (!handled) {
                     break;
                 }
+                runAwardTitlePriorityCallback();
                 if (list.size() < pageSize) {
                     break;
                 }
@@ -937,6 +939,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             if (!handled) {
                 break;
             }
+            runAwardTitlePriorityCallback();
             if (list.size() < pageSize) {
                 break;
             }
@@ -1035,6 +1038,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             }
             betRecordMap.clear();
             betAllWinList.clear();
+            runAwardTitlePriorityCallback();
             if (list.size() < pageSize) {
                 break;
             }
@@ -1143,6 +1147,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             }
             betRecordMap.clear();
             betAllWinList.clear();
+            runAwardTitlePriorityCallback();
             if (list.size() < pageSize) {
                 break;
             }
@@ -1185,6 +1190,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                         ),
                         map -> new ArrayList<>(map.values())
                 ));
+    }
+
+    private void runAwardTitlePriorityCallback() {
+        AwardTitlePriorityContext.runAfterBatchCallback();
     }
 
     private List<BetInfoEntity> selectNoticeReqPage(NoticeReq noticeReq, int pageSize) {

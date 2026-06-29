@@ -90,6 +90,29 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
     private static final String AWARD_TITLE_QUEUE_PREFIX = "award:process:title:queue:";
 
     /**
+     * Redis 优先队列 key 前缀。
+     *
+     * <p>最终 key 示例：</p>
+     * <pre>
+     * award:process:title:queue:priority:cn0003
+     * </pre>
+     *
+     * <p>用途：按 title 存放需要优先派奖的任务 JSON。</p>
+     */
+    private static final String AWARD_TITLE_PRIORITY_QUEUE_PREFIX = "award:process:title:queue:priority:";
+
+    /**
+     * 需要优先处理的彩种 ID。
+     */
+    private static final Set<Long> AWARD_PRIORITY_LOTTERY_IDS = new HashSet<>();
+
+    static {
+        AWARD_PRIORITY_LOTTERY_IDS.add(223L);
+        AWARD_PRIORITY_LOTTERY_IDS.add(212L);
+        AWARD_PRIORITY_LOTTERY_IDS.add(243L);
+    }
+
+    /**
      * Redis Set key。
      *
      * <p>用于记录所有出现过派奖队列的 title，服务重启时可根据这个集合恢复未处理任务。</p>
@@ -120,6 +143,11 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
     private static final long AWARD_TITLE_QUEUE_RETRY_DELAY_MS = 5000L;
 
     /**
+     * 普通任务失败等待时，检查优先队列的间隔，单位：毫秒。
+     */
+    private static final long AWARD_TITLE_PRIORITY_CHECK_INTERVAL_MS = 100L;
+
+    /**
      * 每个 title 对应一个单线程执行器。
      *
      * <p>key：title。</p>
@@ -143,6 +171,14 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      */
     private static final Set<String> AWARD_TITLE_DRAINING =
             Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+
+    /**
+     * 优先队列失败后的重试时间点。
+     *
+     * <p>key：title。</p>
+     * <p>value：允许再次抢占普通任务的时间戳。</p>
+     */
+    private static final Map<String, Long> AWARD_TITLE_PRIORITY_RETRY_AFTER = new ConcurrentHashMap<>();
 
     /**
      * 奖期信息 Mapper。
@@ -340,6 +376,8 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         task.setIssue(issueInfo.getIssue());
         // 开奖号码。
         task.setCode(issueInfo.getCode());
+        // 是否进入优先队列。
+        task.setPriority(isPriorityAwardLottery(issueInfo.getLotteryId()));
         // 任务创建时间戳。
         task.setCreatedAt(System.currentTimeMillis());
         return task;
@@ -361,8 +399,9 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      * @param task 待执行的派奖任务
      */
     private void enqueueAwardTitleTask(AwardTitleQueueTask task) {
-        // 每个 title 一个独立队列。
-        String queueKey = getAwardTitleQueueKey(task.getTitle());
+        // 每个 title 分普通队列和优先队列。
+        boolean priority = isPriorityAwardTask(task);
+        String queueKey = priority ? getAwardTitlePriorityQueueKey(task.getTitle()) : getAwardTitleQueueKey(task.getTitle());
         // 将任务转成 JSON 存到 Redis，方便跨服务重启恢复。
         String payload = JSON.toJSONString(task);
         // 保存 title 到 Redis Set，服务重启时可扫描所有 title 的队列。
@@ -373,9 +412,9 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                     + ", lotteryId=" + task.getLotteryId() + ", issue=" + task.getIssue());
         }
         // 记录入队日志。
-        log.info("后台验奖派奖已写入title持久队列，taskId={}，title={}，厅主ID={}，彩种ID={}，奖期={}，queueSize={}",
+        log.info("后台验奖派奖已写入title持久队列，taskId={}，title={}，厅主ID={}，彩种ID={}，奖期={}，priority={}，queueSize={}",
                 task.getTaskId(), task.getTitle(), task.getMasterId(), task.getLotteryId(), task.getIssue(),
-                redisUtils.lGetListSize(queueKey));
+                priority, getAwardTitleTotalQueueSize(task.getTitle()));
         // 触发该 title 的队列消费。
         // 如果该 title 已经在消费中，triggerAwardTitleQueue 内部会直接 return。
         triggerAwardTitleQueue(task.getTitle());
@@ -431,7 +470,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 
         // 遍历所有 title，如果队列中还有任务，就重新触发消费。
         for (String title : titles) {
-            long queueSize = redisUtils.lGetListSize(getAwardTitleQueueKey(title));
+            long queueSize = getAwardTitleTotalQueueSize(title);
             if (queueSize > 0) {
                 log.info("发现未完成后台验派title队列，准备恢复处理，title={}，queueSize={}", title, queueSize);
                 triggerAwardTitleQueue(title);
@@ -486,7 +525,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 
                     // 如果队列中还有任务，说明消费过程中又写入了新任务，或失败任务保留在队列。
                     // 此时再次触发消费。
-                    if (redisUtils.lGetListSize(getAwardTitleQueueKey(title)) > 0) {
+                    if (getAwardTitleTotalQueueSize(title) > 0) {
                         triggerAwardTitleQueue(title);
                     }
                 }
@@ -520,11 +559,8 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      * @param title 厅组 title
      */
     private void drainAwardTitleQueue(String title) {
-        // 当前 title 对应的 Redis List 队列 key。
-        String queueKey = getAwardTitleQueueKey(title);
-
         // 只要队列中还有任务，就不断消费。
-        while (redisUtils.lGetListSize(queueKey) > 0) {
+        while (getAwardTitleTotalQueueSize(title) > 0) {
             // Redis 分布式锁 key。
             String titleLockKey = getAwardTitleLockKey(title);
 
@@ -534,8 +570,8 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
             // 标记本次是否成功获取锁，finally 中决定是否释放。
             boolean titleLockAcquired = false;
 
-            // 当前正在处理的任务 JSON。
-            String payload = null;
+            // 当前正在处理的队列 key。优先队列有任务时，先处理优先队列。
+            String queueKey = null;
 
             try {
                 // 等待获取 Redis title 锁。
@@ -543,54 +579,27 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                 waitForAwardTitleLock(titleLockKey, titleLockToken, title);
                 titleLockAcquired = true;
 
-                // 读取队首任务。
-                // 注意：这里不是弹出，所以失败时任务仍会留在队首。
-                Object queuedValue = redisUtils.lGetIndex(queueKey, 0);
-                if (queuedValue == null) {
+                queueKey = getNextAwardTitleQueueKey(title);
+                if (queueKey == null) {
                     return;
                 }
 
-                // Redis 中取出的值转成字符串 JSON。
-                payload = String.valueOf(queuedValue);
-
-                AwardTitleQueueTask task;
-                try {
-                    // 反序列化队列任务。
-                    task = JSON.parseObject(payload, AwardTitleQueueTask.class);
-                } catch (Exception parseException) {
-                    // JSON 解析失败，说明这个任务数据坏了，直接移除，避免阻塞后续任务。
-                    log.warn("后台验派title队列任务JSON解析失败，已移除，title={}，payload={}", title, payload, parseException);
-                    redisUtils.lRemove(queueKey, 1, payload);
-                    continue;
-                }
-
-                // 校验任务必要字段。
-                if (task == null || StringUtils.isEmpty(task.getTitle()) || StringUtils.isEmpty(task.getIssue())
-                        || ObjectUtils.isEmpty(task.getLotteryId())) {
-                    // 无效任务直接移除，避免阻塞后续任务。
-                    log.warn("后台验派title队列任务数据无效，已移除，title={}，payload={}", title, payload);
-                    redisUtils.lRemove(queueKey, 1, payload);
-                    continue;
-                }
-
-                // 执行真正的派奖处理。
-                processAwardTitleTask(task);
-
-                // 执行成功后删除该任务，表示 ACK 成功。
-                long removed = redisUtils.lRemove(queueKey, 1, payload);
-                if (removed <= 0) {
-                    // 如果删除失败，任务可能下次被重复处理。
-                    log.warn("后台验派title队列任务ACK失败，可能会被重复处理，taskId={}，title={}，彩种ID={}，奖期={}",
-                            task.getTaskId(), task.getTitle(), task.getLotteryId(), task.getIssue());
-                }
+                processAwardTitleQueueHead(title, queueKey);
             } catch (Exception e) {
                 // 发生异常时不删除任务，让任务保留在队列中等待重试。
                 // 注意：如果这个任务每次都失败，它会一直停留在队首，导致后面的任务永远处理不到。
-                log.error("后台验派title队列任务执行失败，保留队列等待重试，title={}，payload={}", title, payload, e);
+                log.error("后台验派title队列任务执行失败，保留队列等待重试，title={}，queueKey={}", title, queueKey, e);
+
+                if (isAwardTitlePriorityQueue(title, queueKey)
+                        && redisUtils.lGetListSize(getAwardTitleQueueKey(title)) > 0) {
+                    markAwardTitlePriorityFailure(title);
+                    log.warn("后台验派优先任务失败，普通队列仍有任务，先返回普通队列处理，title={}", title);
+                    continue;
+                }
 
                 // 睡眠一段时间后退出当前 drain。
                 // 外层 trigger 的 finally 会发现队列还有数据，然后再次触发消费。
-                sleepBeforeAwardTitleQueueRetry();
+                sleepBeforeAwardTitleQueueRetry(title);
                 return;
             } finally {
                 // 如果本次成功获取了 Redis 锁，则尝试释放。
@@ -599,6 +608,67 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                     log.warn("后台验派title锁未释放或已过期，title={}", title);
                 }
             }
+        }
+    }
+
+    private void drainAwardTitlePriorityQueue(String title) {
+        if (!canProcessAwardTitlePriorityQueue(title)) {
+            return;
+        }
+        String priorityQueueKey = getAwardTitlePriorityQueueKey(title);
+        while (redisUtils.lGetListSize(priorityQueueKey) > 0) {
+            try {
+                processAwardTitleQueueHead(title, priorityQueueKey);
+                clearAwardTitlePriorityFailure(title);
+            } catch (Exception e) {
+                markAwardTitlePriorityFailure(title);
+                log.error("后台验派优先任务执行失败，保留优先队列并返回普通任务，title={}，queueKey={}",
+                        title, priorityQueueKey, e);
+                return;
+            }
+        }
+    }
+
+    private void processAwardTitleQueueHead(String title, String queueKey) {
+        // 读取队首任务。
+        // 注意：这里不是弹出，所以失败时任务仍会留在队首。
+        Object queuedValue = redisUtils.lGetIndex(queueKey, 0);
+        if (queuedValue == null) {
+            return;
+        }
+
+        // Redis 中取出的值转成字符串 JSON。
+        String payload = String.valueOf(queuedValue);
+
+        AwardTitleQueueTask task;
+        try {
+            // 反序列化队列任务。
+            task = JSON.parseObject(payload, AwardTitleQueueTask.class);
+        } catch (Exception parseException) {
+            // JSON 解析失败，说明这个任务数据坏了，直接移除，避免阻塞后续任务。
+            log.warn("后台验派title队列任务JSON解析失败，已移除，title={}，payload={}", title, payload, parseException);
+            redisUtils.lRemove(queueKey, 1, payload);
+            return;
+        }
+
+        // 校验任务必要字段。
+        if (task == null || StringUtils.isEmpty(task.getTitle()) || StringUtils.isEmpty(task.getIssue())
+                || ObjectUtils.isEmpty(task.getLotteryId())) {
+            // 无效任务直接移除，避免阻塞后续任务。
+            log.warn("后台验派title队列任务数据无效，已移除，title={}，payload={}", title, payload);
+            redisUtils.lRemove(queueKey, 1, payload);
+            return;
+        }
+
+        // 执行真正的派奖处理。
+        processAwardTitleTask(task);
+
+        // 执行成功后删除该任务，表示 ACK 成功。
+        long removed = redisUtils.lRemove(queueKey, 1, payload);
+        if (removed <= 0) {
+            // 如果删除失败，任务可能下次被重复处理。
+            log.warn("后台验派title队列任务ACK失败，可能会被重复处理，taskId={}，title={}，彩种ID={}，奖期={}，priority={}",
+                    task.getTaskId(), task.getTitle(), task.getLotteryId(), task.getIssue(), isPriorityAwardTask(task));
         }
     }
 
@@ -637,7 +707,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         LotteryEntity lottery = lotteryMapper.selectById(task.getLotteryId());
 
         // 根据彩种 functionType 调用对应派奖方法。
-        executeLotteryDraw(roomMaster, issueInfo, lottery, task.getTaskId());
+        executeLotteryDraw(roomMaster, issueInfo, lottery, task);
     }
 
     /**
@@ -682,9 +752,12 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      * @param roomMaster 厅组信息
      * @param issueInfo 奖期信息
      * @param lottery 彩种信息
-     * @param taskId 队列任务 ID
+     * @param task 队列任务
      */
-    private void executeLotteryDraw(RoomMasterEntity roomMaster, IssueInfoEntity issueInfo, LotteryEntity lottery, String taskId) {
+    private void executeLotteryDraw(RoomMasterEntity roomMaster, IssueInfoEntity issueInfo, LotteryEntity lottery, AwardTitleQueueTask task) {
+        String taskId = task.getTaskId();
+        boolean priorityTask = isPriorityAwardTask(task);
+        Runnable previousCallback = null;
         try {
             // 彩种不存在时跳过，不抛异常。
             if (ObjectUtils.isEmpty(lottery)) {
@@ -696,6 +769,12 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
             // 开始派奖日志。
             log.info("后台验奖派奖开始，taskId={}，title={}，厅主ID={}，彩种ID={}，奖期={}",
                     taskId, roomMaster.getTitle(), roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue());
+
+            if (priorityTask) {
+                previousCallback = AwardTitlePriorityContext.removeAfterBatchCallback();
+            } else {
+                AwardTitlePriorityContext.setAfterBatchCallback(() -> drainAwardTitlePriorityQueue(roomMaster.getTitle()));
+            }
 
                 NoticeReq n = new NoticeReq();                          // 组装通知派奖请求对象。
                 n.setRoomMaster(roomMaster);                            // 设置厅组对象。
@@ -742,6 +821,12 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
             log.error("后台验奖派奖失败，taskId={}，title={}，厅主ID={}，彩种ID={}，奖期={}",
                     taskId, roomMaster.getTitle(), roomMaster.getMasterId(), issueInfo.getLotteryId(), issueInfo.getIssue(), e);
             throw new RuntimeException(e);
+        } finally {
+            if (priorityTask) {
+                AwardTitlePriorityContext.restoreAfterBatchCallback(previousCallback);
+            } else {
+                AwardTitlePriorityContext.clearAfterBatchCallback();
+            }
         }
     }
 
@@ -837,12 +922,22 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      *
      * <p>用于避免任务失败后立刻无限快速重试，打爆日志或数据库。</p>
      */
-    private void sleepBeforeAwardTitleQueueRetry() {
-        try {
-            Thread.sleep(AWARD_TITLE_QUEUE_RETRY_DELAY_MS);
-        } catch (InterruptedException e) {
-            // 恢复线程中断状态。
-            Thread.currentThread().interrupt();
+    private void sleepBeforeAwardTitleQueueRetry(String title) {
+        long sleptMillis = 0L;
+        while (sleptMillis < AWARD_TITLE_QUEUE_RETRY_DELAY_MS) {
+            if (redisUtils.lGetListSize(getAwardTitlePriorityQueueKey(title)) > 0) {
+                return;
+            }
+            long sleepMillis = Math.min(AWARD_TITLE_PRIORITY_CHECK_INTERVAL_MS,
+                    AWARD_TITLE_QUEUE_RETRY_DELAY_MS - sleptMillis);
+            try {
+                Thread.sleep(sleepMillis);
+                sleptMillis += sleepMillis;
+            } catch (InterruptedException e) {
+                // 恢复线程中断状态。
+                Thread.currentThread().interrupt();
+                return;
+            }
         }
     }
 
@@ -864,6 +959,68 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      */
     private String getAwardTitleQueueKey(String title) {
         return AWARD_TITLE_QUEUE_PREFIX + title;
+    }
+
+    /**
+     * 拼接 Redis title 优先队列 key。
+     *
+     * @param title 厅组 title
+     * @return Redis List 优先队列 key
+     */
+    private String getAwardTitlePriorityQueueKey(String title) {
+        return AWARD_TITLE_PRIORITY_QUEUE_PREFIX + title;
+    }
+
+    private String getNextAwardTitleQueueKey(String title) {
+        String priorityQueueKey = getAwardTitlePriorityQueueKey(title);
+        if (redisUtils.lGetListSize(priorityQueueKey) > 0 && canProcessAwardTitlePriorityQueue(title)) {
+            return priorityQueueKey;
+        }
+        String queueKey = getAwardTitleQueueKey(title);
+        if (redisUtils.lGetListSize(queueKey) > 0) {
+            return queueKey;
+        }
+        if (redisUtils.lGetListSize(priorityQueueKey) > 0) {
+            return priorityQueueKey;
+        }
+        return null;
+    }
+
+    private long getAwardTitleTotalQueueSize(String title) {
+        return redisUtils.lGetListSize(getAwardTitlePriorityQueueKey(title))
+                + redisUtils.lGetListSize(getAwardTitleQueueKey(title));
+    }
+
+    private boolean isPriorityAwardLottery(Long lotteryId) {
+        return lotteryId != null && AWARD_PRIORITY_LOTTERY_IDS.contains(lotteryId);
+    }
+
+    private boolean isPriorityAwardTask(AwardTitleQueueTask task) {
+        return task != null && (Boolean.TRUE.equals(task.getPriority()) || isPriorityAwardLottery(task.getLotteryId()));
+    }
+
+    private boolean isAwardTitlePriorityQueue(String title, String queueKey) {
+        return getAwardTitlePriorityQueueKey(title).equals(queueKey);
+    }
+
+    private boolean canProcessAwardTitlePriorityQueue(String title) {
+        Long retryAfter = AWARD_TITLE_PRIORITY_RETRY_AFTER.get(title);
+        if (retryAfter == null) {
+            return true;
+        }
+        if (System.currentTimeMillis() >= retryAfter) {
+            AWARD_TITLE_PRIORITY_RETRY_AFTER.remove(title);
+            return true;
+        }
+        return false;
+    }
+
+    private void markAwardTitlePriorityFailure(String title) {
+        AWARD_TITLE_PRIORITY_RETRY_AFTER.put(title, System.currentTimeMillis() + AWARD_TITLE_QUEUE_RETRY_DELAY_MS);
+    }
+
+    private void clearAwardTitlePriorityFailure(String title) {
+        AWARD_TITLE_PRIORITY_RETRY_AFTER.remove(title);
     }
 
     /**
@@ -910,6 +1067,11 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
          * 开奖号码。
          */
         private String code;
+
+        /**
+         * 是否优先处理。
+         */
+        private Boolean priority;
 
         /**
          * 任务创建时间戳。
