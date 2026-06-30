@@ -4,7 +4,9 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.giving.entity.AutooddsEntity;
+import com.giving.entity.LotteryEntity;
 import com.giving.entity.MethodEntity;
+import com.giving.entity.TempIssueInfoEntity;
 import com.giving.mapper.AutooddsMapper;
 import com.giving.req.BetOrderReq;
 import com.giving.req.LtProjectReq;
@@ -31,22 +33,25 @@ public class BetAutooddsServiceImpl implements BetAutooddsService {
 
     @Override
     public void validate(BetContext context, BetOrderReq req) {
-        if (context == null || context.getLottery() == null
-                || !Integer.valueOf(1).equals(context.getLottery().getIsAutoodds())
-                || req == null || req.getLtProject() == null || req.getLtProject().isEmpty()) {
+        if (context == null || req == null || req.getLtProject() == null || req.getLtProject().isEmpty()) {
             return;
         }
 
-        String functionType = normalize(context.getLottery().getFunctionType()).toUpperCase();
-        boolean sinType = isSinType(functionType);
         String operator = context.getUser() == null ? "" : normalize(context.getUser().getOperator());
-        String issue = context.getIssue() == null ? null : context.getIssue().getIssue();
-        Date saleStart = context.getIssue() == null ? null : context.getIssue().getSaleStart();
-        Map<Long, AutooddsAmount> amountByAoId = new LinkedHashMap<>();
-        Map<Long, BigDecimal> existingByAoId = new LinkedHashMap<>();
+        Map<String, AutooddsAmount> amountByAoIssue = new LinkedHashMap<>();
+        Map<String, BigDecimal> existingByAoIssue = new LinkedHashMap<>();
         boolean oddsUpdated = false;
 
         for (LtProjectReq project : req.getLtProject()) {
+            LotteryEntity lottery = context.getLotteryById(project.getLotteryId());
+            if (lottery == null || !Integer.valueOf(1).equals(lottery.getIsAutoodds())) {
+                continue;
+            }
+            String functionType = normalize(lottery.getFunctionType()).toUpperCase();
+            boolean sinType = isSinType(functionType);
+            TempIssueInfoEntity issueInfo = context.getIssueByProject(project);
+            String issue = issueInfo == null ? project.getIssue() : issueInfo.getIssue();
+            Date saleStart = issueInfo == null ? null : issueInfo.getSaleStart();
             MethodEntity method = context.getMethodMap().get(project.getMethodId());
             if (method == null) {
                 continue;
@@ -54,7 +59,7 @@ public class BetAutooddsServiceImpl implements BetAutooddsService {
             boolean k3SbYm = isK3SbYm(functionType, method);
             String codeName = resolveCodeName(project, sinType);
             List<AutooddsEntity> autooddsList = autooddsMapper.selectByMethodAndCode(
-                    context.getLottery().getLotteryId().intValue(),
+                    lottery.getLotteryId().intValue(),
                     project.getMethodId(),
                     sinType ? codeName : null,
                     k3SbYm && StringUtils.hasText(codeName)
@@ -67,13 +72,15 @@ public class BetAutooddsServiceImpl implements BetAutooddsService {
                 if (autoodds.getAutooddsId() == null || (k3SbYm && !normalize(autoodds.getCodeName()).contains("单"))) {
                     continue;
                 }
-                AutooddsAmount amount = amountByAoId.computeIfAbsent(autoodds.getAutooddsId(),
-                        id -> new AutooddsAmount(autoodds, issue));
+                String amountKey = autoodds.getAutooddsId() + "|" + issue;
+                AutooddsAmount amount = amountByAoIssue.computeIfAbsent(amountKey,
+                        key -> new AutooddsAmount(autoodds, issue));
                 amount.money = amount.money.add(nvl(project.getMoney()));
 
                 if (hasCountOdds(autoodds) && StringUtils.hasText(project.getHprize())) {
-                    BigDecimal existing = existingByAoId.computeIfAbsent(autoodds.getAutooddsId(),
-                            id -> nvl(autooddsMapper.selectIssueTotalPrice(context.getTitle(), id, issue, operator)));
+                    BigDecimal existing = existingByAoIssue.computeIfAbsent(amountKey,
+                            key -> nvl(autooddsMapper.selectIssueTotalPrice(
+                                    context.getTitle(), autoodds.getAutooddsId(), issue, operator)));
                     if (isHprizeOutdated(project.getHprize(), autoodds, existing, saleStart)) {
                         oddsUpdated = true;
                     }
@@ -83,10 +90,12 @@ public class BetAutooddsServiceImpl implements BetAutooddsService {
 
         boolean stop = false;
         boolean over = false;
-        for (AutooddsAmount amount : amountByAoId.values()) {
+        for (AutooddsAmount amount : amountByAoIssue.values()) {
             AutooddsEntity autoodds = amount.autoodds;
-            BigDecimal existing = existingByAoId.computeIfAbsent(autoodds.getAutooddsId(),
-                    id -> nvl(autooddsMapper.selectIssueTotalPrice(context.getTitle(), id, amount.issue, operator)));
+            String amountKey = autoodds.getAutooddsId() + "|" + amount.issue;
+            BigDecimal existing = existingByAoIssue.computeIfAbsent(amountKey,
+                    key -> nvl(autooddsMapper.selectIssueTotalPrice(
+                            context.getTitle(), autoodds.getAutooddsId(), amount.issue, operator)));
             if (Integer.valueOf(1).equals(autoodds.getStopbet())) {
                 stop = true;
             }

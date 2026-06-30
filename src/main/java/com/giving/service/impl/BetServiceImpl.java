@@ -195,35 +195,24 @@ public class BetServiceImpl implements BetService {
             throw new ClientAuthException("roomMasterTitle mismatch");
         }
         Map<Integer, MethodEntity> methodMap = loadMethodMap(req);
-        Integer lotteryId = resolveLotteryId(req, methodMap);
-        req.setLotteryId(lotteryId);
+        Integer primaryLotteryId = resolveProjectLotteryIds(req, methodMap);
+        req.setLotteryId(primaryLotteryId);
 
-        if (!isLotteryInService(roomMaster.getLotteryInService(), req.getLotteryId())) {
-            throw new BetBusinessException("彩种未开启");
-        }
-
+        Map<Integer, LotteryEntity> lotteryMap = loadLotteryMap(req, roomMaster);
         UserEntity user = userMapper.selectByUserId(title, req.getUserId());
         validateUser(user, session);
         validateTrialLobbyLimit(roomMaster, user, title, req.getLtMoneyAmout());
 
-        LotteryEntity lottery = lotteryMapper.selectById(Long.valueOf(req.getLotteryId()));
-        if (lottery == null || Integer.valueOf(0).equals(lottery.getIsActive())) {
-            throw new BetBusinessException("彩种不存在或未启用");
-        }
-
-        TempIssueInfoEntity issue = findIssue(title, req);
-        validateIssue(issue, Long.valueOf(req.getLotteryId()));
-
         validateBlockedMethods(roomMaster.getMasterId(), session.getOperator(), methodMap);
         validateShaduizi(roomMaster.getMasterId(), user, methodMap, req);
-        validateSpecial3DRules(title, req, issue);
-
         context.setRoomMaster(roomMaster);
         context.setTitle(title);
         context.setUser(user);
-        context.setLottery(lottery);
-        context.setIssue(issue);
+        context.setLotteryMap(lotteryMap);
+        context.setLottery(lotteryMap.get(primaryLotteryId));
         context.setMethodMap(methodMap);
+        populateProjectIssues(title, req, context);
+        validateSpecial3DRules(title, req);
         return context;
     }
 
@@ -441,6 +430,48 @@ public class BetServiceImpl implements BetService {
      * 校验1分3D部分玩法段内号码不可重复
      * @param req 投注请求
      */
+    private void validateSpecial3DRules(String title, BetOrderReq req) {
+        boolean hasOneMin3DProject = false;
+        Map<String, Integer> currentCounts = new LinkedHashMap<>();
+        Map<String, Integer> lotteryIds = new HashMap<>();
+        Map<String, String> issues = new HashMap<>();
+        Map<String, Integer> qzx3MethodIds = new HashMap<>();
+        for (LtProjectReq projectReq : req.getLtProject()) {
+            Integer lotteryId = projectReq.getLotteryId();
+            int index = ONE_MIN_3D_LOTTERY_IDS.indexOf(lotteryId);
+            if (index < 0) {
+                continue;
+            }
+            hasOneMin3DProject = true;
+            Integer qzx3MethodId = ONE_MIN_3D_QZX3_METHOD_IDS.get(index);
+            if (!qzx3MethodId.equals(projectReq.getMethodId())) {
+                continue;
+            }
+            String issue = projectReq.getIssue();
+            String key = lotteryId + "|" + issue;
+            currentCounts.put(key, currentCounts.getOrDefault(key, 0) + 1);
+            lotteryIds.put(key, lotteryId);
+            issues.put(key, issue);
+            qzx3MethodIds.put(key, qzx3MethodId);
+        }
+        if (!hasOneMin3DProject) {
+            return;
+        }
+        validateOneMin3DRepeatCodes(req);
+        for (Map.Entry<String, Integer> entry : currentCounts.entrySet()) {
+            Integer existingCount = betInfoMapper.countByUserLotteryIssueMethods(
+                    title,
+                    req.getUserId(),
+                    lotteryIds.get(entry.getKey()),
+                    issues.get(entry.getKey()),
+                    Collections.singletonList(qzx3MethodIds.get(entry.getKey()))
+            );
+            if ((existingCount == null ? 0 : existingCount) + entry.getValue() > 5) {
+                throw new BetBusinessException("本玩法一期不能投注超过五单");
+            }
+        }
+    }
+
     private void validateOneMin3DRepeatCodes(BetOrderReq req) {
         for (LtProjectReq projectReq : req.getLtProject()) {
             if (!ONE_MIN_3D_REPEAT_CHECK_METHOD_IDS.contains(projectReq.getMethodId())
@@ -477,6 +508,22 @@ public class BetServiceImpl implements BetService {
             }
         }
         return false;
+    }
+
+    private TempIssueInfoEntity findIssue(String title, Integer lotteryId, String issueNo) {
+        Long queryLotteryId = Long.valueOf(lotteryId);
+        if ("now".equalsIgnoreCase(issueNo)) {
+            return tempIssueInfoMapper.selectCurrentByTitle(title, queryLotteryId);
+        }
+        TempIssueInfoEntity issueInfo = tempIssueInfoMapper.selectByTitle(title, queryLotteryId, issueNo);
+        if (ObjectUtils.isEmpty(issueInfo)) {
+            IssueInfoEntity issueInfoTemp = issueInfoMapper.selectByLotteryIdAndIssue(queryLotteryId, issueNo);
+            if (ObjectUtils.isEmpty(issueInfoTemp)) {
+                return issueInfo;
+            }
+            issueInfo = tempIssueInfoMapper.insertTempIssueInfo(title, issueInfoTemp);
+        }
+        return issueInfo;
     }
 
     /**
@@ -547,6 +594,73 @@ public class BetServiceImpl implements BetService {
         return methodMap;
     }
 
+    private Integer resolveProjectLotteryIds(BetOrderReq req, Map<Integer, MethodEntity> methodMap) {
+        Integer requestLotteryId = req.getLotteryId();
+        Integer primaryLotteryId = null;
+        for (LtProjectReq projectReq : req.getLtProject()) {
+            MethodEntity method = methodMap.get(projectReq.getMethodId());
+            if (method == null || method.getLotteryId() == null) {
+                throw new BetBusinessException("玩法彩种配置错误");
+            }
+            Integer methodLotteryId = method.getLotteryId();
+            if (requestLotteryId != null && !requestLotteryId.equals(methodLotteryId)) {
+                throw new BetBusinessException("玩法和彩种不匹配");
+            }
+            if (projectReq.getLotteryId() != null && !projectReq.getLotteryId().equals(methodLotteryId)) {
+                throw new BetBusinessException("玩法和彩种不匹配");
+            }
+            projectReq.setLotteryId(methodLotteryId);
+            if (primaryLotteryId == null) {
+                primaryLotteryId = methodLotteryId;
+            }
+        }
+        if (primaryLotteryId == null) {
+            throw new BetBusinessException("彩种ID不能为空");
+        }
+        return primaryLotteryId;
+    }
+
+    private Map<Integer, LotteryEntity> loadLotteryMap(BetOrderReq req, RoomMasterEntity roomMaster) {
+        Map<Integer, LotteryEntity> lotteryMap = new LinkedHashMap<>();
+        for (LtProjectReq projectReq : req.getLtProject()) {
+            Integer lotteryId = projectReq.getLotteryId();
+            if (lotteryId == null || lotteryMap.containsKey(lotteryId)) {
+                continue;
+            }
+            if (!isLotteryInService(roomMaster.getLotteryInService(), lotteryId)) {
+                throw new BetBusinessException("彩种未开启");
+            }
+            LotteryEntity lottery = lotteryMapper.selectById(Long.valueOf(lotteryId));
+            if (lottery == null || Integer.valueOf(0).equals(lottery.getIsActive())) {
+                throw new BetBusinessException("彩种不存在或未启用");
+            }
+            lotteryMap.put(lotteryId, lottery);
+        }
+        if (lotteryMap.isEmpty()) {
+            throw new BetBusinessException("彩种ID不能为空");
+        }
+        return lotteryMap;
+    }
+
+    private void populateProjectIssues(String title, BetOrderReq req, BetContext context) {
+        for (LtProjectReq projectReq : req.getLtProject()) {
+            TempIssueInfoEntity issue = findIssue(title, projectReq.getLotteryId(), resolveProjectIssue(req, projectReq));
+            validateIssue(issue, Long.valueOf(projectReq.getLotteryId()));
+            projectReq.setIssue(issue.getIssue());
+            context.putIssue(issue);
+            if (context.getIssue() == null) {
+                context.setIssue(issue);
+            }
+        }
+    }
+
+    private String resolveProjectIssue(BetOrderReq req, LtProjectReq projectReq) {
+        if ("now".equalsIgnoreCase(req.getLtIssueStart())) {
+            return req.getLtIssueStart();
+        }
+        return StringUtils.hasText(projectReq.getIssue()) ? projectReq.getIssue() : req.getLtIssueStart();
+    }
+
     /**
      * Resolve lottery id from request or the selected methods.
      */
@@ -614,11 +728,12 @@ public class BetServiceImpl implements BetService {
         List<BetInfoEntity> projects = new ArrayList<>();
         for (LtProjectReq projectReq : req.getLtProject()) {
             MethodEntity method = context.getMethodMap().get(projectReq.getMethodId());
+            LotteryEntity lottery = context.getLotteryById(projectReq.getLotteryId());
             BigDecimal modeRate = modesRate(projectReq.getMode());
             BigDecimal singlePrice = projectReq.getOnePrice()
                     .multiply(BigDecimal.valueOf(projectReq.getNums()))
                     .multiply(modeRate);
-            HandicapPrizeSource handicapPrize = resolveHandicapPrizeSource(context, method, handicapPrizeJson);
+            HandicapPrizeSource handicapPrize = resolveHandicapPrizeSource(lottery, method, handicapPrizeJson);
             BigDecimal point;
             PrizeSource prizeSource;
             if (handicapPrize == null) {
@@ -635,9 +750,9 @@ public class BetServiceImpl implements BetService {
             project.setUserId(req.getUserId());
             project.setPackageId("1");
             project.setTaskId("");
-            project.setLotteryId(req.getLotteryId());
+            project.setLotteryId(projectReq.getLotteryId());
             project.setMethodId(projectReq.getMethodId());
-            project.setIssue(context.getIssue().getIssue());
+            project.setIssue(projectReq.getIssue());
             project.setBonus(0D);
             project.setWinbonus(prizeCalc.winbonus);
             project.setCode(projectReq.getCodes());
@@ -699,9 +814,13 @@ public class BetServiceImpl implements BetService {
         Date now = new Date();
         List<ProjectsTmpEntity> result = new ArrayList<>();
         for (BetInfoEntity project : projects) {
+            TempIssueInfoEntity issue = context.getIssueByLotteryAndIssue(project.getLotteryId(), project.getIssue());
+            if (issue == null) {
+                throw new BetBusinessException("奖期不存在");
+            }
             ProjectsTmpEntity tmp = new ProjectsTmpEntity();
             tmp.setTmpId(newBizId(context.getRoomMaster().getMasterId()));
-            tmp.setIssueId(context.getIssue().getIssueId());
+            tmp.setIssueId(issue.getIssueId());
             tmp.setLotteryId(project.getLotteryId());
             tmp.setProjectId(project.getProjectId());
             tmp.setStatus(0);
@@ -861,10 +980,10 @@ public class BetServiceImpl implements BetService {
         }
     }
 
-    private HandicapPrizeSource resolveHandicapPrizeSource(BetContext context,
+    private HandicapPrizeSource resolveHandicapPrizeSource(LotteryEntity lottery,
                                                            MethodEntity method,
                                                            JSONObject handicapPrizeJson) {
-        if (!isHandicapMethod(context, method)) {
+        if (!isHandicapMethod(lottery, method)) {
             return null;
         }
         if (method == null || !StringUtils.hasText(method.getPrizeSetKey())) {
@@ -913,14 +1032,14 @@ public class BetServiceImpl implements BetService {
         return point.compareTo(ZERO) < 0 ? selectedPoint : point;
     }
 
-    private boolean isHandicapMethod(BetContext context, MethodEntity method) {
+    private boolean isHandicapMethod(LotteryEntity lottery, MethodEntity method) {
         if (method != null && isHandicapFunction(method.getPrizeSetKey())) {
             return true;
         }
-        if (context == null || context.getLottery() == null) {
+        if (lottery == null) {
             return false;
         }
-        return isHandicapFunction(context.getLottery().getFunctionType());
+        return isHandicapFunction(lottery.getFunctionType());
     }
 
     private boolean isHandicapFunction(String value) {

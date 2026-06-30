@@ -1,6 +1,7 @@
 package com.giving.service.impl;
 
 import com.giving.entity.CurrencyStakeEntity;
+import com.giving.entity.LotteryEntity;
 import com.giving.entity.MethodEntity;
 import com.giving.mapper.CurrencyStakeMapper;
 import com.giving.req.BetOrderReq;
@@ -130,11 +131,20 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
      * @param project 投注项
      */
     private void normalizeProject(BetContext context, LtProjectReq project) {
-        if (project.getLotteryId() == null && context.getLottery() != null) {
-            project.setLotteryId(context.getLottery().getLotteryId().intValue());
+        MethodEntity method = context.getMethodMap().get(project.getMethodId());
+        if (method == null || method.getLotteryId() == null) {
+            throw new IllegalStateException("玩法不存在");
         }
-        if (!StringUtils.hasText(project.getIssue()) && context.getIssue() != null) {
-            project.setIssue(context.getIssue().getIssue());
+        if (project.getLotteryId() == null) {
+            project.setLotteryId(method.getLotteryId());
+        }
+        if (!project.getLotteryId().equals(method.getLotteryId())) {
+            throw new IllegalStateException("玩法和彩种不匹配");
+        }
+        if (!StringUtils.hasText(project.getIssue())) {
+            if (context.getIssueByProject(project) != null) {
+                project.setIssue(context.getIssueByProject(project).getIssue());
+            }
         }
         if (!StringUtils.hasText(project.getType())) {
             project.setType("digital");
@@ -142,7 +152,7 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
         if (!StringUtils.hasText(project.getCodes())) {
             throw new IllegalStateException("投注内容有误");
         }
-        if ("input".equalsIgnoreCase(project.getType()) && !isVnFunction(functionType(context))) {
+        if ("input".equalsIgnoreCase(project.getType()) && !isVnFunction(functionType(context, project))) {
             project.setCodes(decodeInputCodes(project.getCodes()));
         }
     }
@@ -156,7 +166,7 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
      */
     @Override
     public long calculate(BetContext context, LtProjectReq project, MethodEntity method) {
-        String functionType = functionType(context);
+        String functionType = functionType(context, project);
         String code = normalize(method.getCode()).toUpperCase();
         if (SSC_FUNCTIONS.contains(functionType)) {
             return calcSsc(context, project, code);
@@ -233,7 +243,7 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
                 || project.getMoney() == null || project.getMoney().compareTo(ZERO) <= 0) {
             throw new IllegalStateException("投注金额有误");
         }
-        CurrencyStakeEntity currencyStake = findCurrencyStake(context);
+        CurrencyStakeEntity currencyStake = findCurrencyStake(context, project);
         BigDecimal stake = currencyStake.getStake();
         Integer pow = currencyStake.getPow() == null ? 0 : currencyStake.getPow();
         if (stake == null || stake.compareTo(ZERO) <= 0
@@ -242,7 +252,7 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
             throw new IllegalStateException("投注金额有误");
         }
         BigDecimal expected;
-        String functionType = functionType(context);
+        String functionType = functionType(context, project);
         if (isSimpleAmountProject(functionType, project)) {
             expected = project.getOnePrice().multiply(BigDecimal.valueOf(serverNums));
         } else {
@@ -260,7 +270,7 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
      * 时时彩/福彩3D/HL 4D 注数
      */
     private long calcSsc(BetContext context, LtProjectReq project, String code) {
-        int digits = "HL_4D".equals(functionType(context)) ? 4 : 5;
+        int digits = "HL_4D".equals(functionType(context, project)) ? 4 : 5;
         if (in(code, "ZX5")) {
             return directPosition(project, 5);
         }
@@ -1589,8 +1599,8 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
         }
     }
 
-    private CurrencyStakeEntity findCurrencyStake(BetContext context) {
-        String functionType = functionType(context);
+    private CurrencyStakeEntity findCurrencyStake(BetContext context, LtProjectReq project) {
+        String functionType = functionType(context, project);
         String currency = context == null || context.getUser() == null
                 ? ""
                 : normalize(context.getUser().getCurrency()).toUpperCase();
@@ -1631,6 +1641,11 @@ public class BetContentValidationServiceImpl implements BetContentValidationServ
 
     private boolean isInput(LtProjectReq project) {
         return "input".equalsIgnoreCase(project.getType());
+    }
+
+    private String functionType(BetContext context, LtProjectReq project) {
+        LotteryEntity lottery = context == null ? null : context.getLotteryById(project.getLotteryId());
+        return lottery == null ? "" : normalize(lottery.getFunctionType()).toUpperCase();
     }
 
     private String functionType(BetContext context) {

@@ -63,16 +63,14 @@ public class BetBonusLimitServiceImpl implements BetBonusLimitService {
     @Override
     public BetBonusLimitCheckResult checkAndBuild(BetContext context, BetOrderReq req, List<BetInfoEntity> projects) {
         BetBonusLimitCheckResult result = new BetBonusLimitCheckResult();
-        BigDecimal prizeLimitCny = resolvePrizeLimitCny(context);
-        BigDecimal prizeLimitUserCurrency = scale(prizeLimitCny.multiply(currencyRate(context)));
 
-        validateSingleProjectLimit(projects, prizeLimitUserCurrency);
+        validateSingleProjectLimit(context, projects);
 
         List<BonusLimitUserIssueInfoEntity> userIssueRecords = buildUserIssueRecords(context, projects);
         validateUserIssueLimit(context, userIssueRecords);
         result.setUserIssueLimits(userIssueRecords);
 
-        List<VnBonusLimitEntity> vnBonusLimits = buildAndValidateVnBonusLimit(context, req, projects, prizeLimitCny);
+        List<VnBonusLimitEntity> vnBonusLimits = buildAndValidateVnBonusLimit(context, req, projects);
         result.setVnBonusLimits(vnBonusLimits);
         return result;
     }
@@ -82,9 +80,8 @@ public class BetBonusLimitServiceImpl implements BetBonusLimitService {
      * @param context 投注上下文
      * @return CNY限额
      */
-    private BigDecimal resolvePrizeLimitCny(BetContext context) {
+    private BigDecimal resolvePrizeLimitCny(BetContext context, Integer lotteryId) {
         String opCode = context.getUser() == null ? "" : normalize(context.getUser().getOperator());
-        Integer lotteryId = context.getLottery() == null ? null : context.getLottery().getLotteryId().intValue();
         BigDecimal dbLimit = bonusLimitMapper.selectLotteryBonusLimit(context.getTitle(), lotteryId, opCode);
         BigDecimal defaultLimit = isGpiRoom(context.getRoomMaster()) ? GPI_BONUS_LIMIT_CNY : DEFAULT_BONUS_LIMIT_CNY;
         if (dbLimit == null || dbLimit.compareTo(ZERO) < 0) {
@@ -107,11 +104,12 @@ public class BetBonusLimitServiceImpl implements BetBonusLimitService {
      * @param projects 注单列表
      * @param prizeLimitUserCurrency 用户币别限额
      */
-    private void validateSingleProjectLimit(List<BetInfoEntity> projects, BigDecimal prizeLimitUserCurrency) {
-        if (prizeLimitUserCurrency == null || prizeLimitUserCurrency.compareTo(ZERO) <= 0) {
-            throw new IllegalStateException("投注金额超过最大上限，无法完成投注");
-        }
+    private void validateSingleProjectLimit(BetContext context, List<BetInfoEntity> projects) {
         for (BetInfoEntity project : projects) {
+            BigDecimal prizeLimitUserCurrency = scale(resolvePrizeLimitCny(context, project.getLotteryId()).multiply(currencyRate(context)));
+            if (prizeLimitUserCurrency.compareTo(ZERO) <= 0) {
+                throw new IllegalStateException("投注金额超过最大上限，无法完成投注");
+            }
             BigDecimal totalPrice = BigDecimal.valueOf(project.getTotalPrice());
             if (totalPrice.compareTo(prizeLimitUserCurrency) > 0) {
                 throw new IllegalStateException("投注金额超过最大上限，无法完成投注");
@@ -202,38 +200,49 @@ public class BetBonusLimitServiceImpl implements BetBonusLimitService {
      * @return 号码累计记录
      */
     private List<VnBonusLimitEntity> buildAndValidateVnBonusLimit(BetContext context, BetOrderReq req,
-                                                                  List<BetInfoEntity> projects,
-                                                                  BigDecimal prizeLimitCny) {
-        if (context.getLottery() == null || !VN_TH_LOTTERY_IDS.contains(context.getLottery().getLotteryId().intValue())) {
-            return Collections.emptyList();
-        }
+                                                                  List<BetInfoEntity> projects) {
         String opCode = context.getUser() == null ? "" : normalize(context.getUser().getOperator());
-        String issue = context.getIssue() == null ? "" : context.getIssue().getIssue();
-        Integer lotteryId = context.getLottery().getLotteryId().intValue();
-        List<VnBonusLimitEntity> existing = vnBonusLimitMapper.selectByOpLotteryIssue(
-                context.getTitle(), opCode, lotteryId, issue);
-        Map<String, VnBonusLimitEntity> existingByCode = new HashMap<>();
-        Map<Integer, BigDecimal> methodAmount = new HashMap<>();
-        for (VnBonusLimitEntity row : existing) {
-            existingByCode.put(vnKey(row.getMethodId(), row.getCodeNumber()), row);
-            methodAmount.put(row.getMethodId(), nvl(methodAmount.get(row.getMethodId())).add(nvl(row.getTotalAmount())));
-        }
-
         List<VnBonusLimitEntity> pending = new ArrayList<>();
-        Map<String, VnBonusLimitEntity> pendingByCode = new LinkedHashMap<>();
+        Map<String, Map<String, VnBonusLimitEntity>> existingByScope = new HashMap<>();
+        Map<String, Map<Integer, BigDecimal>> methodAmountByScope = new HashMap<>();
+        Map<String, Map<String, VnBonusLimitEntity>> pendingByScope = new LinkedHashMap<>();
         for (int i = 0; i < projects.size(); i++) {
             BetInfoEntity project = projects.get(i);
+            Integer lotteryId = project.getLotteryId();
+            if (!VN_TH_LOTTERY_IDS.contains(lotteryId)) {
+                continue;
+            }
+            String issue = project.getIssue();
+            String scope = lotteryId + "|" + issue;
+            if (!existingByScope.containsKey(scope)) {
+                List<VnBonusLimitEntity> existing = vnBonusLimitMapper.selectByOpLotteryIssue(
+                        context.getTitle(), opCode, lotteryId, issue);
+                Map<String, VnBonusLimitEntity> existingByCode = new HashMap<>();
+                Map<Integer, BigDecimal> methodAmount = new HashMap<>();
+                if (existing != null) {
+                    for (VnBonusLimitEntity row : existing) {
+                        existingByCode.put(vnKey(row.getMethodId(), row.getCodeNumber()), row);
+                        methodAmount.put(row.getMethodId(), nvl(methodAmount.get(row.getMethodId())).add(nvl(row.getTotalAmount())));
+                    }
+                }
+                existingByScope.put(scope, existingByCode);
+                methodAmountByScope.put(scope, methodAmount);
+            }
+            Map<String, VnBonusLimitEntity> pendingByCode = pendingByScope.computeIfAbsent(scope, key -> new LinkedHashMap<>());
             LtProjectReq projectReq = req.getLtProject().get(i);
             MethodEntity method = context.getMethodMap().get(project.getMethodId());
             List<VnBonusLimitEntity> projectRecords = lotteryId == 242
                     ? buildThRecords(context, project, projectReq, method, opCode)
                     : buildVnRecords(context, project, projectReq, method, opCode);
+            BigDecimal prizeLimitCny = resolvePrizeLimitCny(context, lotteryId);
             for (VnBonusLimitEntity record : projectRecords) {
-                validateVnQuota(record, existingByCode, methodAmount, pendingByCode, prizeLimitCny);
+                validateVnQuota(record, existingByScope.get(scope), methodAmountByScope.get(scope), pendingByCode, prizeLimitCny);
                 mergeVnRecord(pendingByCode, record);
             }
         }
-        pending.addAll(pendingByCode.values());
+        for (Map<String, VnBonusLimitEntity> rows : pendingByScope.values()) {
+            pending.addAll(rows.values());
+        }
         return pending;
     }
 
@@ -376,7 +385,7 @@ public class BetBonusLimitServiceImpl implements BetBonusLimitService {
         VnBonusLimitEntity row = new VnBonusLimitEntity();
         row.setOpCode(opCode);
         row.setLotteryId(project.getLotteryId());
-        row.setIssue(context.getIssue().getIssue());
+        row.setIssue(project.getIssue());
         row.setMethodId(project.getMethodId());
         row.setCodeNumber(code);
         row.setTotalBonus(scale(bonusCny));
