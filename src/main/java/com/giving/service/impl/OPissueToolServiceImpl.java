@@ -7,7 +7,6 @@ import java.util.Date;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.ObjectUtils;
@@ -83,11 +82,6 @@ public class OPissueToolServiceImpl implements OPissueToolService {
         wrapper.eq(IssueInfoEntity::getLotteryId, req.getLotteryId());
         wrapper.eq(IssueInfoEntity::getIssue, req.getIssue());
         IssueInfoEntity issueInfoEntity = issueInfoMapper.selectOne(wrapper);
-        if (ObjectUtils.isEmpty(issueInfoEntity)) {
-            log.info("manualDistribution issue not exists, masterId={}, lotteryId={}, issue={}",
-                    req.getMasterId(), req.getLotteryId(), req.getIssue());
-            return ApiResp.paramError("issue not exists");
-        }
         
         if (StringUtils.isEmpty(issueInfoEntity.getCode())) {
             log.info("========未录号===========");
@@ -107,30 +101,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             IssueInfoEntity issueInfo = issueInfoMapper.selectByTitle(roomMasterEntity.getTitle(), req);
             
             if(ObjectUtils.isEmpty(issueInfo)) {
-                Integer pendingAwardProjectCount = betInfoMapper.countPendingAwardProjects(
-                        roomMasterEntity.getTitle(), req.getLotteryId(), req.getIssue());
-                if (ObjectUtils.isEmpty(pendingAwardProjectCount) || pendingAwardProjectCount <= 0) {
-                    log.info("manualDistribution room issue not exists and no pending award project, skip award, title={}, masterId={}, lotteryId={}, issue={}",
-                            roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue());
-                    return ApiResp.sucess();
-                }
-                log.warn("manualDistribution room issue not exists, create before award, title={}, masterId={}, lotteryId={}, issue={}",
-                        roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue());
-                List<String> titles = new ArrayList<>();
-                titles.add(roomMasterEntity.getTitle());
-                try {
-                    issueInfoMapper.upsertIssueToRooms(titles, issueInfoEntity);
-                } catch (DuplicateKeyException e) {
-                    log.warn("manualDistribution room issue already exists when create, update before award, title={}, masterId={}, lotteryId={}, issue={}",
-                            roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue(), e);
-                    issueInfoMapper.insertIssueToRooms(titles, issueInfoEntity);
-                }
-                issueInfo = issueInfoMapper.selectByTitle(roomMasterEntity.getTitle(), req);
-                if (ObjectUtils.isEmpty(issueInfo)) {
-                    log.error("manualDistribution room issue create failed, title={}, masterId={}, lotteryId={}, issue={}",
-                            roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue());
-                    return ApiResp.paramError("room issue not exists");
-                }
+            	return ApiResp.sucess();
             }
 
             if (StringUtils.isEmpty(issueInfo.getCode())) {
