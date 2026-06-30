@@ -59,6 +59,10 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 
 	Integer countListByNoticeReq(@Param("noticeReq") NoticeReq noticeReq);
 
+	Integer countPendingAwardProjects(@Param("title") String title,
+									 @Param("lotteryId") Long lotteryId,
+									 @Param("issue") String issue);
+
 	List<String> selectPendingProjectIdsByProjects(@Param("title") String title, @Param("projects") List<BetInfoEntity> projects);
 
 	/**

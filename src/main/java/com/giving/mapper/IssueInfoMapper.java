@@ -19,6 +19,8 @@ import java.util.List;
 public interface IssueInfoMapper extends BaseMapper<IssueInfoEntity> {
     void insertIssueToRooms(@Param("titles") List<String> titles, @Param("issueInfo") IssueInfoEntity issueInfo);
 
+    void upsertIssueToRooms(@Param("titles") List<String> titles, @Param("issueInfo") IssueInfoEntity issueInfo);
+
     IssueInfoEntity selectByTitle(@Param("titles") String title,@Param("req")  ManualDistributionReq req);
 
     List<UserNoteListResp> selectUserNoteList(@Param("req") UserNoteListReq req,@Param("title") String title);

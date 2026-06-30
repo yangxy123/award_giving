@@ -61,6 +61,18 @@
         where pr.issue = #{noticeReq.issue} and pr.lottery_id = #{noticeReq.lotteryId} and is_getprize = 0 and is_cancel = 0
         order by pr.project_id
     </select>
+    <select id="countPendingAwardProjects" resultType="java.lang.Integer">
+        SELECT count(1)
+        FROM (
+            SELECT 1
+            FROM ${title}_projects
+            WHERE lottery_id = #{lotteryId}
+              AND issue = #{issue}
+              AND is_cancel = 0
+              AND is_getprize = 0
+            LIMIT 1
+        ) t
+    </select>
     <select id="selectPendingProjectIdsByProjects" resultType="java.lang.String">
         SELECT project_id
         FROM ${title}_projects
