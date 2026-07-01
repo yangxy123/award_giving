@@ -57,12 +57,9 @@
         order by pr.user_id, pr.project_id
     </select>
     <select id="countListByNoticeReq" resultType="java.lang.Integer">
-        SELECT count(1)
-        FROM ${noticeReq.title}_projects pr
-        WHERE pr.issue = #{noticeReq.issue}
-          AND pr.lottery_id = #{noticeReq.lotteryId}
-          AND pr.is_getprize = 0
-          AND pr.is_cancel = 0
+        SELECT count(1) as methodCode FROM ${noticeReq.title}_projects pr LEFT JOIN method me ON pr.method_id = me.method_id
+        where pr.issue = #{noticeReq.issue} and pr.lottery_id = #{noticeReq.lotteryId} and is_getprize = 0 and prize_status = 0 and is_cancel = 0
+        order by pr.project_id
     </select>
     <select id="countPendingManualDistributionProjects" resultType="java.lang.Integer">
         SELECT count(1)

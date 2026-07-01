@@ -43,9 +43,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class OPissueToolServiceImpl implements OPissueToolService {
-    private static final int PENDING_PROJECT_SCAN_ATTEMPTS = 3;
-    private static final long PENDING_PROJECT_SCAN_DELAY_MS = 1000L;
-
     @Autowired
     private RoomMasterMapper roomMasterMapper;
     @Autowired
@@ -113,10 +110,6 @@ public class OPissueToolServiceImpl implements OPissueToolService {
                 Integer pendingProjectCount = betInfoMapper.countPendingManualDistributionProjects(
                         roomMasterEntity.getTitle(), req.getLotteryId(), req.getIssue());
                 if (pendingProjectCount == null || pendingProjectCount <= 0) {
-                    pendingProjectCount = waitForPendingManualDistributionProjects(
-                            roomMasterEntity.getTitle(), req.getLotteryId(), req.getIssue());
-                }
-                if (pendingProjectCount == null || pendingProjectCount <= 0) {
                     log.info("manualDistribution room issue not exists and no pending award project, skip award, title={}, masterId={}, lotteryId={}, issue={}",
                             roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue());
                     return ApiResp.sucess();
@@ -151,31 +144,6 @@ public class OPissueToolServiceImpl implements OPissueToolService {
 
         return ApiResp.sucess();
 
-    }
-
-    private Integer waitForPendingManualDistributionProjects(String title, Long lotteryId, String issue) {
-        for (int attempt = 1; attempt <= PENDING_PROJECT_SCAN_ATTEMPTS; attempt++) {
-            if (!sleepBeforePendingProjectScan()) {
-                return 0;
-            }
-            Integer pendingProjectCount = betInfoMapper.countPendingManualDistributionProjects(title, lotteryId, issue);
-            if (pendingProjectCount != null && pendingProjectCount > 0) {
-                log.info("late pending manual distribution projects found, title={}, lotteryId={}, issue={}, attempt={}, pendingCount={}",
-                        title, lotteryId, issue, attempt, pendingProjectCount);
-                return pendingProjectCount;
-            }
-        }
-        return 0;
-    }
-
-    private boolean sleepBeforePendingProjectScan() {
-        try {
-            Thread.sleep(PENDING_PROJECT_SCAN_DELAY_MS);
-            return true;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
-        }
     }
 
     @Override

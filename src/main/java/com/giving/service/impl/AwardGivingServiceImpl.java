@@ -63,8 +63,6 @@ import lombok.extern.slf4j.Slf4j;
 public class AwardGivingServiceImpl implements AwardGivingService {
     private static final int DATA_HANDLE_DEADLOCK_MAX_ATTEMPTS = 6;
     private static final long DATA_HANDLE_DEADLOCK_RETRY_INTERVAL_MS = 200L;
-    private static final int LATE_PENDING_PROJECT_SCAN_ATTEMPTS = 3;
-    private static final long LATE_PENDING_PROJECT_SCAN_DELAY_MS = 1000L;
 
     @Autowired
     private BetInfoMapper betInfoMapper;
@@ -103,16 +101,10 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = selectNoticeReqPage(noticeReq, pageSize);
             if (list == null || list.isEmpty()) {
-                if (waitForLatePendingProjects(noticeReq, "empty")) {
-                    continue;
-                }
                 //log.info("===========订单查询完毕 page:{}",pageNo);
                 break;
             }
             if (!retainPendingProjects(noticeReq, list)) {
-                if (waitForLatePendingProjects(noticeReq, "stale")) {
-                    continue;
-                }
                 break;
             }
             batchCount += 1;
@@ -479,9 +471,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 }
                 runAwardTitlePriorityCallback();
                 if (list.size() < pageSize) {
-                    if (waitForLatePendingProjects(noticeReq, "tail")) {
-                        continue;
-                    }
                     break;
                 }
                 
@@ -523,15 +512,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 // 获取对应奖期对应彩种未撤单且未派奖的所有订单
                 List<BetInfoEntity> list = selectNoticeReqPage(noticeReq, pageSize);
                 if (list.isEmpty()) {
-                    if (waitForLatePendingProjects(noticeReq, "empty")) {
-                        continue;
-                    }
                     break;
                 }
                 if (!retainPendingProjects(noticeReq, list)) {
-                    if (waitForLatePendingProjects(noticeReq, "stale")) {
-                        continue;
-                    }
                     break;
                 }
                 pageNo += 1;
@@ -782,9 +765,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
                 }
                 runAwardTitlePriorityCallback();
                 if (list.size() < pageSize) {
-                    if (waitForLatePendingProjects(noticeReq, "tail")) {
-                        continue;
-                    }
                     break;
                 }
             }
@@ -824,15 +804,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = selectNoticeReqPage(noticeReq, pageSize);
             if (list.isEmpty()) {
-                if (waitForLatePendingProjects(noticeReq, "empty")) {
-                    continue;
-                }
                 break;
             }
             if (!retainPendingProjects(noticeReq, list)) {
-                if (waitForLatePendingProjects(noticeReq, "stale")) {
-                    continue;
-                }
                 break;
             }
             pageNo += 1;
@@ -967,9 +941,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             }
             runAwardTitlePriorityCallback();
             if (list.size() < pageSize) {
-                if (waitForLatePendingProjects(noticeReq, "tail")) {
-                    continue;
-                }
                 break;
             }
         }
@@ -1008,15 +979,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = selectNoticeReqPage(noticeReq, pageSize);
             if (list.isEmpty()) {
-                if (waitForLatePendingProjects(noticeReq, "empty")) {
-                    continue;
-                }
                 break;
             }
             if (!retainPendingProjects(noticeReq, list)) {
-                if (waitForLatePendingProjects(noticeReq, "stale")) {
-                    continue;
-                }
                 break;
             }
             pageNo += 1;
@@ -1075,9 +1040,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             betAllWinList.clear();
             runAwardTitlePriorityCallback();
             if (list.size() < pageSize) {
-                if (waitForLatePendingProjects(noticeReq, "tail")) {
-                    continue;
-                }
                 break;
             }
         }
@@ -1115,15 +1077,9 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             // 获取对应奖期对应彩种未撤单且未派奖的所有订单
             List<BetInfoEntity> list = selectNoticeReqPage(noticeReq, pageSize);
             if (list.isEmpty()) {
-                if (waitForLatePendingProjects(noticeReq, "empty")) {
-                    continue;
-                }
                 break;
             }
             if (!retainPendingProjects(noticeReq, list)) {
-                if (waitForLatePendingProjects(noticeReq, "stale")) {
-                    continue;
-                }
                 break;
             }
             pageNo += 1;
@@ -1193,9 +1149,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             betAllWinList.clear();
             runAwardTitlePriorityCallback();
             if (list.size() < pageSize) {
-                if (waitForLatePendingProjects(noticeReq, "tail")) {
-                    continue;
-                }
                 break;
             }
         }
@@ -1273,39 +1226,6 @@ public class AwardGivingServiceImpl implements AwardGivingService {
         Set<String> pendingProjectIdSet = new HashSet<>(pendingProjectIds);
         projects.removeIf(project -> !pendingProjectIdSet.contains(project.getProjectId()));
         return !projects.isEmpty();
-    }
-
-    private boolean waitForLatePendingProjects(NoticeReq noticeReq, String stage) {
-        for (int attempt = 1; attempt <= LATE_PENDING_PROJECT_SCAN_ATTEMPTS; attempt++) {
-            if (!sleepBeforeLatePendingProjectScan()) {
-                return false;
-            }
-            Integer pendingCount = countPendingNoticeReqProjects(noticeReq);
-            if (pendingCount != null && pendingCount > 0) {
-                log.info("late pending award projects found, continue award, title={}, lotteryId={}, issue={}, stage={}, attempt={}, pendingCount={}",
-                        noticeReq.getTitle(), noticeReq.getLotteryId(), noticeReq.getIssue(), stage, attempt, pendingCount);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private Integer countPendingNoticeReqProjects(NoticeReq noticeReq) {
-        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-        transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-        transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
-        transactionTemplate.setReadOnly(true);
-        return transactionTemplate.execute(status -> betInfoMapper.countListByNoticeReq(noticeReq));
-    }
-
-    private boolean sleepBeforeLatePendingProjectScan() {
-        try {
-            Thread.sleep(LATE_PENDING_PROJECT_SCAN_DELAY_MS);
-            return true;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
-        }
     }
 
 
@@ -1388,8 +1308,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             BetInfoEntity latestProject = betInfoMapper.selectProjectByIdForUpdate(noticeReq.getTitle(), project.getProjectId());
             if (!ObjectUtils.isEmpty(latestProject)
                     && Integer.valueOf(0).equals(latestProject.getIsCancel())
-                    && Integer.valueOf(0).equals(latestProject.getIsGetprize())
-                    && Integer.valueOf(0).equals(latestProject.getPrizeStatus())) {
+                    && Integer.valueOf(0).equals(latestProject.getIsGetprize())) {
                 activeProjectIds.add(project.getProjectId());
             }
         }
