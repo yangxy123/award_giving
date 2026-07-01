@@ -3,8 +3,14 @@ package com.giving.service.impl;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -43,6 +49,18 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class OPissueToolServiceImpl implements OPissueToolService {
+    private static final int MANUAL_DISTRIBUTION_RECHECK_MAX_ATTEMPTS = 3;
+    private static final long MANUAL_DISTRIBUTION_RECHECK_DELAY_MS = 1000L;
+    private static final ScheduledExecutorService MANUAL_DISTRIBUTION_RECHECK_EXECUTOR =
+            Executors.newScheduledThreadPool(1, runnable -> {
+                Thread thread = new Thread(runnable);
+                thread.setName("manual-distribution-recheck");
+                thread.setDaemon(true);
+                return thread;
+            });
+    private static final Set<String> MANUAL_DISTRIBUTION_RECHECK_KEYS =
+            Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+
     @Autowired
     private RoomMasterMapper roomMasterMapper;
     @Autowired
@@ -82,6 +100,12 @@ public class OPissueToolServiceImpl implements OPissueToolService {
         wrapper.eq(IssueInfoEntity::getLotteryId, req.getLotteryId());
         wrapper.eq(IssueInfoEntity::getIssue, req.getIssue());
         IssueInfoEntity issueInfoEntity = issueInfoMapper.selectOne(wrapper);
+
+        if (ObjectUtils.isEmpty(issueInfoEntity)) {
+            log.info("manualDistribution main issue not exists, lotteryId={}, issue={}",
+                    req.getLotteryId(), req.getIssue());
+            return ApiResp.paramError("issue not exists");
+        }
         
         if (StringUtils.isEmpty(issueInfoEntity.getCode())) {
             log.info("========未录号===========");
@@ -101,7 +125,23 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             IssueInfoEntity issueInfo = issueInfoMapper.selectByTitle(roomMasterEntity.getTitle(), req);
             
             if(ObjectUtils.isEmpty(issueInfo)) {
-            	return ApiResp.sucess();
+                Integer pendingProjectCount = betInfoMapper.countPendingAwardProjects(
+                        roomMasterEntity.getTitle(), req.getLotteryId(), req.getIssue());
+                if (pendingProjectCount == null || pendingProjectCount <= 0) {
+                    scheduleMissingRoomIssueRecheck(roomMasterEntity, issueInfoEntity, req);
+                    log.info("manualDistribution room issue not exists and no pending award project, skip now and recheck async, title={}, masterId={}, lotteryId={}, issue={}",
+                            roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue());
+                    return ApiResp.sucess();
+                }
+
+                log.warn("manualDistribution room issue not exists but pending award projects found, recreate room issue and continue award, title={}, masterId={}, lotteryId={}, issue={}, pendingCount={}",
+                        roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue(), pendingProjectCount);
+                issueInfo = recreateRoomIssueAndSelect(roomMasterEntity.getTitle(), issueInfoEntity, req);
+                if (ObjectUtils.isEmpty(issueInfo)) {
+                    log.error("manualDistribution recreate room issue failed, title={}, masterId={}, lotteryId={}, issue={}",
+                            roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue());
+                    return ApiResp.paramError("room issue recreate failed");
+                }
             }
 
             if (StringUtils.isEmpty(issueInfo.getCode())) {
@@ -119,6 +159,68 @@ public class OPissueToolServiceImpl implements OPissueToolService {
 
         return ApiResp.sucess();
 
+    }
+
+    private IssueInfoEntity recreateRoomIssueAndSelect(String title, IssueInfoEntity issueInfoEntity, ManualDistributionReq req) {
+        issueInfoMapper.insertIssueToRoomIfAbsent(title, issueInfoEntity);
+        List<String> titles = new ArrayList<>();
+        titles.add(title);
+        issueInfoMapper.insertIssueToRooms(titles, issueInfoEntity);
+        return issueInfoMapper.selectByTitle(title, req);
+    }
+
+    private void scheduleMissingRoomIssueRecheck(RoomMasterEntity roomMasterEntity, IssueInfoEntity issueInfoEntity, ManualDistributionReq req) {
+        String recheckKey = roomMasterEntity.getTitle() + ":" + req.getLotteryId() + ":" + req.getIssue();
+        if (!MANUAL_DISTRIBUTION_RECHECK_KEYS.add(recheckKey)) {
+            return;
+        }
+        scheduleMissingRoomIssueRecheck(roomMasterEntity, issueInfoEntity, req, recheckKey, 1);
+    }
+
+    private void scheduleMissingRoomIssueRecheck(RoomMasterEntity roomMasterEntity, IssueInfoEntity issueInfoEntity,
+                                                ManualDistributionReq req, String recheckKey, int attempt) {
+        MANUAL_DISTRIBUTION_RECHECK_EXECUTOR.schedule(() ->
+                        runMissingRoomIssueRecheck(roomMasterEntity, issueInfoEntity, req, recheckKey, attempt),
+                MANUAL_DISTRIBUTION_RECHECK_DELAY_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private void runMissingRoomIssueRecheck(RoomMasterEntity roomMasterEntity, IssueInfoEntity issueInfoEntity,
+                                            ManualDistributionReq req, String recheckKey, int attempt) {
+        boolean keepRecheckKey = false;
+        try {
+            Integer pendingProjectCount = betInfoMapper.countPendingAwardProjects(
+                    roomMasterEntity.getTitle(), req.getLotteryId(), req.getIssue());
+            if (pendingProjectCount != null && pendingProjectCount > 0) {
+                IssueInfoEntity issueInfo = recreateRoomIssueAndSelect(roomMasterEntity.getTitle(), issueInfoEntity, req);
+                if (!ObjectUtils.isEmpty(issueInfo)) {
+                    log.info("manualDistribution async recheck found pending projects, enqueue award, title={}, masterId={}, lotteryId={}, issue={}, attempt={}, pendingCount={}",
+                            roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue(), attempt, pendingProjectCount);
+                    awardingProcessService.lotteryDraw(roomMasterEntity, issueInfo);
+                } else {
+                    log.error("manualDistribution async recheck recreate room issue failed, title={}, masterId={}, lotteryId={}, issue={}",
+                            roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue());
+                }
+                return;
+            }
+            if (attempt < MANUAL_DISTRIBUTION_RECHECK_MAX_ATTEMPTS) {
+                keepRecheckKey = true;
+                scheduleMissingRoomIssueRecheck(roomMasterEntity, issueInfoEntity, req, recheckKey, attempt + 1);
+            }
+        } catch (Exception e) {
+            if (attempt < MANUAL_DISTRIBUTION_RECHECK_MAX_ATTEMPTS) {
+                keepRecheckKey = true;
+                log.warn("manualDistribution async recheck failed, will retry, title={}, lotteryId={}, issue={}, attempt={}",
+                        roomMasterEntity.getTitle(), req.getLotteryId(), req.getIssue(), attempt, e);
+                scheduleMissingRoomIssueRecheck(roomMasterEntity, issueInfoEntity, req, recheckKey, attempt + 1);
+            } else {
+                log.warn("manualDistribution async recheck failed, give up, title={}, lotteryId={}, issue={}, attempt={}",
+                        roomMasterEntity.getTitle(), req.getLotteryId(), req.getIssue(), attempt, e);
+            }
+        } finally {
+            if (!keepRecheckKey) {
+                MANUAL_DISTRIBUTION_RECHECK_KEYS.remove(recheckKey);
+            }
+        }
     }
 
     @Override

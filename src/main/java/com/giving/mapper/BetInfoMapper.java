@@ -37,7 +37,7 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	 */
 	public List<BetInfoEntity> test(@Param("table")String table,@Param("where1")String param,@Param("where2")String param1);
     
-    @Update("UPDATE ${title}_projects set prize_status = 1,bonus_time = now(),is_deduct = 1,deduct_time=now() where issue = #{issue} and is_cancel = 0 and lottery_id = #{lotteryId}")
+    @Update("UPDATE ${title}_projects set prize_status = CASE WHEN is_getprize = 1 THEN 1 ELSE prize_status END,bonus_time = CASE WHEN is_getprize = 1 THEN now() ELSE bonus_time END,is_deduct = 1,deduct_time=now() where issue = #{issue} and is_cancel = 0 and lottery_id = #{lotteryId}")
     /**
      * 修改当期中奖订单派奖状态和派奖时间
      * @param title 表头
@@ -58,6 +58,10 @@ public interface BetInfoMapper extends BaseMapper<BetInfoEntity> {
 	List<BetInfoEntity> selectListByNoticeReq(@Param("noticeReq") NoticeReq noticeReq);
 
 	Integer countListByNoticeReq(@Param("noticeReq") NoticeReq noticeReq);
+
+	Integer countPendingAwardProjects(@Param("title") String title,
+									  @Param("lotteryId") Long lotteryId,
+									  @Param("issue") String issue);
 
 	List<String> selectPendingProjectIdsByProjects(@Param("title") String title, @Param("projects") List<BetInfoEntity> projects);
 

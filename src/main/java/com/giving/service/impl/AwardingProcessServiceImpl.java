@@ -10,6 +10,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
 
@@ -27,6 +29,7 @@ import com.giving.entity.RoomMasterEntity;
 import com.giving.management.DateSourceManagement;
 import com.giving.mapper.IssueHistoryMapper;
 import com.giving.mapper.IssueInfoMapper;
+import com.giving.mapper.BetInfoMapper;
 import com.giving.mapper.LotteryMapper;
 import com.giving.mapper.RoomMasterMapper;
 import com.giving.req.DrawSourceReq;
@@ -147,6 +150,18 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      */
     private static final long AWARD_TITLE_PRIORITY_CHECK_INTERVAL_MS = 100L;
 
+    private static final int AWARD_LATE_RECHECK_MAX_ATTEMPTS = 3;
+
+    private static final long AWARD_LATE_RECHECK_DELAY_MS = 1000L;
+
+    private static final ScheduledExecutorService AWARD_LATE_RECHECK_EXECUTOR =
+            Executors.newScheduledThreadPool(2, runnable -> {
+                Thread thread = new Thread(runnable);
+                thread.setName("award-late-recheck");
+                thread.setDaemon(true);
+                return thread;
+            });
+
     /**
      * 每个 title 对应一个单线程执行器。
      *
@@ -172,6 +187,9 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
     private static final Set<String> AWARD_TITLE_DRAINING =
             Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
+    private static final Set<String> AWARD_LATE_RECHECK_KEYS =
+            Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+
     /**
      * 优先队列失败后的重试时间点。
      *
@@ -185,6 +203,9 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      */
     @Autowired
     IssueInfoMapper issueInfoMapper;
+
+    @Autowired
+    BetInfoMapper betInfoMapper;
 
     /**
      * 派奖服务。
@@ -662,6 +683,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 
         // 执行真正的派奖处理。
         processAwardTitleTask(task);
+        scheduleLatePendingAwardRecheck(task);
 
         // 执行成功后删除该任务，表示 ACK 成功。
         long removed = redisUtils.lRemove(queueKey, 1, payload);
@@ -942,6 +964,79 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
         }
     }
 
+    private void scheduleLatePendingAwardRecheck(AwardTitleQueueTask task) {
+        if (task == null || Boolean.TRUE.equals(task.getLateRecheck())) {
+            return;
+        }
+        if (StringUtils.isEmpty(task.getTitle()) || StringUtils.isEmpty(task.getIssue())
+                || ObjectUtils.isEmpty(task.getLotteryId())) {
+            return;
+        }
+        String recheckKey = getLateRecheckKey(task);
+        if (!AWARD_LATE_RECHECK_KEYS.add(recheckKey)) {
+            return;
+        }
+        scheduleLatePendingAwardRecheck(task, recheckKey, 1);
+    }
+
+    private void scheduleLatePendingAwardRecheck(AwardTitleQueueTask task, String recheckKey, int attempt) {
+        AWARD_LATE_RECHECK_EXECUTOR.schedule(() ->
+                        runLatePendingAwardRecheck(task, recheckKey, attempt),
+                AWARD_LATE_RECHECK_DELAY_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private void runLatePendingAwardRecheck(AwardTitleQueueTask task, String recheckKey, int attempt) {
+        boolean keepRecheckKey = false;
+        try {
+            Integer pendingCount = betInfoMapper.countPendingAwardProjects(
+                    task.getTitle(), task.getLotteryId(), task.getIssue());
+            if (pendingCount != null && pendingCount > 0) {
+                AwardTitleQueueTask recheckTask = copyAsLateRecheckTask(task, attempt);
+                log.info("late pending award projects found, enqueue recheck task, title={}, masterId={}, lotteryId={}, issue={}, attempt={}, pendingCount={}",
+                        task.getTitle(), task.getMasterId(), task.getLotteryId(), task.getIssue(), attempt, pendingCount);
+                enqueueAwardTitleTask(recheckTask);
+                return;
+            }
+            if (attempt < AWARD_LATE_RECHECK_MAX_ATTEMPTS) {
+                keepRecheckKey = true;
+                scheduleLatePendingAwardRecheck(task, recheckKey, attempt + 1);
+            }
+        } catch (Exception e) {
+            if (attempt < AWARD_LATE_RECHECK_MAX_ATTEMPTS) {
+                keepRecheckKey = true;
+                log.warn("late pending award recheck failed, will retry, title={}, lotteryId={}, issue={}, attempt={}",
+                        task.getTitle(), task.getLotteryId(), task.getIssue(), attempt, e);
+                scheduleLatePendingAwardRecheck(task, recheckKey, attempt + 1);
+            } else {
+                log.warn("late pending award recheck failed, give up, title={}, lotteryId={}, issue={}, attempt={}",
+                        task.getTitle(), task.getLotteryId(), task.getIssue(), attempt, e);
+            }
+        } finally {
+            if (!keepRecheckKey) {
+                AWARD_LATE_RECHECK_KEYS.remove(recheckKey);
+            }
+        }
+    }
+
+    private AwardTitleQueueTask copyAsLateRecheckTask(AwardTitleQueueTask task, int attempt) {
+        AwardTitleQueueTask recheckTask = new AwardTitleQueueTask();
+        recheckTask.setTaskId(UUID.randomUUID().toString());
+        recheckTask.setTitle(task.getTitle());
+        recheckTask.setMasterId(task.getMasterId());
+        recheckTask.setLotteryId(task.getLotteryId());
+        recheckTask.setIssue(task.getIssue());
+        recheckTask.setCode(task.getCode());
+        recheckTask.setPriority(task.getPriority());
+        recheckTask.setCreatedAt(System.currentTimeMillis());
+        recheckTask.setLateRecheck(true);
+        recheckTask.setLateRecheckAttempt(attempt);
+        return recheckTask;
+    }
+
+    private String getLateRecheckKey(AwardTitleQueueTask task) {
+        return task.getTitle() + ":" + task.getLotteryId() + ":" + task.getIssue();
+    }
+
     /**
      * 拼接 Redis title 锁 key。
      *
@@ -1073,6 +1168,10 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
          * 是否优先处理。
          */
         private Boolean priority;
+
+        private Boolean lateRecheck;
+
+        private Integer lateRecheckAttempt;
 
         /**
          * 任务创建时间戳。

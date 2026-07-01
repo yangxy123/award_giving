@@ -1308,7 +1308,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
             BetInfoEntity latestProject = betInfoMapper.selectProjectByIdForUpdate(noticeReq.getTitle(), project.getProjectId());
             if (!ObjectUtils.isEmpty(latestProject)
                     && Integer.valueOf(0).equals(latestProject.getIsCancel())
-                    && Integer.valueOf(0).equals(latestProject.getIsGetprize())) {
+                    && Integer.valueOf(0).equals(latestProject.getIsGetprize())
+                    && Integer.valueOf(0).equals(latestProject.getPrizeStatus())) {
                 activeProjectIds.add(project.getProjectId());
             }
         }
