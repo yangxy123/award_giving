@@ -336,33 +336,6 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                             + "，实际更新：" + updatedWalletCount);
                 }
 
-                //批量改注单
-                if (orderType == 8){
-                    userFundMapper.doLockUserFund(title,userFundMap,4,"CR_004 解锁");
-//                    betInfoMapper.updateIsDeduct(title,betInfos);
-                    int updatedProjectCount = betInfoMapper.updateIsDeduct(title,betInfos);
-                    if(updatedProjectCount != betInfos.size()){
-                        throw new RuntimeException("修改结算状态失败，应更新：" + betInfos.size()
-                                + "，实际更新：" + updatedProjectCount);
-                    }
-
-                }else if (orderType == 5){
-                    userFundMapper.doLockUserFund(title,userFundMap,5,"CP_003 解锁");
-//                    betInfoMapper.updatePrizeStatus(title,betInfos);
-                    int updatedProjectCount = betInfoMapper.updatePrizeStatus(title,betInfos);
-                    if(updatedProjectCount != betInfos.size()){
-                        throw new RuntimeException("修改派奖状态失败，应更新：" + betInfos.size()
-                                + "，实际更新：" + updatedProjectCount);
-                    }
-                }
-                else if(orderType == 4){
-                    userFundMapper.doLockUserFund(title,userFundMap,4,"CR_004 解锁");
-                    //成功後更改返點狀態
-                    betInfoMapper.updatePoint(title,betInfos);
-                    userDiffpointsMapper.updateThreshold(title,betInfos);
-                }
-
-
                 //批量插入orders
                 int insertedOrderCount = ordersMapper.addOrdersListAll(ordersList,title);
                 if(insertedOrderCount != ordersList.size()){
@@ -372,6 +345,33 @@ public class OrdersToolServiceImpl implements OrdersToolService {
                 if (orderType == 5 && (roomMaster.getUserWalletType() == 0 || roomMaster.getUserWalletType() == 1 || roomMaster.getUserWalletType() == 2 || roomMaster.getUserWalletType() == 3)){
                     roomMasterMapper.createSpeculationList(roomMaster,ordersList);
                 }
+
+                if (orderType == 8){
+//                    betInfoMapper.updateIsDeduct(title,betInfos);
+                    int updatedProjectCount = betInfoMapper.updateIsDeduct(title,betInfos);
+                    if(updatedProjectCount != betInfos.size()){
+                        throw new RuntimeException("修改结算状态失败，应更新：" + betInfos.size()
+                                + "，实际更新：" + updatedProjectCount);
+                    }
+                    userFundMapper.doLockUserFund(title,userFundMap,4,"CR_004 解锁");
+
+                }else if (orderType == 5){
+//                    betInfoMapper.updatePrizeStatus(title,betInfos);
+                    int updatedProjectCount = betInfoMapper.updatePrizeStatus(title,betInfos);
+                    if(updatedProjectCount != betInfos.size()){
+                        throw new RuntimeException("修改派奖状态失败，应更新：" + betInfos.size()
+                                + "，实际更新：" + updatedProjectCount);
+                    }
+                    userFundMapper.doLockUserFund(title,userFundMap,5,"CP_003 解锁");
+                }
+                else if(orderType == 4){
+                    //成功後更改返點狀態
+                    betInfoMapper.updatePoint(title,betInfos);
+                    userDiffpointsMapper.updateThreshold(title,betInfos);
+                    userFundMapper.doLockUserFund(title,userFundMap,4,"CR_004 解锁");
+                }
+
+
                 /*if(orderType == 8){
                     redisUtils.set(RedisKeyEnums.C_PROFIT_DATA.key, JSONUtils.toJSONString(map));
                 }*/
