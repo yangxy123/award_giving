@@ -57,8 +57,8 @@ import lombok.extern.slf4j.Slf4j;
  * <p>重要说明：</p>
  * <ul>
  *     <li>同一个 title 下的任务是单线程串行处理。</li>
- *     <li>如果队首任务一直失败，后面的任务会一直等待。</li>
- *     <li>失败任务当前会保留在队列中等待重试，避免任务丢失，但也可能造成队首阻塞。</li>
+ *     <li>失败任务会保留在队列中等待重试。</li>
+ *     <li>当失败任务后面还有其他任务时，会把失败任务挪到队尾，避免阻塞同 title 后续任务。</li>
  * </ul>
  *
  * @author zzby
@@ -573,8 +573,8 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
      * <p>重要风险：</p>
      * <ul>
      *     <li>当前是 lGetIndex(queueKey, 0) 取队首，成功后 lRemove。</li>
-     *     <li>如果队首任务一直失败，它不会被删除，后面的任务会一直处理不到。</li>
-     *     <li>这就是多个任务进来后“后面一直等”的主要原因。</li>
+     *     <li>如果队首任务失败且后面还有任务，会把失败任务挪到队尾继续重试。</li>
+     *     <li>这样可以避免多个任务进来后“后面一直等”。</li>
      * </ul>
      *
      * @param title 厅组 title
@@ -607,14 +607,18 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
 
                 processAwardTitleQueueHead(title, queueKey);
             } catch (Exception e) {
-                // 发生异常时不删除任务，让任务保留在队列中等待重试。
-                // 注意：如果这个任务每次都失败，它会一直停留在队首，导致后面的任务永远处理不到。
+                // 发生异常时保留任务，但如果队列后面还有任务，把失败队首挪到队尾，避免卡住同 title 后续任务。
                 log.error("后台验派title队列任务执行失败，保留队列等待重试，title={}，queueKey={}", title, queueKey, e);
+                boolean movedFailedHead = moveFailedAwardTitleQueueHeadToTail(title, queueKey);
 
                 if (isAwardTitlePriorityQueue(title, queueKey)
                         && redisUtils.lGetListSize(getAwardTitleQueueKey(title)) > 0) {
                     markAwardTitlePriorityFailure(title);
                     log.warn("后台验派优先任务失败，普通队列仍有任务，先返回普通队列处理，title={}", title);
+                    continue;
+                }
+                if (movedFailedHead) {
+                    log.warn("后台验派title失败队首任务已挪到队尾，继续处理后续任务，title={}，queueKey={}", title, queueKey);
                     continue;
                 }
 
@@ -642,6 +646,7 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                 processAwardTitleQueueHead(title, priorityQueueKey);
                 clearAwardTitlePriorityFailure(title);
             } catch (Exception e) {
+                moveFailedAwardTitleQueueHeadToTail(title, priorityQueueKey);
                 markAwardTitlePriorityFailure(title);
                 log.error("后台验派优先任务执行失败，保留优先队列并返回普通任务，title={}，queueKey={}",
                         title, priorityQueueKey, e);
@@ -962,6 +967,40 @@ public class AwardingProcessServiceImpl implements AwardingProcessService {
                 return;
             }
         }
+    }
+
+    /**
+     * 将失败的队首任务挪到队尾。
+     *
+     * <p>任务失败仍然要保留等待后续重试，但不能让一个异常任务长期挡住同 title 后续任务。</p>
+     *
+     * @return true 表示已挪动，可以继续消费后续任务；false 表示未挪动，外层应 sleep 后退出。
+     */
+    private boolean moveFailedAwardTitleQueueHeadToTail(String title, String queueKey) {
+        if (StringUtils.isEmpty(queueKey)) {
+            return false;
+        }
+        long queueSize = redisUtils.lGetListSize(queueKey);
+        if (queueSize <= 1) {
+            return false;
+        }
+        Object queuedValue = redisUtils.lGetIndex(queueKey, 0);
+        if (queuedValue == null) {
+            return false;
+        }
+        String payload = String.valueOf(queuedValue);
+        if (!redisUtils.lSet(queueKey, payload)) {
+            log.error("后台验派title失败队首任务挪尾失败，追加队尾失败，title={}，queueKey={}，queueSize={}",
+                    title, queueKey, queueSize);
+            return false;
+        }
+        long removed = redisUtils.lRemove(queueKey, 1, payload);
+        if (removed <= 0) {
+            log.warn("后台验派title失败队首任务挪尾失败，队首删除失败，可能产生重复排队，title={}，queueKey={}，queueSize={}",
+                    title, queueKey, queueSize);
+            return false;
+        }
+        return true;
     }
 
     private void scheduleLatePendingAwardRecheck(AwardTitleQueueTask task) {
