@@ -82,12 +82,6 @@ public class OPissueToolServiceImpl implements OPissueToolService {
         wrapper.eq(IssueInfoEntity::getLotteryId, req.getLotteryId());
         wrapper.eq(IssueInfoEntity::getIssue, req.getIssue());
         IssueInfoEntity issueInfoEntity = issueInfoMapper.selectOne(wrapper);
-
-        if (ObjectUtils.isEmpty(issueInfoEntity)) {
-            log.info("manualDistribution main issue not exists, lotteryId={}, issue={}",
-                    req.getLotteryId(), req.getIssue());
-            return ApiResp.paramError("issue not exists");
-        }
         
         if (StringUtils.isEmpty(issueInfoEntity.getCode())) {
             log.info("========未录号===========");
@@ -107,26 +101,7 @@ public class OPissueToolServiceImpl implements OPissueToolService {
             IssueInfoEntity issueInfo = issueInfoMapper.selectByTitle(roomMasterEntity.getTitle(), req);
             
             if(ObjectUtils.isEmpty(issueInfo)) {
-                Integer pendingProjectCount = betInfoMapper.countPendingManualDistributionProjects(
-                        roomMasterEntity.getTitle(), req.getLotteryId(), req.getIssue());
-                if (pendingProjectCount == null || pendingProjectCount <= 0) {
-                    log.info("manualDistribution room issue not exists and no pending award project, skip award, title={}, masterId={}, lotteryId={}, issue={}",
-                            roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue());
-                    return ApiResp.sucess();
-                }
-
-                log.warn("manualDistribution room issue not exists but pending award projects found, recreate room issue and continue award, title={}, masterId={}, lotteryId={}, issue={}, pendingCount={}",
-                        roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue(), pendingProjectCount);
-                issueInfoMapper.insertIssueToRoomIfAbsent(roomMasterEntity.getTitle(), issueInfoEntity);
-                List<String> titles = new ArrayList<>();
-                titles.add(roomMasterEntity.getTitle());
-                issueInfoMapper.insertIssueToRooms(titles, issueInfoEntity);
-                issueInfo = issueInfoMapper.selectByTitle(roomMasterEntity.getTitle(), req);
-                if (ObjectUtils.isEmpty(issueInfo)) {
-                    log.error("manualDistribution recreate room issue failed, title={}, masterId={}, lotteryId={}, issue={}",
-                            roomMasterEntity.getTitle(), req.getMasterId(), req.getLotteryId(), req.getIssue());
-                    return ApiResp.paramError("room issue recreate failed");
-                }
+            	return ApiResp.sucess();
             }
 
             if (StringUtils.isEmpty(issueInfo.getCode())) {
