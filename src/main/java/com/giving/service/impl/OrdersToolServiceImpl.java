@@ -10,6 +10,7 @@ import com.giving.service.AwardGivingService;
 import com.giving.service.AwardingProcessService;
 import com.giving.service.OrdersToolService;
 import com.giving.service.ProfitDataService;
+import com.giving.service.TelegramNoticeService;
 import com.giving.service.UserFundLockTxService;
 import com.giving.util.RedisUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,6 +68,8 @@ public class OrdersToolServiceImpl implements OrdersToolService {
     private TempIssueInfoMapper tempIssueInfoMapper;
     @Autowired
     private ProfitDataService profitDataService;
+    @Autowired
+    private TelegramNoticeService telegramNoticeService;
 
     //执行钱包操作 type5--0001
     @Override
@@ -393,6 +396,7 @@ public class OrdersToolServiceImpl implements OrdersToolService {
             }
             profitDataService.addPriceAfterCommit(roomMaster, profitPriceProjects);
             profitDataService.addBonusAfterCommit(roomMaster, profitBonusProjects);
+            telegramNoticeService.sendLargeBonusAwardWarningAfterCommit(roomMaster, profitBonusProjects);
             if (redisLockDeferredOrderCount > 0) {
                 log.warn("用户钱包Redis锁连续尝试{}次仍未获取，本次订单保持原状态，厅主表名={}，账变类型={}，跳过用户数={}，跳过订单数={}",
                         WALLET_REDIS_LOCK_RETRY_TIMES, title, orderType,

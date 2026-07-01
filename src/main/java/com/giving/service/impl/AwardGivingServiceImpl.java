@@ -48,6 +48,7 @@ import com.giving.service.AwardGivingService;
 import com.giving.service.OPissueToolService;
 import com.giving.service.OrdersToolService;
 import com.giving.service.ProfitDataService;
+import com.giving.service.TelegramNoticeService;
 import com.giving.util.JdbcCreateSqlUtil;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -84,6 +85,8 @@ public class AwardGivingServiceImpl implements AwardGivingService {
     private PlatformTransactionManager transactionManager;
     @Autowired
     private ProfitDataService profitDataService;
+    @Autowired
+    private TelegramNoticeService telegramNoticeService;
 
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -1558,6 +1561,7 @@ public class AwardGivingServiceImpl implements AwardGivingService {
 
         profitDataService.addPriceAfterCommit(roomMaster, pageBetList);
         profitDataService.addBonusAfterCommit(roomMaster, profitBonusProjects);
+        telegramNoticeService.sendLargeBonusAwardWarningAfterCommit(roomMaster, profitBonusProjects);
 
         if (finishIssueDeduct) {
             tempIssueInfoEntity.setStatusDeduct(2);
